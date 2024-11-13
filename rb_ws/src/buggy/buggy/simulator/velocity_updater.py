@@ -1,24 +1,25 @@
 #! /usr/bin/env python3
+import sys
+import math
 import rclpy
 from rclpy.node import Node
-import sys
 from controller_2d import Controller
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 import threading
-import math
 
 class VelocityUpdater(Node):
     RATE = 100
     # Bubbles for updating acceleration based on position
     # represented as 4-tuples: (x-pos, y-pos, radius, acceleration)
+    # need further update such as more data or import data from certain files
     CHECKPOINTS = [
         (589701, 4477160, 20, 0.5)
     ]
 
     def __init__(self, init_vel: float, buggy_name: str):
         super().__init__('vel_updater')
-        
+
         self.buggy_vel = init_vel
         self.accel = 0.0
         self.position = Point()
@@ -52,7 +53,7 @@ class VelocityUpdater(Node):
         in self.CHECKPOINTS, and update acceleration of buggy accordingly
         '''
         for (x, y, r, a) in self.CHECKPOINTS:
-            dist = math.sqrt((x - self.position.x)**2 + (y - self.position.y)**2)
+            dist = math.sqrt((x-self.position.x)**2 + (y-self.position.y)**2)
             if dist < r:
                 self.accel = a
                 break

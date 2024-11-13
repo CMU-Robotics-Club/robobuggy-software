@@ -9,9 +9,9 @@ from rclpy.node import Node
 class VelocityUI(Node):
     def __init__(self, init_vel: float, buggy_name: str):
         super().__init__('velocity_ui')
-        
+
         # So the buggy doesn't start moving without user input
-        self.buggy_vel = 0  
+        self.buggy_vel = 0
         self.controller = Controller(buggy_name)
         self.lock = threading.Lock()
 
@@ -21,14 +21,16 @@ class VelocityUI(Node):
         self.root.geometry('600x100')
         self.root.configure(background='#342d66')
 
-        self.scale = tk.Scale(self.root, from_=0, to=300, orient=tk.HORIZONTAL, length=500, width=30)
+        self.scale = tk.Scale(self.root, from_=0, to=300, orient=tk.HORIZONTAL,
+                              length=500, width=30)
         self.scale.pack()
 
         self.root.bind("<Up>", lambda i: self.scale.set(self.scale.get() + 2))
         self.root.bind("<Down>", lambda d: self.scale.set(self.scale.get() - 2))
 
         # ROS2 timer for stepping
-        self.create_timer(0.01, self.step)  # equivalent to 100Hz (100 times per second)
+        # 0.01 is equivalent to 100Hz (100 times per second)
+        self.create_timer(0.01, self.step)  
 
     def step(self):
         # Sets the velocity of the buggy to the current scale value
@@ -36,7 +38,8 @@ class VelocityUI(Node):
         self.root.update_idletasks()
         self.root.update()
         # Update velocity of the buggy
-        self.buggy_vel = self.scale.get() / 10  # set velocity with 0.1 precision
+        # '/10' set velocity with 0.1 precision
+        self.buggy_vel = self.scale.get() / 10
         self.controller.set_velocity(self.buggy_vel)
 
 def main(args=None):
