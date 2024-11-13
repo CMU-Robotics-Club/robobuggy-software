@@ -30,7 +30,7 @@ class VelocityUI(Node):
 
         # ROS2 timer for stepping
         # 0.01 is equivalent to 100Hz (100 times per second)
-        self.create_timer(0.01, self.step)  
+        self.create_timer(0.01, self.step)
 
     def step(self):
         # Sets the velocity of the buggy to the current scale value

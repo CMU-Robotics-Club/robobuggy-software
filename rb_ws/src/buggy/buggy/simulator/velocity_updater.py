@@ -1,17 +1,18 @@
 #! /usr/bin/env python3
 import sys
 import math
+import threading
 import rclpy
 from rclpy.node import Node
 from controller_2d import Controller
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
-import threading
 
 class VelocityUpdater(Node):
     RATE = 100
     # Bubbles for updating acceleration based on position
     # represented as 4-tuples: (x-pos, y-pos, radius, acceleration)
+    # 'list[tuple[float,float,float,float]]'
     # need further update such as more data or import data from certain files
     CHECKPOINTS = [
         (589701, 4477160, 20, 0.5)
