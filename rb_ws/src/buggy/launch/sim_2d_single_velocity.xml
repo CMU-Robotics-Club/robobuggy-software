@@ -1,0 +1,26 @@
+<launch>
+
+    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
+    <node pkg="buggy" exec="hello_world" name="hello_world" namespace="SC" />
+    <node pkg="buggy" exec="sim_single" name="SC_sim_single" namespace="SC">
+        <param name="velocity" value="12"/>
+        <param name="pose" value="Hill1_SC"/>
+    </node>
+    <node pkg="buggy" exec="sim_single" name="NAND_sim_single" namespace="NAND">
+        <param name="velocity" value="12"/>
+        <param name="pose" value="Hill1_NAND"/>
+    </node>
+
+    <!-- velocity ui and updater nodes -->
+    <node pkg="buggy" exec="velocity_ui" name="velocity_ui" namespace="SC">
+        <param name="initial_vel" value="12"/>
+        <param name="buggy_name" value="SC"/>
+    </node>
+    <node pkg="buggy" exec="VelocityUpdater" name="velocity_updater" namespace="SC">
+        <param name="initial_vel" value="12"/>
+        <param name="buggy_name" value="SC"/>
+    </node>
+
+    <!-- <node name="foxglove" pkg="foxglove_bridge" type="foxglove_bridge" />
+    <node name="hello_world" pkg="buggy" type="hello_world" /> -->
+</launch>

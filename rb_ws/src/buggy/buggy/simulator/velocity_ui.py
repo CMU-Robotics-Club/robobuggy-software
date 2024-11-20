@@ -52,15 +52,11 @@ def main(args=None):
     init_vel = float(sys.argv[1])
     buggy_name = sys.argv[2]
 
-    vel_ui = VelocityUI(init_vel, buggy_name)
+    velocity_ui = VelocityUI(init_vel, buggy_name)
 
-    try:
-        rclpy.spin(vel_ui)
-    except KeyboardInterrupt:
-        print("Shutting down velocity UI")
-    finally:
-        vel_ui.destroy_node()
-        rclpy.shutdown()
+    rclpy.spin(velocity_ui)
+    velocity_ui.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == "__main__":
     main()

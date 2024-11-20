@@ -15,7 +15,7 @@ class VelocityUpdater(Node):
     # 'list[tuple[float,float,float,float]]'
     # need further update such as more data or import data from certain files
     CHECKPOINTS = [
-        (589701, 4477160, 20, 0.5)
+        (589701, 4477160, 20, 5)
     ]
 
     def __init__(self, init_vel: float, buggy_name: str):
@@ -76,15 +76,11 @@ def main(args=None):
     init_vel = float(sys.argv[1])
     buggy_name = sys.argv[2]
 
-    vel_updater = VelocityUpdater(init_vel, buggy_name)
+    velocity_updater = VelocityUpdater(init_vel, buggy_name)
 
-    try:
-        rclpy.spin(vel_updater)
-    except KeyboardInterrupt:
-        print("Shutting down velocity updater")
-    finally:
-        vel_updater.destroy_node()
-        rclpy.shutdown()
+    rclpy.spin(velocity_updater)
+    velocity_updater.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == "__main__":
     main()
