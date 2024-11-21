@@ -2,22 +2,35 @@
 import sys
 import threading
 import tkinter as tk
-from controller_2d import Controller
+# from controller_2d import Controller
 import rclpy
 from rclpy.node import Node
 
 class VelocityUI(Node):
-    def __init__(self, init_vel: float, buggy_name: str):
+    def __init__(self):
         super().__init__('velocity_ui')
+        self.get_logger().info('INITIALIZED.')
 
-        # So the buggy doesn't start moving without user input
-        self.buggy_vel = 0
-        self.controller = Controller(buggy_name)
-        self.lock = threading.Lock()
+        # Declare parameters with default values
+        self.declare_parameter('init_vel', 12)
+        self.declare_parameter('buggy_name', 'SC')
+        # Get the parameter values
+        self.init_vel = self.get_parameter("init_vel").value
+        self.buggy_name = self.get_parameter("buggy_name").value
 
+        # initialize variables
+        # TODO: uncomment after controller is implemented
+        # # So the buggy doesn't start moving without user input
+        # self.buggy_vel = 0
+        # # self.controller = Controller(buggy_name)
+        # self.lock = threading.Lock()
+
+        self.buggy_vel = self.init_vel
+
+        # TODO: This line currently generate error
         self.root = tk.Tk()
 
-        self.root.title(buggy_name + ' Manual Velocity: scale = 0.1m/s')
+        self.root.title(self.buggy_name + ' Manual Velocity: scale = 0.1m/s')
         self.root.geometry('600x100')
         self.root.configure(background='#342d66')
 
@@ -30,7 +43,7 @@ class VelocityUI(Node):
 
         # ROS2 timer for stepping
         # 0.01 is equivalent to 100Hz (100 times per second)
-        self.create_timer(0.01, self.step)
+        # self.create_timer(0.01, self.step)
 
     def step(self):
         # Sets the velocity of the buggy to the current scale value
@@ -40,22 +53,13 @@ class VelocityUI(Node):
         # Update velocity of the buggy
         # '/10' set velocity with 0.1 precision
         self.buggy_vel = self.scale.get() / 10
-        self.controller.set_velocity(self.buggy_vel)
+        # TODO: uncomment after controller is implemented
+        # self.controller.set_velocity(self.buggy_vel)
 
 def main(args=None):
     rclpy.init(args=args)
-
-    if len(sys.argv) < 3:
-        print("Usage: velocity_ui <initial_velocity> <buggy_name>")
-        sys.exit(1)
-
-    init_vel = float(sys.argv[1])
-    buggy_name = sys.argv[2]
-
-    velocity_ui = VelocityUI(init_vel, buggy_name)
-
-    rclpy.spin(velocity_ui)
-    velocity_ui.destroy_node()
+    vel_ui = VelocityUI()
+    rclpy.spin(vel_ui)
     rclpy.shutdown()
 
 if __name__ == "__main__":

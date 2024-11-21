@@ -12,12 +12,12 @@
     </node>
 
     <!-- velocity ui and updater nodes -->
-    <node pkg="buggy" exec="velocity_ui" name="velocity_ui" namespace="SC">
-        <param name="initial_vel" value="12"/>
+    <node pkg="buggy" exec="velocity_ui" name="SC_velocity_ui" namespace="SC">
+        <param name="init_vel" value="12"/>
         <param name="buggy_name" value="SC"/>
     </node>
-    <node pkg="buggy" exec="VelocityUpdater" name="velocity_updater" namespace="SC">
-        <param name="initial_vel" value="12"/>
+    <node pkg="buggy" exec="velocity_updater" name="SC_velocity_updater" namespace="SC">
+        <param name="init_vel" value="12"/>
         <param name="buggy_name" value="SC"/>
     </node>
 

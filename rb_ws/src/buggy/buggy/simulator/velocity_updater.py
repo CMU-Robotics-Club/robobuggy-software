@@ -4,7 +4,7 @@ import math
 import threading
 import rclpy
 from rclpy.node import Node
-from controller_2d import Controller
+# from controller_2d import Controller
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 
@@ -15,23 +15,32 @@ class VelocityUpdater(Node):
     # 'list[tuple[float,float,float,float]]'
     # need further update such as more data or import data from certain files
     CHECKPOINTS = [
-        (589701, 4477160, 20, 5)
+        (589701, 4477160, 20, 0.5)
     ]
 
-    def __init__(self, init_vel: float, buggy_name: str):
-        super().__init__('vel_updater')
+    def __init__(self):
+        super().__init__('velocity_updater')
+        self.get_logger().info('INITIALIZED.')
 
-        self.buggy_vel = init_vel
+        # Declare parameters with default values
+        self.declare_parameter('init_vel', 12)
+        self.declare_parameter('buggy_name', 'SC')
+        # Get the parameter values
+        self.init_vel = self.get_parameter("init_vel").value
+        self.buggy_name = self.get_parameter("buggy_name").value
+
+        # initialize variables
+        self.buggy_vel = self.init_vel
         self.accel = 0.0
         self.position = Point()
-        self.controller = Controller(buggy_name)
-
-        self.lock = threading.Lock()
+        # TODO: uncomment after controller is implemented
+        # self.controller = Controller(self.buggy_name)
+        # self.lock = threading.Lock()
 
         # ROS2 subscription
         self.pose_subscriber = self.create_subscription(
             Pose,
-            f"{buggy_name}/sim_2d/utm",
+            f"{self.buggy_name}/sim_2d/utm",
             self.update_position,
             10  # QoS profile
         )
@@ -64,22 +73,13 @@ class VelocityUpdater(Node):
         self.calculate_accel()
         new_velocity = self.buggy_vel + self.accel / self.RATE
         self.buggy_vel = new_velocity
-        self.controller.set_velocity(new_velocity)
+        # TODO: uncomment after controller is implemented
+        # self.controller.set_velocity(new_velocity)
 
 def main(args=None):
     rclpy.init(args=args)
-
-    if len(sys.argv) < 3:
-        print("Usage: vel_updater <initial_velocity> <buggy_name>")
-        sys.exit(1)
-
-    init_vel = float(sys.argv[1])
-    buggy_name = sys.argv[2]
-
-    velocity_updater = VelocityUpdater(init_vel, buggy_name)
-
-    rclpy.spin(velocity_updater)
-    velocity_updater.destroy_node()
+    vel_updater = VelocityUpdater()
+    rclpy.spin(vel_updater)
     rclpy.shutdown()
 
 if __name__ == "__main__":
