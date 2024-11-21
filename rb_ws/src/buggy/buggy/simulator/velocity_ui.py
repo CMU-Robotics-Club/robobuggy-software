@@ -5,6 +5,7 @@ import tkinter as tk
 # from controller_2d import Controller
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Float64
 
 class VelocityUI(Node):
     def __init__(self):
@@ -27,7 +28,12 @@ class VelocityUI(Node):
 
         self.buggy_vel = self.init_vel
 
-        # TODO: This line currently generate error
+        # TODO: remove after controller is implemented
+        # publish velocity 
+        self.velocity_publisher = self.create_publisher(Float64, "velocity", 1)
+
+
+        # TODO: tk is not displaying rn
         self.root = tk.Tk()
 
         self.root.title(self.buggy_name + ' Manual Velocity: scale = 0.1m/s')
@@ -53,8 +59,14 @@ class VelocityUI(Node):
         # Update velocity of the buggy
         # '/10' set velocity with 0.1 precision
         self.buggy_vel = self.scale.get() / 10
+
         # TODO: uncomment after controller is implemented
         # self.controller.set_velocity(self.buggy_vel)
+
+        # TODO: remove after controller is implemented
+        float_64_velocity = Float64()
+        float_64_velocity.data = float(self.buggy_vel)
+        self.velocity_publisher .publish(float_64_velocity)
 
 def main(args=None):
     rclpy.init(args=args)

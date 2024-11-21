@@ -26,7 +26,7 @@ setup(
         'console_scripts': [
             'hello_world = buggy.hello_world:main',
             'sim_single = buggy.simulator.engine:main',
-            'velocity_ui = buggy.simulator.velocity_ui:main',
+            # 'velocity_ui = buggy.simulator.velocity_ui:main',
             'velocity_updater = buggy.simulator.velocity_updater:main',
             'watchdog = buggy.watchdog.watchdog_node:main'
         ],

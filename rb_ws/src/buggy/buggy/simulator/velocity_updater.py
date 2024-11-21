@@ -7,6 +7,7 @@ from rclpy.node import Node
 # from controller_2d import Controller
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
+from std_msgs.msg import Float64
 
 class VelocityUpdater(Node):
     RATE = 100
@@ -15,7 +16,8 @@ class VelocityUpdater(Node):
     # 'list[tuple[float,float,float,float]]'
     # need further update such as more data or import data from certain files
     CHECKPOINTS = [
-        (589701, 4477160, 20, 0.5)
+        # (589701, 4477160, 20, 0.5)
+        (589701, 4477160, 10000000000, 100) # for testing
     ]
 
     def __init__(self):
@@ -37,13 +39,17 @@ class VelocityUpdater(Node):
         # self.controller = Controller(self.buggy_name)
         # self.lock = threading.Lock()
 
-        # ROS2 subscription
+        # subscribe pose
         self.pose_subscriber = self.create_subscription(
             Pose,
             f"{self.buggy_name}/sim_2d/utm",
             self.update_position,
             10  # QoS profile
         )
+
+        # TODO: remove after controller is implemented
+        # publish velocity 
+        self.velocity_publisher = self.create_publisher(Float64, "velocity", 1)
 
         # ROS2 timer for stepping
         self.timer = self.create_timer(1.0 / self.RATE, self.step)
@@ -73,8 +79,14 @@ class VelocityUpdater(Node):
         self.calculate_accel()
         new_velocity = self.buggy_vel + self.accel / self.RATE
         self.buggy_vel = new_velocity
+
         # TODO: uncomment after controller is implemented
         # self.controller.set_velocity(new_velocity)
+
+        # TODO: remove after controller is implemented
+        float_64_velocity = Float64()
+        float_64_velocity.data = float(new_velocity)
+        self.velocity_publisher.publish(float_64_velocity)
 
 def main(args=None):
     rclpy.init(args=args)
