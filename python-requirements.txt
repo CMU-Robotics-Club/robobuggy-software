@@ -5,6 +5,7 @@ numpy
 osqp
 pandas
 pymap3d
+pyproj
 scipy
 setuptools==58.2.0
 trimesh
