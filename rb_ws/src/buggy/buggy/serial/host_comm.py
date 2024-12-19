@@ -58,28 +58,88 @@ SYNC_WORD = b'\xAA\xFF\x00\x55'
 
 MAX_PAYLOAD_LEN = 100
 
-MSG_TYPE_DEBUG    = b'DB'
-MSG_TYPE_ODOMETRY = b'OD'
+
+# firmware --> software
+MSG_TYPE_NAND_DEBUG = b'ND'
+MSG_TYPE_NAND_UKF = b'NU'
+MSG_TYPE_NAND_GPS = b'NG'
+MSG_TYPE_RADIO = b'RA'
+MSG_TYPE_SC_DEBUG = b'SD'
+MSG_TYPE_SC_SENSORS = b'SS'
+MSG_TYPE_ROUNDTRIP_TIMESTAMP = b'RT'
+
+# software --> firmware
 MSG_TYPE_STEERING = b'ST'
-MSG_TYPE_BRAKE    = b'BR'
 MSG_TYPE_ALARM    = b'AL'
-MSG_TYPE_BNYATEL  = b'BT'
+MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
+
+
 
 @dataclass
-class Odometry:
-    x: float
-    y: float
-    radio_seqnum: int
+class NANDDebug:
+    timestamp: int
+    rc_steering_angle: float
+    stepper_steering_angle: float
+    accelerometer: float
+    encoder_angle: float
+    operator_ready: bool
+    brake_status: bool
+    auton_steer: bool
+    rfm69_timeout: bool
+    tx12_state: bool
+    stepper_alarm: bool
+    rc_uplink_quality: int
+
+@dataclass
+class NANDUKF:
+    timestamp: int
+    easting: float
+    northing: float
+    theta: float
+    omega: float
+    velocity: float
+
+@dataclass
+class NANDGPS:
     gps_seqnum: int
+    easting: float
+    northing: float
+    gps_fix: int
+    # this is a 2D accuracy value
+    accuracy: int
+    timestamp: int
 
 @dataclass
-class BnyaTelemetry:
-    x: float
-    y: float
-    velocity: float # In METERS / SECOND
-    steering: float # In DEGREES
-    heading: float  # In RADIANS
-    heading_rate: float  # In RADIANS / SECOND
+class Radio:
+    gps_seqnum: int
+    nand_x_gps: float
+    nand_y_gps: float
+    nand_gps_fix: float
+
+@dataclass
+class SCDebug:
+    timestamp: int
+    rc_steering_angle: float
+    stepper_steering_angle: float
+    # encoder_angle: float
+    operator_ready: bool
+    brake_status: bool
+    auton_steer: bool
+    tx12_state: bool
+    stepper_alarm: bool
+    rc_uplink_quality: int
+
+
+@dataclass
+class SCSensors:
+    steering: float
+    # velocity: float
+    timestamp: int
+
+@dataclass
+class RoundtripTimestamp:
+    returned_time: int
+
 
 class IncompletePacket(Exception):
     pass
@@ -115,9 +175,11 @@ class Comms:
     def send_alarm(self, status: int):
         self.send_packet_raw(MSG_TYPE_ALARM, struct.pack('<B', status))
 
+    def send_timestamp(self, time: float):
+        self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<d', time))
+
     def read_packet_raw(self):
         self.rx_buffer += self.port.read_all() #type:ignore
-
         try:
             return self._try_parse_buffer()
         except IncompletePacket:
@@ -184,21 +246,37 @@ class Comms:
             return None
 
         msg_type, payload = packet
-        if msg_type == MSG_TYPE_ODOMETRY:
-            # Odometry message
+        if msg_type == MSG_TYPE_NAND_DEBUG:
+            x, y, radio_seqnum, gps_seqnum = struct.unpack('<Idddd??????B', payload)
+            return NANDDebug(x, y, radio_seqnum, gps_seqnum)
+
+        elif msg_type == MSG_TYPE_NAND_UKF:
             x, y, radio_seqnum, gps_seqnum = struct.unpack('<ddII', payload)
-            return Odometry(x, y, radio_seqnum, gps_seqnum)
-        elif msg_type == MSG_TYPE_DEBUG:
-            # Debug message
-            debug = struct.unpack('<fff??B?BBxx', payload)
-            # print(debug)
-            return debug
-        elif msg_type == MSG_TYPE_BNYATEL:
+            return NANDUKF(x, y, radio_seqnum, gps_seqnum)
+
+        elif msg_type == MSG_TYPE_NAND_GPS:
             x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
-            return BnyaTelemetry(x, y, vel, steering, heading, heading_rate)
+            return NANDGPS(x, y, vel, steering, heading, heading_rate)
+
+        elif msg_type == MSG_TYPE_RADIO:
+            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
+            return Radio(x, y, vel, steering, heading, heading_rate)
+
+        elif msg_type == MSG_TYPE_SC_DEBUG:
+            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
+            return SCDebug(x, y, vel, steering, heading, heading_rate)
+
+        elif msg_type == MSG_TYPE_SC_SENSORS:
+            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
+            return SCSensors(x, y, vel, steering, heading, heading_rate)
+
+        elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
+            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
+            return RoundtripTimestamp(x, y, vel, steering, heading, heading_rate)
         else:
+            print(f'Unknown packet type {msg_type}')
             return None
-            # print(f'Unknown packet type {msg_type}')
+
 
 
 def main():

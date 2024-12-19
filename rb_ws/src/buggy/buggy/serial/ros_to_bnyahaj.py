@@ -18,13 +18,6 @@ class Translator(Node):
     Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
     Performs reading (from Bnya Serial) and writing (from Ros Topics) on different python threads, so
     be careful of multithreading synchronizaiton issues.
-    SC:
-    (ROS) Self Steering topic --> (Bnyahaj) Stepper Motor
-    (Bnyahaj) NAND Odom --> (ROS) NAND Odom topic
-
-    NAND:
-    (ROS) Self Steering --> (Bnyahaj) Stepper Motor
-    (Bnyahaj) Self Odom from UKF --> (ROS) NAND Odom topic
     """
 
     def __init__(self, self_name, other_name, teensy_name):
