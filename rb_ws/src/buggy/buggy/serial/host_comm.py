@@ -76,64 +76,82 @@ MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
 
 
 @dataclass
-class NANDDebug:
+class NANDDebugInfo:
+    # 64 bits
+    heading_rate: float # double
+    encoder_angle: float # double
+    # 32 bits
     timestamp: int
     rc_steering_angle: float
-    stepper_steering_angle: float
-    accelerometer: float
-    encoder_angle: float
+    software_steering_angle: float
+    true_steering_angle: float
+    rfm69_timeout_num: int
+    # 8 bits
     operator_ready: bool
     brake_status: bool
     auton_steer: bool
-    rfm69_timeout: bool
     tx12_state: bool
-    stepper_alarm: bool
-    rc_uplink_quality: int
+    stepper_alarm: int # unsigned char
+    rc_uplink_quality: int # uint8
 
 @dataclass
 class NANDUKF:
+    # 64 bits
+    easting: float # double
+    northing: float # double
+    theta: float # double
+    heading_rate: float # double
+    velocity: float # double
+    # 32 bits
     timestamp: int
-    easting: float
-    northing: float
-    theta: float
-    omega: float
-    velocity: float
 
 @dataclass
-class NANDGPS:
-    gps_seqnum: int
-    easting: float
-    northing: float
-    gps_fix: int
+class NANDRawGPS:
+    # 64 bits
+    easting: float # double
+    northing: float # double
     # this is a 2D accuracy value
-    accuracy: int
+    accuracy: float # double
+    gps_time: int # uint64
+    # 32 bits
+    gps_seqnum: int
     timestamp: int
+    # 8 bits
+    gps_fix: int # uint8
 
+# TODO: make sure this is same as on firmware
 @dataclass
 class Radio:
-    gps_seqnum: int
     nand_x_gps: float
     nand_y_gps: float
-    nand_gps_fix: float
+    gps_seqnum: int
+    nand_gps_fix: int # uint8
 
 @dataclass
-class SCDebug:
-    timestamp: int
+class SCDebugInfo:
+     # 64 bits
+    encoder_angle: float # double
+    # 32 bits
     rc_steering_angle: float
-    stepper_steering_angle: float
-    # encoder_angle: float
+    software_steering_angle: float
+    true_steering_angle: float
+    missed_packets: int
+    timestamp: int
+    # 8 bits
+    tx12_state: bool
     operator_ready: bool
+    stepper_alarm: int # unsigned char
     brake_status: bool
     auton_steer: bool
-    tx12_state: bool
-    stepper_alarm: bool
-    rc_uplink_quality: int
-
+    rc_uplink_quality: int # uint8
 
 @dataclass
 class SCSensors:
-    steering: float
-    # velocity: float
+    # 64 bits
+    velocity: float # double
+    # 32 bits
+    # TODO: this isnt on firmware rn?
+    steering_angle: float
     timestamp: int
 
 @dataclass
