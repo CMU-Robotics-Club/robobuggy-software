@@ -150,13 +150,12 @@ class SCSensors:
     # 64 bits
     velocity: float # double
     # 32 bits
-    # TODO: this isnt on firmware rn?
     steering_angle: float
     timestamp: int
 
 @dataclass
 class RoundtripTimestamp:
-    returned_time: int
+    returned_time: float # double
 
 
 class IncompletePacket(Exception):
@@ -193,6 +192,7 @@ class Comms:
     def send_alarm(self, status: int):
         self.send_packet_raw(MSG_TYPE_ALARM, struct.pack('<B', status))
 
+    # TODO: will time be a float?
     def send_timestamp(self, time: float):
         self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<d', time))
 
@@ -265,32 +265,32 @@ class Comms:
 
         msg_type, payload = packet
         if msg_type == MSG_TYPE_NAND_DEBUG:
-            x, y, radio_seqnum, gps_seqnum = struct.unpack('<Idddd??????B', payload)
-            return NANDDebug(x, y, radio_seqnum, gps_seqnum)
+            data = struct.unpack('<ddIfffI????BB', payload)
+            return NANDDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_NAND_UKF:
-            x, y, radio_seqnum, gps_seqnum = struct.unpack('<ddII', payload)
-            return NANDUKF(x, y, radio_seqnum, gps_seqnum)
+            data = struct.unpack('<dddddI', payload)
+            return NANDUKF(*data)
 
         elif msg_type == MSG_TYPE_NAND_GPS:
-            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
-            return NANDGPS(x, y, vel, steering, heading, heading_rate)
+            data = struct.unpack('<dddQIIB', payload)
+            return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
-            return Radio(x, y, vel, steering, heading, heading_rate)
+            data = struct.unpack('<ffIB', payload)
+            return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:
-            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
-            return SCDebug(x, y, vel, steering, heading, heading_rate)
+            data = struct.unpack('<dfffII??B??B', payload)
+            return SCDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_SC_SENSORS:
-            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
-            return SCSensors(x, y, vel, steering, heading, heading_rate)
+            data = struct.unpack('<dfI', payload)
+            return SCSensors(*data)
 
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
-            x, y, vel, steering, heading, heading_rate = struct.unpack('<dddddd', payload)
-            return RoundtripTimestamp(x, y, vel, steering, heading, heading_rate)
+            time = struct.unpack('<d', payload)
+            return RoundtripTimestamp(time)
         else:
             print(f'Unknown packet type {msg_type}')
             return None
