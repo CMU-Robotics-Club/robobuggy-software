@@ -11,7 +11,7 @@ from std_msgs.msg import Float64, Int8, UInt8, Bool
 
 from host_comm import *
 
-from nav_msgs.msg import Odometry as ROSOdom
+from nav_msgs.msg import Odometry
 
 class Translator(Node):
     """
@@ -28,6 +28,8 @@ class Translator(Node):
 
         Initializes the subscribers, rates, and ros topics (including debug topics)
         """
+        # TODO: if we switch to using namespaces everywhere, use get_namespace instead of passing around self_name
+
         super().__init__('ROS_serial_translator')
 
         self.comms = Comms("/dev/" + teensy_name)
@@ -39,18 +41,7 @@ class Translator(Node):
         self.create_subscription(
             Float64, self_name + "/buggy/input/steering", self.set_steering, 1
         )
-
         self.create_subscription(Int8, self_name + "/debug/sanity_warning", self.set_alarm, 1)
-
-        # ISSUE: https://github.com/CMU-Robotics-Club/RoboBuggy2/issues/83
-        if other_name is None and self_name == "NAND":
-            self.odom_publisher = self.create_publisher(
-                ROSOdom, self_name + "/nav/odom", 1
-            )
-        else:
-            self.odom_publisher = self.create_publisher(
-                ROSOdom, other_name + "/nav/odom", 1
-            )
 
         # upper bound of steering update rate, make sure auton sends slower than 500 Hz or update / 2ms
         self.steer_send_rate = self.create_rate(500)
@@ -59,20 +50,28 @@ class Translator(Node):
         self.read_rate = self.create_rate(1000)
 
         # ISSUE: https://github.com/CMU-Robotics-Club/RoboBuggy2/issues/90
+        # TODO: why are all the topics published under buggy/ ?
+        # DEBUG MESSAGE PUBLISHERS:
+        self.heading_rate_publisher = self.create_publisher(
+            Float64, self_name + "/buggy/debug/heading_rate", 1
+        )
+        self.encoder_angle_publisher = self.create_publisher(
+            Float64, self_name + "/buggy/debug/encoder_angle", 1
+        )
         self.rc_steering_angle_publisher = self.create_publisher(
             Float64, self_name + "/buggy/debug/rc_steering_angle", 1
         )
-        self.steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/steering_angle", 1
+        self.software_steering_angle_publisher = self.create_publisher(
+            Float64, self_name + "/buggy/debug/software_steering_angle", 1
         )
-        self.battery_voltage_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/battery_voltage", 1
+        self.true_steering_angle_publisher = self.create_publisher(
+            Float64, self_name + "/buggy/debug/true_steering_angle", 1
+        )
+        self.rfm69_timeout_num_publisher = self.create_publisher(
+            int, self_name + "/buggy/debug/rfm_timeout_num", 1
         )
         self.operator_ready_publisher = self.create_publisher(
             Bool, self_name + "/buggy/debug/operator_ready", 1
-        )
-        self.steering_alarm_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/steering_alarm", 1
         )
         self.brake_status_publisher = self.create_publisher(
             Bool, self_name + "/buggy/debug/brake_status", 1
@@ -80,12 +79,43 @@ class Translator(Node):
         self.use_auton_steer_publisher = self.create_publisher(
             Bool, self_name + "/buggy/debug/use_auton_steer", 1
         )
+        self.tx12_state_publisher = self.create_publisher(
+            Bool, self_name + "/buggy/debug/tx12_connected", 1
+        )
+        self.stepper_alarm_publisher = self.create_publisher(
+            UInt8, self_name + "/buggy/debug/steering_alarm", 1
+        )
         self.rc_uplink_qual_publisher = self.create_publisher(
             UInt8, self_name + "/buggy/debug/rc_uplink_quality", 1
         )
-        self.nand_fix_publisher = self.create_publisher(
-            UInt8, self_name + "/buggy/debug/nand_fix", 1
+
+        # NAND POSITION PUBLISHERS
+        self.nand_ukf_odom_publisher = self.create_publisher(
+            Odometry, "NAND/nav/odom", 1
         )
+        self.nand_gps_odom_publisher = self.create_publisher(
+            Odometry, "NAND/buggy/debug/gps_odom", 1
+        )
+        self.observed_nand_odom_publisher = self.create_publisher(
+            Odometry, "SC/NAND_odom", 1
+        )
+        self.nand_gps_fix_publisher = self.create_publisher(
+            UInt8, "NAND/buggy/debug/gps_fix", 1
+        )
+
+        # SC SENSOR PUBLISHERS
+        self.sc_velocity_publisher = self.create_publisher(
+            Float64, "SC/sensors/velocity", 1
+        )
+        self.sc_steering_angle_publisher = self.create_publisher(
+            Float64, "SC/sensors/steering_angle", 1
+        )
+
+        # SERIAL DEBUG PUBLISHERS
+        self.roundtrip_time_publisher = self.create_publisher(
+            Float64, self_name + "/buggy/debug/roundtrip_time", 1
+        )
+
 
     def set_alarm(self, msg):
         """
@@ -99,18 +129,18 @@ class Translator(Node):
         """
         Steering Angle Updater, updates the steering angle locally if updated on ros stopic
         """
-        self.get_logger().debug(f"Read steeering angle of: {msg.data}")
+        self.get_logger().debug(f"Read steering angle of: {msg.data}")
         # print("Steering angle: " + str(msg.data))
         # print("SET STEERING: " + str(msg.data))
         with self.lock:
             self.steer_angle = msg.data
             self.fresh_steer = True
 
+
     def writer_thread(self):
         """
         Sends ROS Topics to bnayhaj serial, only sends a steering angle when we receive a fresh one
         Will send steering and alarm node.
-        TODO: Does alarm node exist for NAND?
         """
         self.get_logger().info("Starting sending alarm and steering to teensy!")
 
@@ -127,12 +157,6 @@ class Translator(Node):
             self.steer_send_rate.sleep()
 
     def reader_thread(self):
-        """
-        Reads three different types of packets, that should have better ways of differntiating
-        Odometry -> (SC) NAND Odomotery
-        BnyaTelemetry -> (NAND) Self Odom
-        tuple -> (SC, maybe NAND?) Debug Info
-        """
         self.get_logger().info("Starting reading odom from teensy!")
         while rclpy.ok():
             packet = self.comms.read_packet()
