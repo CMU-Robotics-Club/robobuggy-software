@@ -90,6 +90,7 @@ class Translator(Node):
         )
 
         # NAND POSITION PUBLISHERS
+        #TODO: these should be buggy_state publishers, NOT odometry!
         self.nand_ukf_odom_publisher = self.create_publisher(
             Odometry, "NAND/nav/odom", 1
         )
@@ -162,9 +163,109 @@ class Translator(Node):
             packet = self.comms.read_packet()
             self.get_logger().debug("packet" + str(packet))
 
-            if isinstance(packet, Odometry):
+            # TODO: do we want to add double checks to make sure the correct buggy is recieveing the packet?
+            if isinstance(packet, NANDDebugInfo):
+                self.heading_rate_publisher.publish(packet.heading_rate)
+                self.encoder_angle_publisher.publish(packet.encoder_angle)
+                self.rc_steering_angle_publisher.publish(packet.rc_steering_angle)
+                self.software_steering_angle_publisher.publish(packet.software_steering_angle)
+                self.true_steering_angle_publisher.publish(packet.true_steering_angle)
+                self.rfm69_timeout_num_publisher.publish(packet.rfm69_timeout_num)
+                self.operator_ready_publisher.publish(packet.operator_ready)
+                self.brake_status_publisher.publish(packet.brake_status)
+                self.use_auton_steer_publisher.publish(packet.auton_steer)
+                self.tx12_state_publisher.publish(packet.tx12_state)
+                self.stepper_alarm_publisher.publish(packet.stepper_alarm)
+                self.rc_uplink_qual_publisher.publish(packet.rc_uplink_quality)
+
+            elif isinstance(packet, NANDUKF):
+                odom = Odometry()
+
+                # IMPORTANT TODO: all data here is in UTM even though *technically* Odometry uses lat/long - once buggystate is merged and exists, all these packets need to be changed to buggystate type
+                try:
+                    lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
+                    odom.pose.pose.position.x = long
+                    odom.pose.pose.position.y = lat
+                    odom.twist.twist.angular.z = packet.heading_rate
+                    heading = R.from_euler('x', packet.heading, degrees=False).as_quat()
+
+                    odom.pose.pose.orientation.x = heading[0]
+                    odom.pose.pose.orientation.y = heading[1]
+                    odom.pose.pose.orientation.z = heading[2]
+                    odom.pose.pose.orientation.w = heading[3]
+
+                    speed = packet.velocity
+                    # TODO: fix this
+                    # why this works: autonsystem only cares about magnitude of velocity
+                    # so setting an arbitrary axis to the speed and leave other at 0
+                    # works. However, this should be done properly ASAP
+                    odom.twist.twist.linear.x = speed
+                    self.odom_publisher.publish(odom)
+                except Exception as e:
+                    self.get_logger().warn(
+                        "Unable to convert other buggy position to lon lat" + str(e)
+                    )
+
+
+
+            elif isinstance(packet, NANDUKF):
+                odom = Odometry()
+
+                # TODO: Not mock rolled accurately (Needs to be Fact Checked)
+                try:
+                    lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
+                    odom.pose.pose.position.x = long
+                    odom.pose.pose.position.y = lat
+                    odom.twist.twist.angular.z = packet.heading_rate
+                    heading = R.from_euler('x', packet.heading, degrees=False).as_quat()
+
+                    odom.pose.pose.orientation.x = heading[0]
+                    odom.pose.pose.orientation.y = heading[1]
+                    odom.pose.pose.orientation.z = heading[2]
+                    odom.pose.pose.orientation.w = heading[3]
+
+                    speed = packet.velocity
+                    # TODO: fix this
+                    # why this works: autonsystem only cares about magnitude of velocity
+                    # so setting an arbitrary axis to the speed and leave other at 0
+                    # works. However, this should be done properly ASAP
+                    odom.twist.twist.linear.x = speed
+                    self.odom_publisher.publish(odom)
+                except Exception as e:
+                    self.get_logger().warn(
+                        "Unable to convert other buggy position to lon lat" + str(e)
+                    )
+            elif isinstance(packet, NANDRawGPS):
+                odom = Odometry()
+
+                # TODO: Not mock rolled accurately (Needs to be Fact Checked)
+                try:
+                    lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
+                    odom.pose.pose.position.x = long
+                    odom.pose.pose.position.y = lat
+                    odom.twist.twist.angular.z = packet.heading_rate
+                    heading = R.from_euler('x', packet.heading, degrees=False).as_quat()
+
+                    odom.pose.pose.orientation.x = heading[0]
+                    odom.pose.pose.orientation.y = heading[1]
+                    odom.pose.pose.orientation.z = heading[2]
+                    odom.pose.pose.orientation.w = heading[3]
+
+                    speed = packet.velocity
+                    # TODO: fix this
+                    # why this works: autonsystem only cares about magnitude of velocity
+                    # so setting an arbitrary axis to the speed and leave other at 0
+                    # works. However, this should be done properly ASAP
+                    odom.twist.twist.linear.x = speed
+                    self.odom_publisher.publish(odom)
+                except Exception as e:
+                    self.get_logger().warn(
+                        "Unable to convert other buggy position to lon lat" + str(e)
+                    )
+            elif isinstance(packet, Radio):
+
                 # Publish to odom topic x and y coord
-                odom = ROSOdom()
+                odom = Odometry()
                 # convert to long lat
                 try:
                     lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
@@ -176,8 +277,62 @@ class Translator(Node):
                         "Unable to convert other buggy position to lon lat" + str(e)
                     )
 
-            elif isinstance(packet, BnyaTelemetry):
-                odom = ROSOdom()
+
+                odom = Odometry()
+
+                # TODO: Not mock rolled accurately (Needs to be Fact Checked)
+                try:
+                    lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
+                    odom.pose.pose.position.x = long
+                    odom.pose.pose.position.y = lat
+                    odom.twist.twist.angular.z = packet.heading_rate
+                    heading = R.from_euler('x', packet.heading, degrees=False).as_quat()
+
+                    odom.pose.pose.orientation.x = heading[0]
+                    odom.pose.pose.orientation.y = heading[1]
+                    odom.pose.pose.orientation.z = heading[2]
+                    odom.pose.pose.orientation.w = heading[3]
+
+                    speed = packet.velocity
+                    # TODO: fix this
+                    # why this works: autonsystem only cares about magnitude of velocity
+                    # so setting an arbitrary axis to the speed and leave other at 0
+                    # works. However, this should be done properly ASAP
+                    odom.twist.twist.linear.x = speed
+                    self.odom_publisher.publish(odom)
+                except Exception as e:
+                    self.get_logger().warn(
+                        "Unable to convert other buggy position to lon lat" + str(e)
+                    )
+            elif isinstance(packet, SCDebugInfo):
+                odom = Odometry()
+
+                # TODO: Not mock rolled accurately (Needs to be Fact Checked)
+                try:
+                    lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
+                    odom.pose.pose.position.x = long
+                    odom.pose.pose.position.y = lat
+                    odom.twist.twist.angular.z = packet.heading_rate
+                    heading = R.from_euler('x', packet.heading, degrees=False).as_quat()
+
+                    odom.pose.pose.orientation.x = heading[0]
+                    odom.pose.pose.orientation.y = heading[1]
+                    odom.pose.pose.orientation.z = heading[2]
+                    odom.pose.pose.orientation.w = heading[3]
+
+                    speed = packet.velocity
+                    # TODO: fix this
+                    # why this works: autonsystem only cares about magnitude of velocity
+                    # so setting an arbitrary axis to the speed and leave other at 0
+                    # works. However, this should be done properly ASAP
+                    odom.twist.twist.linear.x = speed
+                    self.odom_publisher.publish(odom)
+                except Exception as e:
+                    self.get_logger().warn(
+                        "Unable to convert other buggy position to lon lat" + str(e)
+                    )
+            elif isinstance(packet, SCSensors):
+                odom = Odometry()
 
                 # TODO: Not mock rolled accurately (Needs to be Fact Checked)
                 try:
@@ -204,18 +359,34 @@ class Translator(Node):
                         "Unable to convert other buggy position to lon lat" + str(e)
                     )
 
-            elif isinstance(
-                    packet, tuple
-            ):  # Are there any other packet that is a tuple
-                self.rc_steering_angle_publisher.publish(Float64(data=packet[0]))
-                self.steering_angle_publisher.publish(Float64(data=packet[1]))
-                self.battery_voltage_publisher.publish(Float64(data=packet[2]))
-                self.operator_ready_publisher.publish(Bool(data=packet[3]))
-                self.steering_alarm_publisher.publish(Bool(data=packet[4]))
-                self.brake_status_publisher.publish(Bool(data=packet[5]))
-                self.use_auton_steer_publisher.publish(Bool(data=packet[6]))
-                self.rc_uplink_qual_publisher.publish(UInt8(data=packet[7]))
-                self.nand_fix_publisher.publish(UInt8(data=packet[8]))
+            elif isinstance(packet, RoundtripTimestamp):
+            odom = Odometry()
+
+            # TODO: Not mock rolled accurately (Needs to be Fact Checked)
+            try:
+                lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
+                odom.pose.pose.position.x = long
+                odom.pose.pose.position.y = lat
+                odom.twist.twist.angular.z = packet.heading_rate
+                heading = R.from_euler('x', packet.heading, degrees=False).as_quat()
+
+                odom.pose.pose.orientation.x = heading[0]
+                odom.pose.pose.orientation.y = heading[1]
+                odom.pose.pose.orientation.z = heading[2]
+                odom.pose.pose.orientation.w = heading[3]
+
+                speed = packet.velocity
+                # TODO: fix this
+                # why this works: autonsystem only cares about magnitude of velocity
+                # so setting an arbitrary axis to the speed and leave other at 0
+                # works. However, this should be done properly ASAP
+                odom.twist.twist.linear.x = speed
+                self.odom_publisher.publish(odom)
+            except Exception as e:
+                self.get_logger().warn(
+                    "Unable to convert other buggy position to lon lat" + str(e)
+                )
+
 
             self.read_rate.sleep()
 
