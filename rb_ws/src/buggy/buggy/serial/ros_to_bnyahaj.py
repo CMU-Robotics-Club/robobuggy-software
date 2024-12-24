@@ -39,9 +39,9 @@ class Translator(Node):
         self.lock = Lock()
 
         self.create_subscription(
-            Float64, self_name + "/buggy/input/steering", self.set_steering, 1
+            Float64, self_name + "/input/steering", self.set_steering, 1
         )
-        self.create_subscription(Int8, self_name + "/debug/sanity_warning", self.set_alarm, 1)
+        self.create_subscription(Int8, self_name + "/input/sanity_warning", self.set_alarm, 1)
 
         # upper bound of steering update rate, make sure auton sends slower than 500 Hz or update / 2ms
         self.steer_send_rate = self.create_rate(500)
@@ -53,40 +53,40 @@ class Translator(Node):
         # TODO: why are all the topics published under buggy/ ?
         # DEBUG MESSAGE PUBLISHERS:
         self.heading_rate_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/heading_rate", 1
+            Float64, self_name + "/debug/heading_rate", 1
         )
         self.encoder_angle_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/encoder_angle", 1
+            Float64, self_name + "/debug/encoder_angle", 1
         )
         self.rc_steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/rc_steering_angle", 1
+            Float64, self_name + "/debug/rc_steering_angle", 1
         )
         self.software_steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/software_steering_angle", 1
+            Float64, self_name + "/debug/software_steering_angle", 1
         )
         self.true_steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/true_steering_angle", 1
+            Float64, self_name + "/debug/true_steering_angle", 1
         )
         self.rfm69_timeout_num_publisher = self.create_publisher(
-            int, self_name + "/buggy/debug/rfm_timeout_num", 1
+            int, self_name + "/debug/rfm_timeout_num", 1
         )
         self.operator_ready_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/operator_ready", 1
+            Bool, self_name + "/debug/operator_ready", 1
         )
         self.brake_status_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/brake_status", 1
+            Bool, self_name + "/debug/brake_status", 1
         )
         self.use_auton_steer_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/use_auton_steer", 1
+            Bool, self_name + "/debug/use_auton_steer", 1
         )
         self.tx12_state_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/tx12_connected", 1
+            Bool, self_name + "/debug/tx12_connected", 1
         )
         self.stepper_alarm_publisher = self.create_publisher(
-            UInt8, self_name + "/buggy/debug/steering_alarm", 1
+            UInt8, self_name + "/debug/steering_alarm", 1
         )
         self.rc_uplink_qual_publisher = self.create_publisher(
-            UInt8, self_name + "/buggy/debug/rc_uplink_quality", 1
+            UInt8, self_name + "/debug/rc_uplink_quality", 1
         )
 
         # NAND POSITION PUBLISHERS
@@ -95,13 +95,13 @@ class Translator(Node):
             Odometry, "NAND/nav/odom", 1
         )
         self.nand_gps_odom_publisher = self.create_publisher(
-            Odometry, "NAND/buggy/debug/gps_odom", 1
+            Odometry, "NAND/debug/gps_odom", 1
         )
         self.observed_nand_odom_publisher = self.create_publisher(
-            Odometry, "SC/NAND_odom", 1
+            Odometry, "SC/nav/NAND_odom", 1
         )
         self.nand_gps_fix_publisher = self.create_publisher(
-            UInt8, "NAND/buggy/debug/gps_fix", 1
+            UInt8, "NAND/debug/gps_fix", 1
         )
 
         # SC SENSOR PUBLISHERS
@@ -114,7 +114,7 @@ class Translator(Node):
 
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/roundtrip_time", 1
+            Float64, self_name + "/debug/roundtrip_time", 1
         )
 
 
