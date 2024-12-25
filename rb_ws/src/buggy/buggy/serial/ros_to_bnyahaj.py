@@ -49,8 +49,6 @@ class Translator(Node):
         # upper bound of reading data from Bnyahaj Serial, at 1ms
         self.read_rate = self.create_rate(1000)
 
-        # ISSUE: https://github.com/CMU-Robotics-Club/RoboBuggy2/issues/90
-        # TODO: why are all the topics published under buggy/ ?
         # DEBUG MESSAGE PUBLISHERS:
         self.heading_rate_publisher = self.create_publisher(
             Float64, self_name + "/debug/heading_rate", 1
@@ -90,7 +88,6 @@ class Translator(Node):
         )
 
         # NAND POSITION PUBLISHERS
-        #TODO: these should be buggy_state publishers, NOT odometry!
         self.nand_ukf_odom_publisher = self.create_publisher(
             Odometry, "NAND/nav/odom", 1
         )
@@ -166,7 +163,6 @@ class Translator(Node):
             packet = self.comms.read_packet()
             self.get_logger().debug("packet" + str(packet))
 
-            # TODO: do we want to add double checks to make sure the correct buggy is recieveing the packet?
             if isinstance(packet, NANDDebugInfo):
                 self.heading_rate_publisher.publish(packet.heading_rate)
                 self.encoder_angle_publisher.publish(packet.encoder_angle)

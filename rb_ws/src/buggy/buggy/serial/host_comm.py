@@ -119,7 +119,6 @@ class NANDRawGPS:
     # 8 bits
     gps_fix: int # uint8
 
-# TODO: make sure this is same as on firmware
 @dataclass
 class Radio:
     nand_east_gps: float
@@ -192,7 +191,6 @@ class Comms:
     def send_alarm(self, status: int):
         self.send_packet_raw(MSG_TYPE_ALARM, struct.pack('<B', status))
 
-    # TODO: will time be a float?
     def send_timestamp(self, time: float):
         self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<d', time))
 
