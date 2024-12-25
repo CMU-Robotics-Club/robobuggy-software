@@ -122,8 +122,8 @@ class NANDRawGPS:
 # TODO: make sure this is same as on firmware
 @dataclass
 class Radio:
-    nand_x_gps: float
-    nand_y_gps: float
+    nand_east_gps: float
+    nand_north_gps: float
     gps_seqnum: int
     nand_gps_fix: int # uint8
 
