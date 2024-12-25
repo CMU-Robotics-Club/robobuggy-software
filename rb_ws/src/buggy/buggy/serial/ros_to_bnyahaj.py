@@ -1,16 +1,10 @@
 import argparse
 from threading import Lock
 import threading
-
 import rclpy
 from rclpy import Node
-from scipy.spatial.transform import Rotation as R
-import utm
-
 from std_msgs.msg import Float64, Int8, UInt8, Bool
-
 from host_comm import *
-
 from nav_msgs.msg import Odometry
 
 class Translator(Node):
