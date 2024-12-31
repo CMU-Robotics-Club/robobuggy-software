@@ -7,3 +7,4 @@ docker-compose.yml~
 rb_ws/src/buggy/bags/*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 *.bag
 vision/data/*
+.vision/*
