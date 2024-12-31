@@ -6,3 +6,4 @@ docker-compose.yml~
 *TEMP_DO_NOT_EDIT.txt
 rb_ws/src/buggy/bags/*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 *.bag
+vision/data/*
