@@ -1,9 +1,11 @@
 import sys
+from threading import Lock
+
 import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from sensor_msgs.msg import NavSatFix
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 from TrajectoryMsg.msg import TrajectoryMsg
 
@@ -38,13 +40,38 @@ class PathPlanner(Node):
     # number of points to sample along the nominal trajectory
     RESOLUTION = 150
 
+    # frequency to run in hz
+    FREQUENCY = 10
+
     def __init__(self, nominal_traj:Trajectory, left_curb:Trajectory) -> None:
         super().__init__('path_planner')
-        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "/auton/debug/other_buggy_xtrack", 10)
-        self.traj_publisher = self.create_publisher(TrajectoryMsg, "/auton/trajectory", 10)
+        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "self/debug/other_buggy_xtrack", 10)
+        self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 10)
+        self.odom_subscriber = self.create_subscription(Odometry, 'self/state', self.odom_listener, 1)
 
         self.nominal_traj = nominal_traj
         self.left_curb = left_curb
+        self.timer = self.create_timer(1/self.FREQUENCY, self.timer_callback)
+
+        # set up subscriber and callback for pose variables
+        self.self_pose = None
+        self.other_pose = None
+
+        self.self_pose_lock = Lock()
+        self.other_pose_lock = Lock()
+
+    def self_pose_callback(self, msg):
+        with self.self_pose_lock:
+            self.self_pose = Pose.rospose_to_pose(msg.pose.pose)
+
+    def other_pose_callback(self, msg):
+        with self.other_pose_lock:
+            self.other_pose = Pose.rospose_to_pose(msg.pose.pose)
+
+    def timer_callback(self):
+        with self.self_pose_lock and self.other_pose_lock:
+            if (self.self_pose is not None) and (self.other_pose is not None):
+                self.compute_traj(self.self_pose, self.other_pose)
 
     def offset_func(self, dist):
         """
@@ -182,3 +209,21 @@ class PathPlanner(Node):
 
         local_traj = Trajectory(json_filepath=None, positions=positions)
         self.traj_publisher.publish(local_traj.pack())
+
+
+def main():
+    rclpy.init(args=None)
+    # TODO: set file paths here
+    # At the time of writing the below snippet, config management is TBD
+
+    traj_filepath = ""
+    left_curb_filepath = ""
+    ref_trajectory = Trajectory(traj_filepath)
+    left_curb_trajectory = Trajectory(left_curb_filepath)
+
+    path_planner = PathPlanner(ref_trajectory, left_curb_trajectory)
+    rclpy.spin(path_planner)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
