@@ -47,7 +47,8 @@ class PathPlanner(Node):
         super().__init__('path_planner')
         self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "self/debug/other_buggy_xtrack", 10)
         self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 10)
-        self.odom_subscriber = self.create_subscription(Odometry, 'self/state', self.odom_listener, 1)
+        self.self_pose_subscriber = self.create_subscription(Odometry, 'self/state', self.self_pose_callback, 1)
+        self.other_pose_subscriber = self.create_subscription(Odometry, 'other/state', self.other_pose_callback, 1)
 
         self.nominal_traj = nominal_traj
         self.left_curb = left_curb
