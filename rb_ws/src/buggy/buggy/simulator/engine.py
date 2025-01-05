@@ -4,7 +4,7 @@ import sys
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
-from std_msgs.msg import Float64
+from example_interfaces.msg import Float64
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 import numpy as np

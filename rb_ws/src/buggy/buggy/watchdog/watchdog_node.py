@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Bool
+from example_interfaces.msg import Bool
 
 class Watchdog(Node):
 

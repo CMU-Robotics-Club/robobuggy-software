@@ -27,6 +27,7 @@ setup(
             'hello_world = buggy.hello_world:main',
             'sim_single = buggy.simulator.engine:main',
             'controller = buggy.controller.controller_node:main',
+            'path_planner = buggy.path_planner.path_planner:main',
             'buggy_state_converter = buggy.buggy_state_converter:main',
             'watchdog = buggy.watchdog.watchdog_node:main',
         ],

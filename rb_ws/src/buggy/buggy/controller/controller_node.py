@@ -6,7 +6,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float32, Float64, Bool
+from example_interfaces.msg import Float32, Float64, Bool
 from nav_msgs.msg import Odometry
 
 sys.path.append("/rb_ws/src/buggy/buggy")

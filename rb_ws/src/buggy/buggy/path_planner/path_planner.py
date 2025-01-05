@@ -6,7 +6,7 @@ import rclpy
 from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Float64
+from example_interfaces.msg import Float64
 from TrajectoryMsg.msg import TrajectoryMsg
 
 sys.path.append("/rb_ws/src/buggy/buggy")
@@ -43,15 +43,31 @@ class PathPlanner(Node):
     # frequency to run in hz
     FREQUENCY = 10
 
-    def __init__(self, nominal_traj:Trajectory, left_curb:Trajectory) -> None:
+    def __init__(self) -> None:
         super().__init__('path_planner')
+        self.get_logger().info('INITIALIZED.')
+
+
+        left_curb_filepath = ""
+        left_curb_trajectory = Trajectory(left_curb_filepath)
+
+        #Parameters
+        self.declare_parameter("traj_name", "buggycourse_safe.json")
+        traj_name = self.get_parameter("traj_name").value
+        self.nominal_traj = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + traj_name) #TODO: Fixed filepath, not good
+
+        self.declare_parameter("curb_name", None)
+        curb_name = self.get_parameter("curb_name").value
+        self.left_curb = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + curb_name) #TODO: Fixed filepath, not good
+
+        #Publishers
         self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "self/debug/other_buggy_xtrack", 10)
         self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 10)
+        
+        #Subscribers
         self.self_pose_subscriber = self.create_subscription(Odometry, 'self/state', self.self_pose_callback, 1)
         self.other_pose_subscriber = self.create_subscription(Odometry, 'other/state', self.other_pose_callback, 1)
 
-        self.nominal_traj = nominal_traj
-        self.left_curb = left_curb
         self.timer = self.create_timer(1/self.FREQUENCY, self.timer_callback)
 
         # set up subscriber and callback for pose variables
@@ -212,18 +228,15 @@ class PathPlanner(Node):
         self.traj_publisher.publish(local_traj.pack())
 
 
-def main():
-    rclpy.init(args=None)
+def main(args=None):
+    rclpy.init(args=args)
     # TODO: set file paths here
     # At the time of writing the below snippet, config management is TBD
 
-    traj_filepath = ""
-    left_curb_filepath = ""
-    ref_trajectory = Trajectory(traj_filepath)
-    left_curb_trajectory = Trajectory(left_curb_filepath)
-
-    path_planner = PathPlanner(ref_trajectory, left_curb_trajectory)
+    path_planner = PathPlanner()
     rclpy.spin(path_planner)
+
+    path_planner.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':

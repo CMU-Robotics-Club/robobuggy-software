@@ -7,7 +7,7 @@ from rclpy import Node
 from scipy.spatial.transform import Rotation
 import utm
 
-from std_msgs.msg import Float64, Int8, UInt8, Bool
+from example_interfaces.msg import Float64, Int8, UInt8, Bool
 
 from host_comm import *
 

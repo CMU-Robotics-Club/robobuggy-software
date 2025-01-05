@@ -1,0 +1,25 @@
+<launch>
+
+    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
+    
+    <node pkg="buggy" exec="sim_single" name="SC_sim_single" namespace="SC">
+        <param name="velocity" value="12"/>
+        <param name="pose" value="Hill1_SC"/>
+    </node>
+    <node pkg="buggy" exec="buggy_state_converter" name="SC_state_converter" namespace="SC"/>
+    <node pkg="buggy" exec="controller" name="SC_controller" namespace="SC">
+        <param name="dist" value="0.0"/>
+        <param name="traj_name" value="buggycourse_safe.json"/>
+        <param name="controller" value="stanley"/>
+    </node>
+    <node pkg="buggy" exec="path_planner" name="SC_path_planner" namespace="SC">
+        <param name="traj_name" value="buggycourse_safe.json"/>
+    </node>
+
+    <node pkg="buggy" exec="buggy_state_converter" name="NAND_state_converter" namespace="NAND"/>
+    <node pkg="buggy" exec="sim_single" name="NAND_sim_single" namespace="NAND">
+        <param name="velocity" value="12"/>
+        <param name="pose" value="Hill1_NAND"/>
+    </node>
+
+</launch>
