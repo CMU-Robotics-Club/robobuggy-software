@@ -13,11 +13,11 @@
         <param name="controller" value="stanley"/>
     </node>
 
-    <node pkg="buggy" exec="buggy_state_converter" name="NAND_state_converter" namespace="NAND"/>
+    <!-- <node pkg="buggy" exec="buggy_state_converter" name="NAND_state_converter" namespace="NAND"/>
     <node pkg="buggy" exec="sim_single" name="NAND_sim_single" namespace="NAND">
         <param name="velocity" value="12"/>
         <param name="pose" value="Hill1_NAND"/>
-    </node>
+    </node> -->
 
     <!-- <node name="foxglove" pkg="foxglove_bridge" type="foxglove_bridge" />
     <node name="hello_world" pkg="buggy" type="hello_world" /> -->

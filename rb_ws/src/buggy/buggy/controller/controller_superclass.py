@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import sys
 
-from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 
 

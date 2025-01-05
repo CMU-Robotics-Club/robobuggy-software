@@ -35,7 +35,7 @@ class StanleyController(Controller):
         self.debug_error_publisher = self.node.create_publisher(
             ROSPose, "auton/debug/error", 1
         )
-    
+
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
         """Computes the steering angle determined by Stanley controller.
         Does this by looking at the crosstrack error + heading error
@@ -50,7 +50,7 @@ class StanleyController(Controller):
         if self.current_traj_index >= trajectory.get_num_points() - 1:
             self.node.get_logger.error("[Stanley]: Ran out of path to follow!")
             raise Exception("[Stanley]: Ran out of path to follow!")
-        
+
         current_rospose = state_msg.pose.pose
         current_speed = np.sqrt(
             state_msg.twist.twist.linear.x**2 + state_msg.twist.twist.linear.y**2
@@ -58,7 +58,7 @@ class StanleyController(Controller):
         yaw_rate = state_msg.twist.twist.angular.z
         heading = current_rospose.orientation.z
         x, y = current_rospose.position.x, current_rospose.position.y #(Easting, Northing)
-        
+
         front_x = x + StanleyController.WHEELBASE * np.cos(heading)
         front_y = y + StanleyController.WHEELBASE * np.sin(heading)
 
@@ -76,12 +76,12 @@ class StanleyController(Controller):
             self.LOOK_AHEAD_DIST_CONST * current_speed,
             self.MIN_LOOK_AHEAD_DIST,
             self.MAX_LOOK_AHEAD_DIST)
-        
+
         traj_dist = trajectory.get_distance_from_index(self.current_traj_index) + lookahead_dist
 
         ref_heading = trajectory.get_heading_by_index(
             trajectory.get_index_from_distance(traj_dist))
-        
+
         error_heading = ref_heading - heading
         error_heading = np.arctan2(np.sin(error_heading), np.cos(error_heading)) #Bounds error_heading
 
@@ -103,7 +103,7 @@ class StanleyController(Controller):
         cross_track_component = -np.arctan2(
             StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
         )
-        
+
         # Calculate yaw rate error
         r_meas = yaw_rate
         r_traj = current_speed * (trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist) + 0.05)
@@ -118,7 +118,7 @@ class StanleyController(Controller):
         current_pose = Pose(current_rospose.position.x, current_rospose.position.y, heading)
         reference_error = current_pose.convert_point_from_global_to_local_frame(closest_position)
         reference_error -= np.array([StanleyController.WHEELBASE, 0]) #Translae back to back wheel to get accurate error
-        
+
         error_pose = ROSPose()
         error_pose.position.x = reference_error[0]
         error_pose.position.y = reference_error[1]

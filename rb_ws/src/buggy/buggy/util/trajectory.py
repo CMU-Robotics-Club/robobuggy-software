@@ -1,7 +1,4 @@
 import json
-import time
-import uuid
-import matplotlib.pyplot as plt
 
 # from buggy.msg import TrajectoryMsg
 

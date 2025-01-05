@@ -25,7 +25,7 @@ class Controller(Node):
         """
         super().__init__('controller')
         self.get_logger().info('INITIALIZED.')
-            
+
 
         #Parameters
         self.declare_parameter("dist", 0.0) #Starting Distance along path
@@ -38,12 +38,14 @@ class Controller(Node):
         start_index = self.cur_traj.get_index_from_distance(start_dist)
 
         self.declare_parameter("controller_name", "stanley")
-        match self.get_parameter("controller_name").value:
-            case "stanley":
-                self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(), node=self) #IMPORT STANLEY
-            case _:
-                self.get_logger().error("Invalid Controller Name!")
-                raise Exception("Invalid Controller Argument")
+
+        controller_name = self.get_parameter("controller_name").value
+        print(controller_name.lower)
+        if (controller_name.lower() == "stanley"):
+            self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(), node=self) #IMPORT STANLEY
+        else:
+            self.get_logger().error("Invalid Controller Name: " + controller_name.lower())
+            raise Exception("Invalid Controller Argument")
 
         # Publishers
         self.init_check_publisher = self.create_publisher(Bool,
@@ -67,7 +69,7 @@ class Controller(Node):
 
         timer_period = 0.01  # seconds (100 Hz)
         self.timer = self.create_timer(timer_period, self.loop)
-    
+
     def odom_listener(self, msg : Odometry):
         '''
         This is the subscriber that updates the buggies state for navigation
@@ -75,7 +77,7 @@ class Controller(Node):
         '''
         with self.lock:
             self.odom = msg
-    
+
     def traj_listener(self, msg): #TYPE UNKOWN AS OF NOW?? CUSTOM TYPE WHEN #TODO: FIGURE OUT BEFORE MERGE
         '''
         This is the subscriber that updates the buggies trajectory for navigation
@@ -97,11 +99,11 @@ class Controller(Node):
         if (self.odom == None):
             self.get_logger().warn("WARNING: no available position estimate")
             return False
-    
+
         elif (self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 > 1**2):
             self.get_logger().warn("checking position estimate certainty")
             return False
-        
+
         #Originally under a lock, doesn't seem necessary?
         current_heading = self.odom.pose.pose.orientation.z
         closest_heading = self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))
@@ -116,11 +118,11 @@ class Controller(Node):
             current_heading = 2 * np.pi + current_heading
         if (closest_heading < 0):
             closest_heading = 2 * np.pi + closest_heading
-        
+
         if (abs(current_heading - closest_heading) >= np.pi/2):
             self.get_logger().warn("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
             return False
-    
+
         return True
 
     def loop(self):
@@ -133,13 +135,13 @@ class Controller(Node):
                 self.get_logger().info("Passed Initialization Check")
             else:
                 return
-        
+
         self.heading_publisher.publish(Float32(data=np.rad2deg(self.odom.pose.pose.orientation.z)))
         steering_angle = self.controller.compute_control(self.odom, self.cur_traj)
         steering_angle_deg = np.rad2deg(steering_angle)
         self.steer_publisher.publish(Float64(data=float(steering_angle_deg)))
 
-    
+
 
 def main(args=None):
     rclpy.init(args=args)
