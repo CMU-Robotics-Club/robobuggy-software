@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
 
-from example_interfaces.msg import Bool
+from std_msgs.msg import Bool
 
 class Watchdog(Node):
 

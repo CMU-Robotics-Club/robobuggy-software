@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import threading
 import sys
 
@@ -6,10 +8,10 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from example_interfaces.msg import Float32, Float64, Bool
+from std_msgs.msg import Float32, Float64, Bool
 from nav_msgs.msg import Odometry
 
-sys.path.append("/rb_ws/src/buggy/buggy")
+sys.path.append("/rb_ws/src/buggy/scripts")
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
 

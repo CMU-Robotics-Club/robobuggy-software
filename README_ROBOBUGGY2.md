@@ -137,8 +137,8 @@ Ask Software Lead (WIP)
 - UTM coordinates (assume we're in Zone 17N): `/sim_2d/utm` (geometry_msgs/Pose - position.x = Easting meters , position.y = Northing meters, position.z = heading in degrees from East axis + is CCW)
 - INS Simulation: `/nav/odom` (nsg_msgs/Odometry) (**Noise** is implemented to vary ~1cm)
 Commands:
-- Steering angle: `/buggy/steering` in degrees (example_interfaces/Float64)
-- Velocity: `/buggy/velocity` in m/s (example_interfaces/Float64)
+- Steering angle: `/buggy/steering` in degrees (std_msgs/Float64)
+- Velocity: `/buggy/velocity` in m/s (std_msgs/Float64)
 
 ### Auton Logic
 Ask someone with experience (WIP)

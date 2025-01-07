@@ -1,13 +1,15 @@
+#!/usr/bin/env python3
+
 import argparse
 from threading import Lock
 import threading
 
 import rclpy
-from rclpy import Node
+from rclpy.node import Node
 from scipy.spatial.transform import Rotation
 import utm
 
-from example_interfaces.msg import Float64, Int8, UInt8, Bool
+from std_msgs.msg import Float64, Int8, UInt8, Bool
 
 from host_comm import *
 

@@ -4,7 +4,7 @@ import sys
 from nav_msgs.msg import Odometry
 
 
-sys.path.append("/rb_ws/src/buggy/buggy")
+sys.path.append("/rb_ws/src/buggy/scripts")
 from util.trajectory import Trajectory
 
 class Controller(ABC):

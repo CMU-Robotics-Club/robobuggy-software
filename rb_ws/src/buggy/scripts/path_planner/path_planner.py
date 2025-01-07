@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 from threading import Lock
 
@@ -6,10 +8,10 @@ import rclpy
 from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
-from example_interfaces.msg import Float64
+from std_msgs.msg import Float64
 from TrajectoryMsg.msg import TrajectoryMsg
 
-sys.path.append("/rb_ws/src/buggy/buggy")
+sys.path.append("/rb_ws/src/buggy/scripts")
 from util.pose import Pose
 from util.trajectory import Trajectory
 
