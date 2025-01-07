@@ -5,6 +5,7 @@ numpy
 osqp
 pandas
 pymap3d
+pyproj
 pyserial
 scipy
 setuptools==58.2.0

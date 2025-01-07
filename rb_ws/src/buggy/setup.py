@@ -26,7 +26,8 @@ setup(
         'console_scripts': [
             'hello_world = buggy.hello_world:main',
             'sim_single = buggy.simulator.engine:main',
-            'watchdog = buggy.watchdog.watchdog_node:main'
+            'buggy_state_converter = buggy.buggy_state_converter:main',
+            'watchdog = buggy.watchdog.watchdog_node:main',
         ],
     },
 )

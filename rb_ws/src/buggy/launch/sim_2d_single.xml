@@ -10,6 +10,8 @@
         <param name="velocity" value="12"/>
         <param name="pose" value="Hill1_NAND"/>
     </node>
+    <node pkg="buggy" exec="buggy_state_converter" name="SC_state_converter" namespace="SC"/>
+    <node pkg="buggy" exec="buggy_state_converter" name="NAND_state_converter" namespace="NAND"/>
 
     <!-- <node name="foxglove" pkg="foxglove_bridge" type="foxglove_bridge" />
     <node name="hello_world" pkg="buggy" type="hello_world" /> -->
