@@ -78,7 +78,7 @@ class Controller(Node):
         with self.lock:
             self.odom = msg
 
-    def traj_listener(self, msg): #TYPE UNKOWN AS OF NOW?? CUSTOM TYPE WHEN #TODO: FIGURE OUT BEFORE MERGE
+    def traj_listener(self, msg):
         '''
         This is the subscriber that updates the buggies trajectory for navigation
         '''

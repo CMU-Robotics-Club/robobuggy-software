@@ -10,7 +10,7 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import utm
 sys.path.append("/rb_ws/src/buggy/buggy")
-from util.util import Constants
+from rb_ws.src.buggy.buggy.util.constants import Constants
 
 class Simulator(Node):
 

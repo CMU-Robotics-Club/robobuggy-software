@@ -201,18 +201,3 @@ class Pose:
         p2_mat = other.to_mat()
 
         return Pose.from_mat(np.linalg.inv(p2_mat) @ p1_mat)
-
-
-if __name__ == "__main__":
-    # TODO: again do we want example code in these classes
-    rospose = ROSPose()
-    rospose.position.x = 1
-    rospose.position.y = 2
-    rospose.position.z = 3
-    rospose.orientation.x = 0
-    rospose.orientation.y = 0
-    rospose.orientation.z = -0.061461
-    rospose.orientation.w = 0.9981095
-
-    pose = Pose.rospose_to_pose(rospose)
-    print(pose)  # Pose(x=1, y=2, theta=-0.123)

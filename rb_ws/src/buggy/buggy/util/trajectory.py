@@ -55,7 +55,7 @@ class Trajectory:
                 lon = waypoint["lon"]
 
                 # Convert to world coordinates
-                x, y, _, _ = utm.from_latlon(lat, lon) #TODO: Before Merging, make sure that we can do this nonlocalized
+                x, y, _, _ = utm.from_latlon(lat, lon)
                 positions.append([x, y])
 
             positions = np.array(positions)
