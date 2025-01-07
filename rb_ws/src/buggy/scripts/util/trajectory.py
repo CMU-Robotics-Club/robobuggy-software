@@ -4,9 +4,10 @@ import json
 
 import numpy as np
 from scipy.interpolate import Akima1DInterpolator, CubicSpline
+from buggy.msg import TrajectoryMsg
 
 import utm
-
+import time
 
 class Trajectory:
     """A wrapper around a trajectory JSON file that does some under-the-hood math. Will
@@ -347,10 +348,10 @@ class Trajectory:
             + start_index
         )
 
-    """ def pack(self, x, y) -> TrajectoryMsg:
+    def pack(self, x, y) -> TrajectoryMsg:
         traj = TrajectoryMsg()
-        traj.easting = self.positions[:, 0]
-        traj.northing = self.positions[:, 1]
+        traj.easting = list(self.positions[:, 0])
+        traj.northing = list(self.positions[:, 1])
         traj.time = time.time()
         traj.cur_idx = self.get_closest_index_on_path(x,y)
         return traj
@@ -358,5 +359,5 @@ class Trajectory:
     def unpack(trajMsg : TrajectoryMsg):
         pos = np.array([trajMsg.easting, trajMsg.northing]).transpose(1, 0)
         cur_idx = trajMsg.cur_idx
-        return Trajectory(positions=pos), cur_idx """
+        return Trajectory(positions=pos), cur_idx
 

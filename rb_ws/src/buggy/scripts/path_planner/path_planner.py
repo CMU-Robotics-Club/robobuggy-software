@@ -9,7 +9,7 @@ from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
-from TrajectoryMsg.msg import TrajectoryMsg
+from buggy.msg import TrajectoryMsg
 
 sys.path.append("/rb_ws/src/buggy/scripts")
 from util.pose import Pose
@@ -50,17 +50,18 @@ class PathPlanner(Node):
         self.get_logger().info('INITIALIZED.')
 
 
-        left_curb_filepath = ""
-        left_curb_trajectory = Trajectory(left_curb_filepath)
-
         #Parameters
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
         self.nominal_traj = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + traj_name) #TODO: Fixed filepath, not good
 
-        self.declare_parameter("curb_name", None)
+        self.declare_parameter("curb_name", "")
         curb_name = self.get_parameter("curb_name").value
-        self.left_curb = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + curb_name) #TODO: Fixed filepath, not good
+        curb_name = None if curb_name == "" else curb_name
+        if curb_name is None:
+            self.left_curb = None
+        else:
+            self.left_curb = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + curb_name) #TODO: Fixed filepath, not good
 
         #Publishers
         self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "self/debug/other_buggy_xtrack", 10)
@@ -86,6 +87,7 @@ class PathPlanner(Node):
     def other_pose_callback(self, msg):
         with self.other_pose_lock:
             self.other_pose = Pose.rospose_to_pose(msg.pose.pose)
+            self.get_logger().debug("RECEIVED FROM NAND")
 
     def timer_callback(self):
         with self.self_pose_lock and self.other_pose_lock:
@@ -187,7 +189,7 @@ class PathPlanner(Node):
         other_cross_track_dist = np.sum(
             nominal_to_other * other_normal, axis=1)
 
-        self.other_buggy_xtrack_publisher.publish(Float64(other_cross_track_dist))
+        self.other_buggy_xtrack_publisher.publish(Float64(data=float(other_cross_track_dist)))
 
         # here, use passing offsets to weight NAND's cross track signed distance:
         # if the sample point is far from SC, the cross track distance doesn't matter
@@ -227,7 +229,7 @@ class PathPlanner(Node):
         positions = nominal_slice + (passing_offsets[:, None] * nominal_normals)
 
         local_traj = Trajectory(json_filepath=None, positions=positions)
-        self.traj_publisher.publish(local_traj.pack())
+        self.traj_publisher.publish(local_traj.pack(self_pose.x, self_pose.y ))
 
 
 def main(args=None):
