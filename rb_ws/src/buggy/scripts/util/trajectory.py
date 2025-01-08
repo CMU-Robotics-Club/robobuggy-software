@@ -1,4 +1,5 @@
 import json
+import time
 
 # from buggy.msg import TrajectoryMsg
 
@@ -7,7 +8,6 @@ from scipy.interpolate import Akima1DInterpolator, CubicSpline
 from buggy.msg import TrajectoryMsg
 
 import utm
-import time
 
 class Trajectory:
     """A wrapper around a trajectory JSON file that does some under-the-hood math. Will
