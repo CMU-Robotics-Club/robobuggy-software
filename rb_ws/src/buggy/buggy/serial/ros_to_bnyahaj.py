@@ -4,7 +4,7 @@ import threading
 import rclpy
 from rclpy import Node
 
-from std_msgs.msg import Float64, Int8, UInt8, Bool
+from std_msgs.msg import Float64, Int8, Int32, UInt8, Bool
 from host_comm import *
 from nav_msgs.msg import Odometry
 
@@ -15,19 +15,22 @@ class Translator(Node):
     be careful of multithreading synchronizaiton issues.
     """
 
-    def __init__(self, self_name, other_name, teensy_name):
+    def __init__(self, teensy_name):
         """
-        self_name: Buggy namespace
-        other_name: Only requried by SC for passing buggy namespace
         teensy_name: required for communication, different for SC and NAND
 
         Initializes the subscribers, rates, and ros topics (including debug topics)
         """
-        # TODO: if we switch to using namespaces everywhere, use get_namespace instead of passing around self_name
 
         super().__init__('ROS_serial_translator')
 
         self.comms = Comms("/dev/" + teensy_name)
+        namespace = self.get_namespace()
+        if namespace == "\SC":
+            self.self_name = "SC"
+        else:
+            self.self_name = "NAND"
+
         self.steer_angle = 0
         self.alarm = 0
         self.fresh_steer = False
@@ -61,7 +64,7 @@ class Translator(Node):
             Float64, self_name + "/debug/true_steering_angle", 1
         )
         self.rfm69_timeout_num_publisher = self.create_publisher(
-            int, self_name + "/debug/rfm_timeout_num", 1
+            Int32, self_name + "/debug/rfm_timeout_num", 1
         )
         self.operator_ready_publisher = self.create_publisher(
             Bool, self_name + "/debug/operator_ready", 1
@@ -149,6 +152,8 @@ class Translator(Node):
 
             with self.lock:
                 self.comms.send_alarm(self.alarm)
+            with self.lock:
+                self.comms.send_timestamp(time.time())
 
             self.steer_send_rate.sleep()
 
@@ -226,7 +231,7 @@ class Translator(Node):
                 self.sc_steering_angle_publisher.publish(packet.steering_angle)
 
             elif isinstance(packet, RoundtripTimestamp):
-                self.roundtrip_time_publisher.publish(packet.returned_time)
+                self.roundtrip_time_publisher.publish(time.time() - packet.returned_time)
 
             self.read_rate.sleep()
 
