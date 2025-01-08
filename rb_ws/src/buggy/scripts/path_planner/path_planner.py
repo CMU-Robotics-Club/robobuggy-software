@@ -66,7 +66,7 @@ class PathPlanner(Node):
         #Publishers
         self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "self/debug/other_buggy_xtrack", 10)
         self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 10)
-        
+
         #Subscribers
         self.self_pose_subscriber = self.create_subscription(Odometry, 'self/state', self.self_pose_callback, 1)
         self.other_pose_subscriber = self.create_subscription(Odometry, 'other/state', self.other_pose_callback, 1)
