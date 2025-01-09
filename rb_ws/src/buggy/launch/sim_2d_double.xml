@@ -1,31 +1,26 @@
 <launch>
 
+    <arg name="config_file" default="src/buggy/config/sim_double.yaml"/>
+
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
 
     <node pkg="buggy" exec="buggy_state_converter.py" name="NAND_state_converter" output = "screen" namespace="NAND"/>
     <node pkg="buggy" exec="controller_node.py" name="NAND_controller" output = "screen" namespace="NAND">
-        <param name="dist" value="0.0"/>
-        <param name="traj_name" value="buggycourse_safe.json"/>
-        <param name="controller" value="stanley"/>
+        <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="engine.py" name="NAND_sim_single" output = "screen" namespace="NAND">
-        <param name="velocity" value="8"/>
-        <param name="pose" value="Hill1_NAND"/>
+        <param from="$(var config_file)"/>
     </node>
     
     <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" output = "screen" namespace="SC"/>
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC">
-        <param name="dist" value="0.0"/>
-        <param name="traj_name" value="buggycourse_safe.json"/>
-        <param name="controller" value="stanley"/>
+        <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="engine.py" name="SC_sim_single" output = "screen" namespace="SC">
-        <param name="velocity" value="12"/>
-        <param name="pose" value="Hill1_SC"/>
+        <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen">
-        <param name="traj_name" value="buggycourse_safe.json"/>
-        <remap from="other/state" to="/NAND/self/state"/>
+        <param from="$(var config_file)"/>
     </node>
 
 </launch>

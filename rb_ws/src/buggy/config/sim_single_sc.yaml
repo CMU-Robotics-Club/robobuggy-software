@@ -1,10 +1,10 @@
-/SC/SC_sim_single:
-   ros__parameters:
-      velocity: 12
-      pose: "Hill1_SC"
-
-/SC/SC_controller:
-   ros__parameters:
-      dist: 10.0
-      traj_name: "buggycourse_safe.json"
-      controller: "stanley"
+SC:
+   SC_sim_single:
+      ros__parameters:
+         velocity: 12
+         pose: "Hill1_SC"
+   SC_controller:
+      ros__parameters:
+         dist: 0.0
+         traj_name: "buggycourse_safe.json"
+         controller: "stanley"

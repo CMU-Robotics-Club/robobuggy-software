@@ -10,6 +10,7 @@ from scipy.spatial.transform import Rotation
 class BuggyStateConverter(Node):
     def __init__(self):
         super().__init__("buggy_state_converter")
+        self.get_logger().info('INITIALIZED.')
 
         namespace = self.get_namespace()
 
@@ -35,6 +36,8 @@ class BuggyStateConverter(Node):
         """ Callback for processing self/raw_state messages and publishing to self/state """
         namespace = self.get_namespace()
 
+        self.get_logger().error("CALLED_SELF_CALLBACK")
+
         if namespace == "/SC":
             converted_msg = self.convert_SC_state(msg)
         elif namespace == "/NAND":
@@ -48,6 +51,7 @@ class BuggyStateConverter(Node):
     def other_raw_state_callback(self, msg):
         """ Callback for processing other/raw_state messages and publishing to other/state """
         # Convert the SC message and publish to other/state
+        self.get_logger().error("CALLED_OTHER_CALLBACK")
         converted_msg = self.convert_NAND_other_state(msg)
         self.other_state_publisher.publish(converted_msg)
 
