@@ -10,7 +10,7 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import utm
 sys.path.append("/rb_ws/src/buggy/buggy")
-from util import Constants
+from rb_ws.src.buggy.buggy.util.constants import Constants
 
 class Simulator(Node):
 
@@ -63,12 +63,12 @@ class Simulator(Node):
         self.timer = self.create_timer(timer_period, self.loop)
 
         self.steering_subscriber = self.create_subscription(
-            Float64, "buggy/input/steering", self.update_steering_angle, 1
+            Float64, "input/steering", self.update_steering_angle, 1
         )
 
         # To read from velocity
         self.velocity_subscriber = self.create_subscription(
-            Float64, "velocity", self.update_velocity, 1
+            Float64, "sim/velocity", self.update_velocity, 1
         )
 
         # for X11 matplotlib (direction included)
@@ -76,10 +76,10 @@ class Simulator(Node):
 
         # simulate the INS's outputs (noise included)
         # this is published as a BuggyState (UTM and radians)
-        self.pose_publisher = self.create_publisher(Odometry, "nav/odom", 1)
+        self.pose_publisher = self.create_publisher(Odometry, "self/state", 1)
 
         self.navsatfix_noisy_publisher = self.create_publisher(
-                NavSatFix, "state/pose_navsat_noisy", 1
+                NavSatFix, "self/pose_navsat_noisy", 1
         )
 
     def update_steering_angle(self, data: Float64):
@@ -155,13 +155,12 @@ class Simulator(Node):
         odom.header.stamp = time_stamp
 
         odom_pose = Pose()
-        east, north = utm.from_latlon(lat_noisy, long_noisy)
+        east, north, _, _ = utm.from_latlon(lat_noisy, long_noisy)
         odom_pose.position.x = float(east)
         odom_pose.position.y = float(north)
         odom_pose.position.z = float(260)
 
-        odom_pose.orientation.z = np.sin(np.deg2rad(self.heading) / 2)
-        odom_pose.orientation.w = np.cos(np.deg2rad(self.heading) / 2)
+        odom_pose.orientation.z = np.deg2rad(self.heading)
 
         # NOTE: autonsystem only cares about magnitude of velocity, so we don't need to split into components
         odom_twist = Twist()
@@ -183,6 +182,8 @@ def main(args=None):
     rclpy.init(args=args)
     sim = Simulator()
     rclpy.spin(sim)
+
+    sim.destroy_node()
     rclpy.shutdown()
 
 if __name__ == "__main__":
