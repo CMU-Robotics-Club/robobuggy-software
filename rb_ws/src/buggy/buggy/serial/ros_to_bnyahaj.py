@@ -191,7 +191,6 @@ class Translator(Node):
                 odom.pose.pose.position.y = packet.northing
                 odom.pose.pose.orientation.z = packet.theta
 
-                # why this works: autonsystem only cares about magnitude of velocity so setting an arbitrary axis to the speed and leave other at 0 works.
                 odom.twist.twist.linear.x = packet.velocity
                 odom.twist.twist.angular.z = packet.heading_rate
 

@@ -131,7 +131,6 @@ class BuggyStateConverter(Node):
         converted_msg.twist.covariance = msg.twist.covariance
 
         # ---- 4. Linear Velocities in m/s ----
-        # TODO: Check if scalar velocity is coming in from msg.twist.twist.linear.x
         # Convert scalar speed to velocity x/y components using heading (orientation.z)
         speed = msg.twist.twist.linear.x        # m/s scalar velocity
         heading = msg.pose.pose.orientation.z   # heading in radians
