@@ -26,7 +26,7 @@ class Translator(Node):
 
         self.comms = Comms("/dev/" + teensy_name)
         namespace = self.get_namespace()
-        if namespace == "\SC":
+        if namespace == "/SC":
             self.self_name = "SC"
         else:
             self.self_name = "NAND"
