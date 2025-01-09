@@ -84,6 +84,9 @@ class Translator(Node):
         self.rc_uplink_qual_publisher = self.create_publisher(
             UInt8, "/debug/rc_uplink_quality", 1
         )
+        self.nand_gps_seqnum_publisher = self.create_publisher(
+            Int32, "/debug/NAND_gps_seqnum", 1
+        )
 
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
@@ -105,14 +108,13 @@ class Translator(Node):
             self.nand_gps_acc_publisher = self.create_publisher(
                 Float64, "/debug/gps_accuracy", 1
             )
-            self.nand_gps_seqnum_publisher = self.create_publisher(
-                Int32, "/debug/gps_seqnum", 1
-            )
+
             self.nand_gps_time_publisher = self.create_publisher(
                 UInt64, "/debug/gps_time", 1
             )
 
         if self.self_name == "SC":
+
             # SC SENSOR PUBLISHERS
             self.sc_velocity_publisher = self.create_publisher(
                 Float64, "/sensors/velocity", 1
@@ -121,6 +123,7 @@ class Translator(Node):
                 Float64, "/sensors/steering_angle", 1
             )
 
+            # RADIO DATA PUBLISHER
             self.observed_nand_odom_publisher = self.create_publisher(
                     Odometry, "/NAND_raw_state", 1
                 )
@@ -224,7 +227,8 @@ class Translator(Node):
                 odom.pose.pose.position.x = packet.nand_east_gps
                 odom.pose.pose.position.y = packet.nand_north_gps
                 self.observed_nand_odom_publisher.publish(odom)
-                self.get_logger().debug(f'Radio Received NAND GPS Seqnum: {packet.gps_seqnum}')
+                self.nand_gps_seqnum_publisher.publish(packet.gps_seqnum)
+
 
 
 
