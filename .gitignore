@@ -6,10 +6,10 @@ docker-compose.yml~
 
 # BAGS
 rb_ws/bags
-rb_ws/src/buggy/bags/*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+rb_ws/src/buggy/bags/*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 *.bag
-rb_ws/rosbag2*/*
+rb_ws/rosbag2/
 
 # VISION
-.vision*/*
-vision/data*/*
+.vision/
+vision/data/
