@@ -182,7 +182,7 @@ class Translator(Node):
                 self.tx12_state_publisher.publish(packet.tx12_state)
                 self.stepper_alarm_publisher.publish(packet.stepper_alarm)
                 self.rc_uplink_qual_publisher.publish(packet.rc_uplink_quality)
-
+                self.get_logger().debug(f'NAND Debug Timestamp: {packet.timestamp}')
             elif isinstance(packet, NANDUKF):
                 odom = Odometry()
 
@@ -196,6 +196,8 @@ class Translator(Node):
                 odom.twist.twist.angular.z = packet.heading_rate
 
                 self.nand_ukf_odom_publisher.publish(odom)
+                self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
+
 
             elif isinstance(packet, NANDRawGPS):
                 odom = Odometry()
@@ -212,7 +214,10 @@ class Translator(Node):
                 self.nand_gps_acc_publisher.publish(packet.accuracy)
                 self.nand_gps_seqnum_publisher.publish(packet.gps_seqnum)
                 self.nand_gps_time_publisher.publish(packet.gps_time)
+                self.get_logger().debug(f'NAND Raw GPS Timestamp: {packet.timestamp}')
 
+
+            # this packet is received on Short Circuit
             elif isinstance(packet, Radio):
 
                 # Publish to odom topic x and y coord
@@ -221,6 +226,9 @@ class Translator(Node):
                 odom.pose.pose.position.x = packet.nand_east_gps
                 odom.pose.pose.position.y = packet.nand_north_gps
                 self.observed_nand_odom_publisher.publish(odom)
+                self.get_logger().debug(f'Radio Received NAND GPS Seqnum: {packet.gps_seqnum}')
+
+
 
             elif isinstance(packet, SCDebugInfo):
                 self.encoder_angle_publisher.publish(packet.encoder_angle)
@@ -233,10 +241,14 @@ class Translator(Node):
                 self.tx12_state_publisher.publish(packet.tx12_state)
                 self.stepper_alarm_publisher.publish(packet.stepper_alarm)
                 self.rc_uplink_qual_publisher.publish(packet.rc_uplink_quality)
+                self.get_logger().debug(f'SC Debug Timestamp: {packet.timestamp}')
+
 
             elif isinstance(packet, SCSensors):
                 self.sc_velocity_publisher.publish(packet.velocity)
                 self.sc_steering_angle_publisher.publish(packet.steering_angle)
+                self.get_logger().debug(f'SC Sensors Timestamp: {packet.timestamp}')
+
 
             elif isinstance(packet, RoundtripTimestamp):
                 self.roundtrip_time_publisher.publish(time.time() - packet.returned_time)
