@@ -48,7 +48,7 @@ class StanleyController(Controller):
             float (desired steering angle)
         """
         if self.current_traj_index >= trajectory.get_num_points() - 1:
-            self.node.get_logger.error("[Stanley]: Ran out of path to follow!")
+            self.node.get_logger().error("[Stanley]: Ran out of path to follow!")
             raise Exception("[Stanley]: Ran out of path to follow!")
 
         current_rospose = state_msg.pose.pose

@@ -40,9 +40,9 @@ class Controller(Node):
 
         start_index = self.cur_traj.get_index_from_distance(start_dist)
 
-        self.declare_parameter("controller_name", "stanley")
+        self.declare_parameter("controller", "stanley")
 
-        controller_name = self.get_parameter("controller_name").value
+        controller_name = self.get_parameter("controller").value
         print(controller_name.lower)
         if (controller_name.lower() == "stanley"):
             self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(), node=self) #IMPORT STANLEY
