@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
+
 import argparse
 from threading import Lock
 import threading
 
 import rclpy
-from rclpy import Node
+from rclpy.node import Node
 from scipy.spatial.transform import Rotation
 import utm
 

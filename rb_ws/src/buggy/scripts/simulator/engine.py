@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import threading
 import sys
+import time
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
@@ -9,8 +10,9 @@ from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 import numpy as np
 import utm
-sys.path.append("/rb_ws/src/buggy/buggy")
-from rb_ws.src.buggy.buggy.util.constants import Constants
+
+sys.path.append("/rb_ws/src/buggy/scripts")
+from util.constants import Constants
 
 class Simulator(Node):
 
@@ -130,7 +132,7 @@ class Simulator(Node):
         with self.lock:
             p.position.x = self.e_utm
             p.position.y = self.n_utm
-            p.position.z = self.heading
+            p.position.z = float(self.heading)
             velocity = self.velocity
 
         self.plot_publisher.publish(p)
@@ -176,11 +178,18 @@ class Simulator(Node):
         if self.tick_count % self.interval == 0:
             self.publish()
         self.tick_count += 1
+        self.get_logger().debug("SIMULATED UTM: ({}, {}), HEADING: {}".format(self.e_utm, self.n_utm, self.heading))
 
 
 def main(args=None):
     rclpy.init(args=args)
     sim = Simulator()
+    for _ in range(500):
+        time.sleep(0.01)
+        sim.publish()
+
+
+    sim.get_logger().info("STARTED PUBLISHING")
     rclpy.spin(sim)
 
     sim.destroy_node()

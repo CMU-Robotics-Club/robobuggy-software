@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import threading
 import sys
 
@@ -8,8 +10,9 @@ from rclpy.node import Node
 
 from std_msgs.msg import Float32, Float64, Bool
 from nav_msgs.msg import Odometry
+from buggy.msg import TrajectoryMsg
 
-sys.path.append("/rb_ws/src/buggy/buggy")
+sys.path.append("/rb_ws/src/buggy/scripts")
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
 
@@ -60,7 +63,7 @@ class Controller(Node):
 
         # Subscribers
         self.odom_subscriber = self.create_subscription(Odometry, 'self/state', self.odom_listener, 1)
-        self.traj_subscriber = self.create_subscription(Odometry, 'self/cur_traj', self.traj_listener, 1)
+        self.traj_subscriber = self.create_subscription(TrajectoryMsg, 'self/cur_traj', self.traj_listener, 1)
 
         self.lock = threading.Lock()
 

@@ -23,16 +23,8 @@ RUN pip3 install -r python-requirements.txt
 RUN echo 'source "/opt/ros/humble/setup.bash" --' >> ~/.bashrc && \
     echo 'cd rb_ws' >> ~/.bashrc && \
     echo 'colcon build --symlink-install' >> ~/.bashrc && \
-    echo 'source install/local_setup.bash' >> ~/.bashrc
-# RUN 	echo 'source "/opt/ros/humble/setup.bash" --' >> ~/.bashrc && \
-#     echo 'cd rb_ws' >> ~/.bashrc && \
-#     echo 'catkin_make >/dev/null' >> ~/.bashrc && \
-#     echo 'source devel/setup.bash' >> ~/.bashrc
-
-
-
-# RUN echo "exec firefox" > ~/.xinitrc && chmod +x ~/.xinitrc
-# CMD ["x11vnc", "-create", "-forever"]
+    echo 'source install/local_setup.bash' >> ~/.bashrc && \
+    echo 'cchmod -R +x  src/buggy/scripts/'
 
 # add mouse to tmux
 RUN echo 'set -g mouse on' >> ~/.tmux.conf

@@ -5,7 +5,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Pose as ROSPose
 from nav_msgs.msg import Odometry
 
-sys.path.append("/rb_ws/src/buggy/buggy")
+sys.path.append("/rb_ws/src/buggy/scripts")
 from util.trajectory import Trajectory
 from controller.controller_superclass import Controller
 from util.pose import Pose
