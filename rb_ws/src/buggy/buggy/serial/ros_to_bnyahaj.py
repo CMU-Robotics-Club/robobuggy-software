@@ -37,9 +37,9 @@ class Translator(Node):
         self.lock = Lock()
 
         self.create_subscription(
-            Float64, self_name + "/input/steering", self.set_steering, 1
+            Float64, "/input/steering", self.set_steering, 1
         )
-        self.create_subscription(Int8, self_name + "/input/sanity_warning", self.set_alarm, 1)
+        self.create_subscription(Int8, "/input/sanity_warning", self.set_alarm, 1)
 
         # upper bound of steering update rate, make sure auton sends slower than 500 Hz or update / 2ms
         self.steer_send_rate = self.create_rate(500)
@@ -49,45 +49,45 @@ class Translator(Node):
 
         # DEBUG MESSAGE PUBLISHERS:
         self.heading_rate_publisher = self.create_publisher(
-            Float64, self_name + "/debug/heading_rate", 1
+            Float64, "/debug/heading_rate", 1
         )
         self.encoder_angle_publisher = self.create_publisher(
-            Float64, self_name + "/debug/encoder_angle", 1
+            Float64, "/debug/encoder_angle", 1
         )
         self.rc_steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/debug/rc_steering_angle", 1
+            Float64, "/debug/rc_steering_angle", 1
         )
         self.software_steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/debug/software_steering_angle", 1
+            Float64, "/debug/software_steering_angle", 1
         )
         self.true_steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/debug/true_steering_angle", 1
+            Float64, "/debug/true_steering_angle", 1
         )
         self.rfm69_timeout_num_publisher = self.create_publisher(
-            Int32, self_name + "/debug/rfm_timeout_num", 1
+            Int32, "/debug/rfm_timeout_num", 1
         )
         self.operator_ready_publisher = self.create_publisher(
-            Bool, self_name + "/debug/operator_ready", 1
+            Bool, "/debug/operator_ready", 1
         )
         self.brake_status_publisher = self.create_publisher(
-            Bool, self_name + "/debug/brake_status", 1
+            Bool, "/debug/brake_status", 1
         )
         self.use_auton_steer_publisher = self.create_publisher(
-            Bool, self_name + "/debug/use_auton_steer", 1
+            Bool, "/debug/use_auton_steer", 1
         )
         self.tx12_state_publisher = self.create_publisher(
-            Bool, self_name + "/debug/tx12_connected", 1
+            Bool, "/debug/tx12_connected", 1
         )
         self.stepper_alarm_publisher = self.create_publisher(
-            UInt8, self_name + "/debug/steering_alarm", 1
+            UInt8, "/debug/steering_alarm", 1
         )
         self.rc_uplink_qual_publisher = self.create_publisher(
-            UInt8, self_name + "/debug/rc_uplink_quality", 1
+            UInt8, "/debug/rc_uplink_quality", 1
         )
 
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
-            Float64, self_name + "/debug/roundtrip_time", 1
+            Float64, "/debug/roundtrip_time", 1
         )
 
         if self.self_name == "NAND":
@@ -115,10 +115,10 @@ class Translator(Node):
         if self.self_name == "SC":
             # SC SENSOR PUBLISHERS
             self.sc_velocity_publisher = self.create_publisher(
-                Float64, "SC/sensors/velocity", 1
+                Float64, "/sensors/velocity", 1
             )
             self.sc_steering_angle_publisher = self.create_publisher(
-                Float64, "SC/sensors/steering_angle", 1
+                Float64, "/sensors/steering_angle", 1
             )
 
             self.observed_nand_odom_publisher = self.create_publisher(
