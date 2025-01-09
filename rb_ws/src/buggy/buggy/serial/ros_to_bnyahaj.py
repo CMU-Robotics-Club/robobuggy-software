@@ -4,7 +4,7 @@ import threading
 import rclpy
 from rclpy import Node
 
-from std_msgs.msg import Float64, Int8, Int32, UInt8, Bool
+from std_msgs.msg import Float64, Int8, Int32, UInt8, Bool, UInt64
 from host_comm import *
 from nav_msgs.msg import Odometry
 
@@ -100,6 +100,12 @@ class Translator(Node):
         )
         self.nand_gps_acc_publisher = self.create_publisher(
             Float64, "NAND/debug/gps_accuracy", 1
+        )
+        self.nand_gps_seqnum_publisher = self.create_publisher(
+            Int32, "NAND/debug/gps_seqnum", 1
+        )
+        self.nand_gps_time_publisher = self.create_publisher(
+            UInt64, "NAND/debug/gps_time", 1
         )
 
         # SC SENSOR PUBLISHERS
@@ -204,6 +210,8 @@ class Translator(Node):
                 self.nand_gps_odom_publisher.publish(odom)
                 self.nand_gps_fix_publisher.publish(packet.gps_fix)
                 self.nand_gps_acc_publisher.publish(packet.accuracy)
+                self.nand_gps_seqnum_publisher.publish(packet.gps_seqnum)
+                self.nand_gps_time_publisher.publish(packet.gps_time)
 
             elif isinstance(packet, Radio):
 
