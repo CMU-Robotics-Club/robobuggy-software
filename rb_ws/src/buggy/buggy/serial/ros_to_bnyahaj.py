@@ -85,41 +85,45 @@ class Translator(Node):
             UInt8, self_name + "/debug/rc_uplink_quality", 1
         )
 
-        # NAND POSITION PUBLISHERS
-        self.nand_ukf_odom_publisher = self.create_publisher(
-            Odometry, "NAND/nav/odom", 1
-        )
-        self.nand_gps_odom_publisher = self.create_publisher(
-            Odometry, "NAND/debug/gps_odom", 1
-        )
-        self.observed_nand_odom_publisher = self.create_publisher(
-            Odometry, "SC/nav/NAND_odom", 1
-        )
-        self.nand_gps_fix_publisher = self.create_publisher(
-            UInt8, "NAND/debug/gps_fix", 1
-        )
-        self.nand_gps_acc_publisher = self.create_publisher(
-            Float64, "NAND/debug/gps_accuracy", 1
-        )
-        self.nand_gps_seqnum_publisher = self.create_publisher(
-            Int32, "NAND/debug/gps_seqnum", 1
-        )
-        self.nand_gps_time_publisher = self.create_publisher(
-            UInt64, "NAND/debug/gps_time", 1
-        )
-
-        # SC SENSOR PUBLISHERS
-        self.sc_velocity_publisher = self.create_publisher(
-            Float64, "SC/sensors/velocity", 1
-        )
-        self.sc_steering_angle_publisher = self.create_publisher(
-            Float64, "SC/sensors/steering_angle", 1
-        )
-
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
             Float64, self_name + "/debug/roundtrip_time", 1
         )
+
+        if self.self_name == "NAND":
+            # NAND POSITION PUBLISHERS
+            self.nand_ukf_odom_publisher = self.create_publisher(
+                Odometry, "/raw_state", 1
+            )
+            self.nand_gps_odom_publisher = self.create_publisher(
+                Odometry, "/debug/gps_odom", 1
+            )
+
+            self.nand_gps_fix_publisher = self.create_publisher(
+                UInt8, "/debug/gps_fix", 1
+            )
+            self.nand_gps_acc_publisher = self.create_publisher(
+                Float64, "/debug/gps_accuracy", 1
+            )
+            self.nand_gps_seqnum_publisher = self.create_publisher(
+                Int32, "/debug/gps_seqnum", 1
+            )
+            self.nand_gps_time_publisher = self.create_publisher(
+                UInt64, "/debug/gps_time", 1
+            )
+
+        if self.self_name == "SC":
+            # SC SENSOR PUBLISHERS
+            self.sc_velocity_publisher = self.create_publisher(
+                Float64, "SC/sensors/velocity", 1
+            )
+            self.sc_steering_angle_publisher = self.create_publisher(
+                Float64, "SC/sensors/steering_angle", 1
+            )
+
+            self.observed_nand_odom_publisher = self.create_publisher(
+                    Odometry, "/NAND_raw_state", 1
+                )
 
 
     def set_alarm(self, msg):
@@ -135,8 +139,6 @@ class Translator(Node):
         Steering Angle Updater, updates the steering angle locally if updated on ros stopic
         """
         self.get_logger().debug(f"Read steering angle of: {msg.data}")
-        # print("Steering angle: " + str(msg.data))
-        # print("SET STEERING: " + str(msg.data))
         with self.lock:
             self.steer_angle = msg.data
             self.fresh_steer = True
@@ -185,8 +187,6 @@ class Translator(Node):
                 self.get_logger().debug(f'NAND Debug Timestamp: {packet.timestamp}')
             elif isinstance(packet, NANDUKF):
                 odom = Odometry()
-
-                # NOTE: this data is published as an Odometry object per the BuggyState specs: https://github.com/CMU-Robotics-Club/robobuggy-software/wiki/BuggyState#buggystate-definition-as-a-navodom-ros-msg
                 odom.pose.pose.position.x = packet.easting
                 odom.pose.pose.position.y = packet.northing
                 odom.pose.pose.orientation.z = packet.theta
@@ -201,7 +201,6 @@ class Translator(Node):
 
             elif isinstance(packet, NANDRawGPS):
                 odom = Odometry()
-                # NOTE: this data is published as an Odometry object per the BuggyState specs: https://github.com/CMU-Robotics-Club/robobuggy-software/wiki/BuggyState#buggystate-definition-as-a-navodom-ros-msg
                 odom.pose.pose.position.x = packet.easting
                 odom.pose.pose.position.y = packet.northing
                 odom.pose.pose.orientation.z = 0
