@@ -1,0 +1,4 @@
+/SC/SC_sim_single:
+   ros__parameters:
+      velocity: 1
+      pose: "Hill1_SC"
