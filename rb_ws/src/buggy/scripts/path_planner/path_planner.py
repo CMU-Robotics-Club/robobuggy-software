@@ -9,10 +9,10 @@ from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
+from geometry_msgs.msg import Pose
 from buggy.msg import TrajectoryMsg
 
 sys.path.append("/rb_ws/src/buggy/scripts")
-from util.pose import Pose
 from util.trajectory import Trajectory
 
 class PathPlanner(Node):
@@ -82,12 +82,12 @@ class PathPlanner(Node):
 
     def self_pose_callback(self, msg):
         with self.self_pose_lock:
-            self.self_pose = Pose.rospose_to_pose(msg.pose.pose)
+            self.self_pose = msg.pose.pose
 
     def other_pose_callback(self, msg):
         with self.other_pose_lock:
-            self.other_pose = Pose.rospose_to_pose(msg.pose.pose)
-            self.get_logger().debug("RECEIVED FROM NAND")
+            self.other_pose = msg.pose.pose
+            self.get_logger().debug("Received position of other buggy.")
 
     def timer_callback(self):
         with self.self_pose_lock and self.other_pose_lock:
@@ -157,7 +157,7 @@ class PathPlanner(Node):
             Trajectory: list of x,y coords for ego-buggy to follow.
         """
         # grab slice of nominal trajectory
-        nominal_idx = self.nominal_traj.get_closest_index_on_path(self_pose.x, self_pose.y)
+        nominal_idx = self.nominal_traj.get_closest_index_on_path(self_pose.position.x, self_pose.position.y)
         nominal_dist_along = self.nominal_traj.get_distance_from_index(nominal_idx)
 
         nominal_slice = np.empty((self.RESOLUTION, 2))
@@ -174,14 +174,14 @@ class PathPlanner(Node):
             ))
 
         # get index of the other buggy along the trajetory and convert to distance
-        other_idx = self.nominal_traj.get_closest_index_on_path(other_pose.x, other_pose.y)
+        other_idx = self.nominal_traj.get_closest_index_on_path(other_pose.position.x, other_pose.position.y)
         other_dist = self.nominal_traj.get_distance_from_index(other_idx)
         nominal_slice_to_other_dist = np.abs(nominal_slice_dists - other_dist)
 
         passing_offsets = self.offset_func(nominal_slice_to_other_dist)
 
         # compute signed cross-track distance between NAND and nominal
-        nominal_to_other = np.array((other_pose.x, other_pose.y)) - \
+        nominal_to_other = np.array((other_pose.position.x, other_pose.position.y)) - \
             np.array(self.nominal_traj.get_position_by_index(other_idx))
 
         # dot product with the unit normal to produce left-positive signed distance
@@ -189,7 +189,7 @@ class PathPlanner(Node):
         other_cross_track_dist = np.sum(
             nominal_to_other * other_normal, axis=1)
 
-        self.other_buggy_xtrack_publisher.publish(Float64(data=float(other_cross_track_dist)))
+        self.other_buggy_xtrack_publisher.publish(Float64(data=float(other_cross_track_dist.item())))
 
         # here, use passing offsets to weight NAND's cross track signed distance:
         # if the sample point is far from SC, the cross track distance doesn't matter
@@ -202,7 +202,7 @@ class PathPlanner(Node):
         # clamp passing offset distances to distance to the curb
         if self.left_curb is not None:
             # grab slice of curb correponding to slice of nominal trajectory.
-            curb_idx = self.left_curb.get_closest_index_on_path(self_pose.x, self_pose.y)
+            curb_idx = self.left_curb.get_closest_index_on_path(self_pose.position.x, self_pose.position.y)
             curb_dist_along = self.left_curb.get_distance_from_index(curb_idx)
             curb_idx_end = self.left_curb.get_closest_index_on_path(nominal_slice[-1, 0], nominal_slice[-1, 1])
             curb_dist_along_end = self.left_curb.get_distance_from_index(curb_idx_end)
@@ -229,7 +229,7 @@ class PathPlanner(Node):
         positions = nominal_slice + (passing_offsets[:, None] * nominal_normals)
 
         local_traj = Trajectory(json_filepath=None, positions=positions)
-        self.traj_publisher.publish(local_traj.pack(self_pose.x, self_pose.y ))
+        self.traj_publisher.publish(local_traj.pack(self_pose.position.x, self_pose.position.y ))
 
 
 def main(args=None):
