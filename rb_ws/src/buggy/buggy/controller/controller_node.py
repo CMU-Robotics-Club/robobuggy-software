@@ -1,15 +1,11 @@
 import threading
-import sys
-
 import numpy as np
-
 import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import Float32, Float64, Bool
 from nav_msgs.msg import Odometry
 
-sys.path.append("/rb_ws/src/buggy/buggy")
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
 
@@ -21,7 +17,7 @@ class Controller(Node):
 
         Creates a ROS node with a publisher that periodically sends a message
         indicating whether the node is still alive.
-        
+
         """
         super().__init__('controller')
         self.get_logger().info('INITIALIZED.')

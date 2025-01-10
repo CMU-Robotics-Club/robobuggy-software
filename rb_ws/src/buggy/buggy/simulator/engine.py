@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 import threading
-import sys
+
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
@@ -9,7 +9,6 @@ from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 import numpy as np
 import utm
-sys.path.append("/rb_ws/src/buggy/buggy")
 from util.constants import Constants
 
 class Simulator(Node):
@@ -18,7 +17,6 @@ class Simulator(Node):
     def __init__(self):
         super().__init__('sim_single')
         self.get_logger().info('INITIALIZED.')
-
 
         self.starting_poses = {
             "Hill1_NAND": (Constants.UTM_EAST_ZERO + 0, Constants.UTM_NORTH_ZERO + 0, -110),

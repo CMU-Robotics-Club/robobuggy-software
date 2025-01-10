@@ -12,8 +12,12 @@ services:
       - "${FEATHER_PORT:-/dev/null}:/dev/ttyACM1"
     stdin_open: true # docker run -i
     tty: true # docker run -t
+    env_file: .env.dev
     environment:
       - DISPLAY=host.docker.internal:0
+      - ROOT_DIR=${ROOT_DIR:-/rb_ws/src/buggy}
+      - SCRIPTS_DIR=${SCRIPTS_DIR:-/rb_ws/src/buggy/buggy}
+      - PYTHONPATH=${SCRIPTS_DIR:-/rb_ws/src/buggy/buggy}
     hostname: main
     ports:
       - "0.0.0.0:8765:8765" # foxglove bridge

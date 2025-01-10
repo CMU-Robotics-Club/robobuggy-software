@@ -1,10 +1,8 @@
 from abc import ABC, abstractmethod
-import sys
 
 from nav_msgs.msg import Odometry
 
 
-sys.path.append("/rb_ws/src/buggy/buggy")
 from util.trajectory import Trajectory
 
 class Controller(ABC):
