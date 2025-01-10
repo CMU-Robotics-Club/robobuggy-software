@@ -10,7 +10,7 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import utm
 sys.path.append("/rb_ws/src/buggy/buggy")
-from rb_ws.src.buggy.buggy.util.constants import Constants
+from util.constants import Constants
 
 class Simulator(Node):
 
@@ -130,7 +130,7 @@ class Simulator(Node):
         with self.lock:
             p.position.x = self.e_utm
             p.position.y = self.n_utm
-            p.position.z = self.heading
+            p.position.z = float(self.heading)
             velocity = self.velocity
 
         self.plot_publisher.publish(p)
