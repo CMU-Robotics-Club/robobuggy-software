@@ -64,7 +64,7 @@ class PathPlanner(Node):
             self.left_curb = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + curb_name) #TODO: Fixed filepath, not good
 
         #Publishers
-        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "self/debug/other_buggy_xtrack", 10)
+        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 10)
         self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 10)
 
         #Subscribers

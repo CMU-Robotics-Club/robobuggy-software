@@ -58,7 +58,7 @@ class Controller(Node):
             Float64, "input/steering", 1
         )
         self.heading_publisher = self.create_publisher(
-            Float32, "auton/debug/heading", 1
+            Float32, "debug/heading", 1
         )
 
         # Subscribers
