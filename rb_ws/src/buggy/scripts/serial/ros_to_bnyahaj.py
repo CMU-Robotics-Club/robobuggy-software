@@ -3,63 +3,45 @@
 import argparse
 from threading import Lock
 import threading
-
 import rclpy
-from rclpy.node import Node
-from scipy.spatial.transform import Rotation
-import utm
-
-from std_msgs.msg import Float64, Int8, UInt8, Bool
-
 from host_comm import *
+from rclpy.node import Node
 
-from nav_msgs.msg import Odometry as ROSOdom
+from std_msgs.msg import Float64, Int8, Int32, UInt8, Bool, UInt64
+from nav_msgs.msg import Odometry
 
 class Translator(Node):
     """
     Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
     Performs reading (from Bnya Serial) and writing (from Ros Topics) on different python threads, so
     be careful of multithreading synchronizaiton issues.
-    SC:
-    (ROS) Self Steering topic --> (Bnyahaj) Stepper Motor
-    (Bnyahaj) NAND Odom --> (ROS) NAND Odom topic
-
-    NAND:
-    (ROS) Self Steering --> (Bnyahaj) Stepper Motor
-    (Bnyahaj) Self Odom from UKF --> (ROS) NAND Odom topic
     """
 
-    def __init__(self, self_name, other_name, teensy_name):
+    def __init__(self, teensy_name):
         """
-        self_name: Buggy namespace
-        other_name: Only requried by SC for passing buggy namespace
         teensy_name: required for communication, different for SC and NAND
 
         Initializes the subscribers, rates, and ros topics (including debug topics)
         """
+
         super().__init__('ROS_serial_translator')
 
         self.comms = Comms("/dev/" + teensy_name)
+        namespace = self.get_namespace()
+        if namespace == "/SC":
+            self.self_name = "SC"
+        else:
+            self.self_name = "NAND"
+
         self.steer_angle = 0
         self.alarm = 0
         self.fresh_steer = False
         self.lock = Lock()
 
         self.create_subscription(
-            Float64, self_name + "/buggy/input/steering", self.set_steering, 1
+            Float64, "/input/steering", self.set_steering, 1
         )
-
-        self.create_subscription(Int8, self_name + "/debug/sanity_warning", self.set_alarm, 1)
-
-        # ISSUE: https://github.com/CMU-Robotics-Club/RoboBuggy2/issues/83
-        if other_name is None and self_name == "NAND":
-            self.odom_publisher = self.create_publisher(
-                ROSOdom, self_name + "/nav/odom", 1
-            )
-        else:
-            self.odom_publisher = self.create_publisher(
-                ROSOdom, other_name + "/nav/odom", 1
-            )
+        self.create_subscription(Int8, "/input/sanity_warning", self.set_alarm, 1)
 
         # upper bound of steering update rate, make sure auton sends slower than 500 Hz or update / 2ms
         self.steer_send_rate = self.create_rate(500)
@@ -67,34 +49,87 @@ class Translator(Node):
         # upper bound of reading data from Bnyahaj Serial, at 1ms
         self.read_rate = self.create_rate(1000)
 
-        # ISSUE: https://github.com/CMU-Robotics-Club/RoboBuggy2/issues/90
+        # DEBUG MESSAGE PUBLISHERS:
+        self.heading_rate_publisher = self.create_publisher(
+            Float64, "/debug/heading_rate", 1
+        )
+        self.encoder_angle_publisher = self.create_publisher(
+            Float64, "/debug/encoder_angle", 1
+        )
         self.rc_steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/rc_steering_angle", 1
+            Float64, "/debug/rc_steering_angle", 1
         )
-        self.steering_angle_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/steering_angle", 1
+        self.software_steering_angle_publisher = self.create_publisher(
+            Float64, "/debug/software_steering_angle", 1
         )
-        self.battery_voltage_publisher = self.create_publisher(
-            Float64, self_name + "/buggy/debug/battery_voltage", 1
+        self.true_steering_angle_publisher = self.create_publisher(
+            Float64, "/debug/true_steering_angle", 1
+        )
+        self.rfm69_timeout_num_publisher = self.create_publisher(
+            Int32, "/debug/rfm_timeout_num", 1
         )
         self.operator_ready_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/operator_ready", 1
-        )
-        self.steering_alarm_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/steering_alarm", 1
+            Bool, "/debug/operator_ready", 1
         )
         self.brake_status_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/brake_status", 1
+            Bool, "/debug/brake_status", 1
         )
         self.use_auton_steer_publisher = self.create_publisher(
-            Bool, self_name + "/buggy/debug/use_auton_steer", 1
+            Bool, "/debug/use_auton_steer", 1
+        )
+        self.tx12_state_publisher = self.create_publisher(
+            Bool, "/debug/tx12_connected", 1
+        )
+        self.stepper_alarm_publisher = self.create_publisher(
+            UInt8, "/debug/steering_alarm", 1
         )
         self.rc_uplink_qual_publisher = self.create_publisher(
-            UInt8, self_name + "/buggy/debug/rc_uplink_quality", 1
+            UInt8, "/debug/rc_uplink_quality", 1
         )
-        self.nand_fix_publisher = self.create_publisher(
-            UInt8, self_name + "/buggy/debug/nand_fix", 1
+        self.nand_gps_seqnum_publisher = self.create_publisher(
+            Int32, "/debug/NAND_gps_seqnum", 1
         )
+
+        # SERIAL DEBUG PUBLISHERS
+        self.roundtrip_time_publisher = self.create_publisher(
+            Float64, "/debug/roundtrip_time", 1
+        )
+
+        if self.self_name == "NAND":
+            # NAND POSITION PUBLISHERS
+            self.nand_ukf_odom_publisher = self.create_publisher(
+                Odometry, "/raw_state", 1
+            )
+            self.nand_gps_odom_publisher = self.create_publisher(
+                Odometry, "/debug/gps_odom", 1
+            )
+
+            self.nand_gps_fix_publisher = self.create_publisher(
+                UInt8, "/debug/gps_fix", 1
+            )
+            self.nand_gps_acc_publisher = self.create_publisher(
+                Float64, "/debug/gps_accuracy", 1
+            )
+
+            self.nand_gps_time_publisher = self.create_publisher(
+                UInt64, "/debug/gps_time", 1
+            )
+
+        if self.self_name == "SC":
+
+            # SC SENSOR PUBLISHERS
+            self.sc_velocity_publisher = self.create_publisher(
+                Float64, "/sensors/velocity", 1
+            )
+            self.sc_steering_angle_publisher = self.create_publisher(
+                Float64, "/sensors/steering_angle", 1
+            )
+
+            # RADIO DATA PUBLISHER
+            self.observed_nand_odom_publisher = self.create_publisher(
+                    Odometry, "/NAND_raw_state", 1
+                )
+
 
     def set_alarm(self, msg):
         """
@@ -108,9 +143,7 @@ class Translator(Node):
         """
         Steering Angle Updater, updates the steering angle locally if updated on ros stopic
         """
-        self.get_logger().debug(f"Read steeering angle of: {msg.data}")
-        # print("Steering angle: " + str(msg.data))
-        # print("SET STEERING: " + str(msg.data))
+        self.get_logger().debug(f"Read steering angle of: {msg.data}")
         with self.lock:
             self.steer_angle = msg.data
             self.fresh_steer = True
@@ -119,7 +152,6 @@ class Translator(Node):
         """
         Sends ROS Topics to bnayhaj serial, only sends a steering angle when we receive a fresh one
         Will send steering and alarm node.
-        TODO: Does alarm node exist for NAND?
         """
         self.get_logger().info("Starting sending alarm and steering to teensy!")
 
@@ -132,76 +164,97 @@ class Translator(Node):
 
             with self.lock:
                 self.comms.send_alarm(self.alarm)
+            with self.lock:
+                self.comms.send_timestamp(time.time())
 
             self.steer_send_rate.sleep()
 
     def reader_thread(self):
-        """
-        Reads three different types of packets, that should have better ways of differntiating
-        Odometry -> (SC) NAND Odomotery
-        BnyaTelemetry -> (NAND) Self Odom
-        tuple -> (SC, maybe NAND?) Debug Info
-        """
         self.get_logger().info("Starting reading odom from teensy!")
         while rclpy.ok():
             packet = self.comms.read_packet()
             self.get_logger().debug("packet" + str(packet))
 
-            if isinstance(packet, Odometry):
+            if isinstance(packet, NANDDebugInfo):
+                self.heading_rate_publisher.publish(packet.heading_rate)
+                self.encoder_angle_publisher.publish(packet.encoder_angle)
+                self.rc_steering_angle_publisher.publish(packet.rc_steering_angle)
+                self.software_steering_angle_publisher.publish(packet.software_steering_angle)
+                self.true_steering_angle_publisher.publish(packet.true_steering_angle)
+                self.rfm69_timeout_num_publisher.publish(packet.rfm69_timeout_num)
+                self.operator_ready_publisher.publish(packet.operator_ready)
+                self.brake_status_publisher.publish(packet.brake_status)
+                self.use_auton_steer_publisher.publish(packet.auton_steer)
+                self.tx12_state_publisher.publish(packet.tx12_state)
+                self.stepper_alarm_publisher.publish(packet.stepper_alarm)
+                self.rc_uplink_qual_publisher.publish(packet.rc_uplink_quality)
+                self.get_logger().debug(f'NAND Debug Timestamp: {packet.timestamp}')
+            elif isinstance(packet, NANDUKF):
+                odom = Odometry()
+                odom.pose.pose.position.x = packet.easting
+                odom.pose.pose.position.y = packet.northing
+                odom.pose.pose.orientation.z = packet.theta
+
+                odom.twist.twist.linear.x = packet.velocity
+                odom.twist.twist.angular.z = packet.heading_rate
+
+                self.nand_ukf_odom_publisher.publish(odom)
+                self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
+
+
+            elif isinstance(packet, NANDRawGPS):
+                odom = Odometry()
+                odom.pose.pose.position.x = packet.easting
+                odom.pose.pose.position.y = packet.northing
+                odom.pose.pose.orientation.z = 0
+                odom.twist.twist.linear.x = 0
+                odom.twist.twist.linear.y = 0
+                odom.twist.twist.angular.z = 0
+
+                self.nand_gps_odom_publisher.publish(odom)
+                self.nand_gps_fix_publisher.publish(packet.gps_fix)
+                self.nand_gps_acc_publisher.publish(packet.accuracy)
+                self.nand_gps_seqnum_publisher.publish(packet.gps_seqnum)
+                self.nand_gps_time_publisher.publish(packet.gps_time)
+                self.get_logger().debug(f'NAND Raw GPS Timestamp: {packet.timestamp}')
+
+
+            # this packet is received on Short Circuit
+            elif isinstance(packet, Radio):
+
                 # Publish to odom topic x and y coord
-                odom = ROSOdom()
-                # convert to long lat
-                try:
-                    # TODO check if the order of y and x here is accurate
-                    lat, long = utm.to_latlon(packet.y, packet.x, 17, "T")
-                    odom.pose.pose.position.x = long
-                    odom.pose.pose.position.y = lat
-                    self.odom_publisher.publish(odom)
-                except Exception as e:
-                    self.get_logger().warn(
-                        "Unable to convert other buggy position to lon lat" + str(e)
-                    )
+                odom = Odometry()
 
-            elif isinstance(packet, BnyaTelemetry):
-                odom = ROSOdom()
+                odom.pose.pose.position.x = packet.nand_east_gps
+                odom.pose.pose.position.y = packet.nand_north_gps
+                self.observed_nand_odom_publisher.publish(odom)
+                self.nand_gps_seqnum_publisher.publish(packet.gps_seqnum)
 
-                # TODO: Not mock rolled accurately (Needs to be Fact Checked)
-                try:
-                    lat, long = utm.to_latlon(packet.x, packet.y, 17, "T")
-                    odom.pose.pose.position.x = long
-                    odom.pose.pose.position.y = lat
-                    odom.twist.twist.angular.z = packet.heading_rate
-                    heading = Rotation.from_euler('x', packet.heading, degrees=False).as_quat()
 
-                    odom.pose.pose.orientation.x = heading[0]
-                    odom.pose.pose.orientation.y = heading[1]
-                    odom.pose.pose.orientation.z = heading[2]
-                    odom.pose.pose.orientation.w = heading[3]
 
-                    speed = packet.velocity
-                    # TODO: fix this
-                    # why this works: autonsystem only cares about magnitude of velocity
-                    # so setting an arbitrary axis to the speed and leave other at 0
-                    # works. However, this should be done properly ASAP
-                    odom.twist.twist.linear.x = speed
-                    self.odom_publisher.publish(odom)
-                except Exception as e:
-                    self.get_logger().warn(
-                        "Unable to convert other buggy position to lon lat" + str(e)
-                    )
 
-            elif isinstance(
-                    packet, tuple
-            ):  # Are there any other packet that is a tuple
-                self.rc_steering_angle_publisher.publish(Float64(data=packet[0]))
-                self.steering_angle_publisher.publish(Float64(data=packet[1]))
-                self.battery_voltage_publisher.publish(Float64(data=packet[2]))
-                self.operator_ready_publisher.publish(Bool(data=packet[3]))
-                self.steering_alarm_publisher.publish(Bool(data=packet[4]))
-                self.brake_status_publisher.publish(Bool(data=packet[5]))
-                self.use_auton_steer_publisher.publish(Bool(data=packet[6]))
-                self.rc_uplink_qual_publisher.publish(UInt8(data=packet[7]))
-                self.nand_fix_publisher.publish(UInt8(data=packet[8]))
+            elif isinstance(packet, SCDebugInfo):
+                self.encoder_angle_publisher.publish(packet.encoder_angle)
+                self.rc_steering_angle_publisher.publish(packet.rc_steering_angle)
+                self.software_steering_angle_publisher.publish(packet.software_steering_angle)
+                self.true_steering_angle_publisher.publish(packet.true_steering_angle)
+                self.operator_ready_publisher.publish(packet.operator_ready)
+                self.brake_status_publisher.publish(packet.brake_status)
+                self.use_auton_steer_publisher.publish(packet.auton_steer)
+                self.tx12_state_publisher.publish(packet.tx12_state)
+                self.stepper_alarm_publisher.publish(packet.stepper_alarm)
+                self.rc_uplink_qual_publisher.publish(packet.rc_uplink_quality)
+                self.get_logger().debug(f'SC Debug Timestamp: {packet.timestamp}')
+
+
+            elif isinstance(packet, SCSensors):
+                self.sc_velocity_publisher.publish(packet.velocity)
+                self.sc_steering_angle_publisher.publish(packet.steering_angle)
+                self.get_logger().debug(f'SC Sensors Timestamp: {packet.timestamp}')
+
+
+            elif isinstance(packet, RoundtripTimestamp):
+                self.roundtrip_time_publisher.publish(time.time() - packet.returned_time)
 
             self.read_rate.sleep()
 

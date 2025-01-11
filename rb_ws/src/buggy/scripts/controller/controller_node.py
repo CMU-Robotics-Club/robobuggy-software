@@ -58,7 +58,7 @@ class Controller(Node):
             Float64, "input/steering", 1
         )
         self.heading_publisher = self.create_publisher(
-            Float32, "auton/debug/heading", 1
+            Float32, "debug/heading", 1
         )
 
         # Subscribers
@@ -142,7 +142,7 @@ class Controller(Node):
         self.heading_publisher.publish(Float32(data=np.rad2deg(self.odom.pose.pose.orientation.z)))
         steering_angle = self.controller.compute_control(self.odom, self.cur_traj)
         steering_angle_deg = np.rad2deg(steering_angle)
-        self.steer_publisher.publish(Float64(data=float(steering_angle_deg)))
+        self.steer_publisher.publish(Float64(data=float(steering_angle_deg.item())))
 
 
 
