@@ -24,7 +24,8 @@ RUN echo 'source "/opt/ros/humble/setup.bash" --' >> ~/.bashrc && \
     echo 'cd rb_ws' >> ~/.bashrc && \
     echo 'colcon build --symlink-install' >> ~/.bashrc && \
     echo 'source install/local_setup.bash' >> ~/.bashrc && \
-    echo 'chmod -R +x src/buggy/scripts/' >> ~/.bashrc
+    echo 'chmod -R +x src/buggy/scripts/' >> ~/.bashrc && \
+    echo 'source environments/docker_env.bash' >> ~/.bashrc 
 
 # add mouse to tmux
 RUN echo 'set -g mouse on' >> ~/.tmux.conf
