@@ -12,47 +12,51 @@ class BuggyStateConverter(Node):
         super().__init__("buggy_state_converter")
 
         namespace = self.get_namespace()
-
-        # Create publisher and subscriber for "self" namespace
-        self.self_raw_state_subscriber = self.create_subscription(
-            Odometry, "self/raw_state", self.self_raw_state_callback, 10
-        )
-        self.self_state_publisher = self.create_publisher(Odometry, "self/state", 10)
-
-        # Check if namespace is "SC" to add an "other" subscriber/publisher
         if namespace == "/SC":
-            self.other_raw_state_subscriber = self.create_subscription(
-                Odometry, "other/raw_state", self.other_raw_state_callback, 10
+            self.SC_raw_state_subscriber = self.create_subscription(
+                Odometry, "/raw_state", self.convert_SC_state_callback, 10
             )
-            self.other_state_publisher = self.create_publisher(Odometry, "other/state", 10)
+
+            self.NAND_other_raw_state_subscriber = self.create_subscription(
+                Odometry, "/NAND_raw_state", self.convert_NAND_other_state_callback, 10
+            )
+
+            self.other_state_publisher = self.create_publisher(Odometry, "/other/state", 10)
+
+        elif namespace == "/NAND":
+            self.NAND_raw_state_subscriber = self.create_subscription(
+                Odometry, "/raw_state", self.convert_NAND_state_callback, 10
+            )
+
+        else:
+            self.get_logger().warn(f"Namespace not recognized for buggy state conversion: {namespace}")
+
+        self.self_state_publisher = self.create_publisher(Odometry, "/state", 10)
 
         # Initialize pyproj Transformer for ECEF -> UTM conversion for /SC
         self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(
             "epsg:4978", "epsg:32617", always_xy=True
         )  # TODO: Confirm UTM EPSG code, using EPSG:32617 for UTM Zone 17N
 
-    def self_raw_state_callback(self, msg):
-        """ Callback for processing self/raw_state messages and publishing to self/state """
-        namespace = self.get_namespace()
-
-        if namespace == "/SC":
-            converted_msg = self.convert_SC_state(msg)
-        elif namespace == "/NAND":
-            converted_msg = self.convert_NAND_state(msg)
-        else:
-            self.get_logger().warn(f"Namespace not recognized for buggy state conversion: {namespace}")
-            return
-
+    def convert_SC_state_callback(self, msg):
+        """ Callback for processing SC/raw_state messages and publishing to self/state """
+        converted_msg = self.convert_SC_state(msg)
         self.self_state_publisher.publish(converted_msg)
 
-    def other_raw_state_callback(self, msg):
-        """ Callback for processing other/raw_state messages and publishing to other/state """
-        # Convert the SC message and publish to other/state
+    def convert_NAND_state_callback(self, msg):
+        """ Callback for processing NAND/raw_state messages and publishing to self/state """
+        converted_msg = self.convert_NAND_state(msg)
+        self.self_state_publisher.publish(converted_msg)
+
+
+    def convert_NAND_other_state_callback(self, msg):
+        """ Callback for processing SC/NAND_raw_state messages and publishing to other/state """
         converted_msg = self.convert_NAND_other_state(msg)
         self.other_state_publisher.publish(converted_msg)
 
+
     def convert_SC_state(self, msg):
-        """ 
+        """
         Converts self/raw_state in SC namespace to clean state units and structure
 
         Takes in ROS message in nav_msgs/Odometry format
@@ -127,7 +131,6 @@ class BuggyStateConverter(Node):
         converted_msg.twist.covariance = msg.twist.covariance
 
         # ---- 4. Linear Velocities in m/s ----
-        # TODO: Check if scalar velocity is coming in from msg.twist.twist.linear.x
         # Convert scalar speed to velocity x/y components using heading (orientation.z)
         speed = msg.twist.twist.linear.x        # m/s scalar velocity
         heading = msg.pose.pose.orientation.z   # heading in radians
