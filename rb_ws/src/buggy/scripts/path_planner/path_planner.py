@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys
+import os
 from threading import Lock
 
 import numpy as np
@@ -12,7 +12,6 @@ from std_msgs.msg import Float64
 from geometry_msgs.msg import Pose
 from buggy.msg import TrajectoryMsg
 
-sys.path.append("/rb_ws/src/buggy/scripts")
 from util.trajectory import Trajectory
 
 class PathPlanner(Node):
@@ -53,7 +52,7 @@ class PathPlanner(Node):
         #Parameters
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
-        self.nominal_traj = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + traj_name) #TODO: Fixed filepath, not good
+        self.nominal_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name) #TODO: Fixed filepath, not good
 
         self.declare_parameter("curb_name", "")
         curb_name = self.get_parameter("curb_name").value
@@ -61,7 +60,7 @@ class PathPlanner(Node):
         if curb_name is None:
             self.left_curb = None
         else:
-            self.left_curb = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + curb_name) #TODO: Fixed filepath, not good
+            self.left_curb = Trajectory(json_filepath=os.environ["TRAJPATH"] + curb_name) #TODO: Fixed filepath, not good
 
         #Publishers
         self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 10)

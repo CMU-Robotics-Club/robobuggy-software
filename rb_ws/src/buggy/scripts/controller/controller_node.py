@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import threading
 import numpy as np
 import rclpy
@@ -32,7 +33,7 @@ class Controller(Node):
 
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
-        self.cur_traj = Trajectory(json_filepath="/rb_ws/src/buggy/paths/" + traj_name) #TODO: Fixed filepath, not good
+        self.cur_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name) #TODO: Fixed filepath, not good
 
         start_index = self.cur_traj.get_index_from_distance(start_dist)
 
