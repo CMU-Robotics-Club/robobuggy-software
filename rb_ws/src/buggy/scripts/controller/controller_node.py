@@ -1,11 +1,17 @@
+#!/usr/bin/env python3
+
 import threading
 import numpy as np
+import sys
 import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import Float32, Float64, Bool
 from nav_msgs.msg import Odometry
+from buggy.msg import TrajectoryMsg
 
+
+sys.path.append("/rb_ws/src/buggy/scripts")
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
 
@@ -51,12 +57,12 @@ class Controller(Node):
             Float64, "input/steering", 1
         )
         self.heading_publisher = self.create_publisher(
-            Float32, "auton/debug/heading", 1
+            Float32, "debug/heading", 1
         )
 
         # Subscribers
         self.odom_subscriber = self.create_subscription(Odometry, 'self/state', self.odom_listener, 1)
-        self.traj_subscriber = self.create_subscription(Odometry, 'self/cur_traj', self.traj_listener, 1)
+        self.traj_subscriber = self.create_subscription(TrajectoryMsg, 'self/cur_traj', self.traj_listener, 1)
 
         self.lock = threading.Lock()
 
@@ -135,7 +141,7 @@ class Controller(Node):
         self.heading_publisher.publish(Float32(data=np.rad2deg(self.odom.pose.pose.orientation.z)))
         steering_angle = self.controller.compute_control(self.odom, self.cur_traj)
         steering_angle_deg = np.rad2deg(steering_angle)
-        self.steer_publisher.publish(Float64(data=float(steering_angle_deg)))
+        self.steer_publisher.publish(Float64(data=float(steering_angle_deg.item())))
 
 
 

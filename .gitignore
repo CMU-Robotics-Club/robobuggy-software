@@ -1,10 +1,15 @@
 .DS_Store
-rb_ws/bags
 .docker-compose.yml.un~
 .python-requirements.txt.un~
 docker-compose.yml~
 *TEMP_DO_NOT_EDIT.txt
-rb_ws/src/buggy/bags/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+
+# BAGS
+rb_ws/bags
+rb_ws/src/buggy/bags/*                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 *.bag
+rb_ws/rosbag2/
+
+# VISION
 .vision/
 vision/data/

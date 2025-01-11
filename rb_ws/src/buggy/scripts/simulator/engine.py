@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 import threading
-
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
@@ -174,11 +173,18 @@ class Simulator(Node):
         if self.tick_count % self.interval == 0:
             self.publish()
         self.tick_count += 1
+        self.get_logger().debug("SIMULATED UTM: ({}, {}), HEADING: {}".format(self.e_utm, self.n_utm, self.heading))
 
 
 def main(args=None):
     rclpy.init(args=args)
     sim = Simulator()
+    for _ in range(500):
+        time.sleep(0.01)
+        sim.publish()
+
+
+    sim.get_logger().info("STARTED PUBLISHING")
     rclpy.spin(sim)
 
     sim.destroy_node()

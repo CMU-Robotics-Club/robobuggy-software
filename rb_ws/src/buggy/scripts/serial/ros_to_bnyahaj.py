@@ -1,11 +1,13 @@
+#!/usr/bin/env python3
+
 import argparse
 from threading import Lock
 import threading
 import rclpy
-from rclpy import Node
+from host_comm import *
+from rclpy.node import Node
 
 from std_msgs.msg import Float64, Int8, Int32, UInt8, Bool, UInt64
-from host_comm import *
 from nav_msgs.msg import Odometry
 
 class Translator(Node):

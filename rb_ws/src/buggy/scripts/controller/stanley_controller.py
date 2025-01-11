@@ -28,10 +28,10 @@ class StanleyController(Controller):
     def __init__(self, start_index, namespace, node):
         super(StanleyController, self).__init__(start_index, namespace, node)
         self.debug_reference_pos_publisher = self.node.create_publisher(
-            NavSatFix, "auton/debug/reference_navsat", 1
+            NavSatFix, "controller/debug/reference_navsat", 1
         )
         self.debug_error_publisher = self.node.create_publisher(
-            ROSPose, "auton/debug/error", 1
+            ROSPose, "controller/debug/stanley_error", 1
         )
 
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
