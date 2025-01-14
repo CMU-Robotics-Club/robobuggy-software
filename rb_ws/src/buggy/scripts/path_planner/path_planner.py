@@ -52,7 +52,7 @@ class PathPlanner(Node):
         #Parameters
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
-        self.nominal_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name) #TODO: Fixed filepath, not good
+        self.nominal_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name)
 
         self.declare_parameter("curb_name", "")
         curb_name = self.get_parameter("curb_name").value
@@ -60,7 +60,7 @@ class PathPlanner(Node):
         if curb_name is None:
             self.left_curb = None
         else:
-            self.left_curb = Trajectory(json_filepath=os.environ["TRAJPATH"] + curb_name) #TODO: Fixed filepath, not good
+            self.left_curb = Trajectory(json_filepath=os.environ["TRAJPATH"] + curb_name)
 
         #Publishers
         self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 10)
