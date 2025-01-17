@@ -3,10 +3,10 @@ import cv2
 from ultralytics import YOLO
 
 # Load the YOLO11 model
-model = YOLO("best.pt")
+model = YOLO("trained-models/01-15-25 no_pushbar yolov11 model 985_augmented.pt")
 
 # Open the video file
-video_path = "data\9-21-whobaat1.avi"
+video_path = "data/9-21-whobaat1.avi"
 cap = cv2.VideoCapture(video_path)
 
 subsample = 5
