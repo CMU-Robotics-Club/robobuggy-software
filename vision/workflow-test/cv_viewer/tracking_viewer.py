@@ -190,7 +190,7 @@ class TrackingViewer:
     def generate_background(self):
         camera_color = [255, 230, 204, 255]
 
-        # Get FOV intersection with window borders        
+        # Get FOV intersection with window borders
         fov = 2.0 * math.atan(
             self.camera_calibration.left_cam.image_size.width / (2.0 * self.camera_calibration.left_cam.fx))
 
