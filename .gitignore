@@ -3,6 +3,7 @@
 .python-requirements.txt.un~
 docker-compose.yml~
 *TEMP_DO_NOT_EDIT.txt
+*.sc/
 
 # BAGS
 rb_ws/bags
