@@ -13,6 +13,3 @@ rb_ws/rosbag2/
 # VISION
 .vision/
 vision/data/
-
-#VENV
-.sc/

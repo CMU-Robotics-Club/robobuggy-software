@@ -34,7 +34,6 @@ install(PROGRAMS
   scripts/watchdog/watchdog_node.py
   scripts/buggy_state_converter.py
   scripts/serial/ros_to_bnyahaj.py
-  scripts/visualization/telematics.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
