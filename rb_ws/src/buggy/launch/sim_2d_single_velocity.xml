@@ -1,0 +1,18 @@
+<launch>
+
+    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
+    <node pkg="buggy" exec="engine.py" name="SC_sim_single" namespace="SC">
+        <param name="velocity" value="12"/>
+        <param name="pose" value="Hill1_SC"/>
+    </node>
+    <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" namespace="SC"/>
+    <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
+        <param name="dist" value="0.0"/>
+        <param name="traj_name" value="buggycourse_safe.json"/>
+        <param name="controller" value="stanley"/>
+    </node>
+    <node pkg="buggy" exec="velocity_updater" name="SC_velocity_updater" namespace="SC">
+        <param name="init_vel" value="12"/>
+        <param name="buggy_name" value="SC"/>
+    </node>
+</launch>

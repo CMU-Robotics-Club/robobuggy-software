@@ -1,0 +1,17 @@
+{
+    "checkpoints": 
+    [
+        {
+            "x-pos": 589701,
+            "y-pos": 4477160,
+            "radius": 10,
+            "velocity": 10
+        },
+        {
+            "x-pos": 589701,
+            "y-pos": 4476860,
+            "radius": 10,
+            "velocity": 50
+        }
+    ]
+}
