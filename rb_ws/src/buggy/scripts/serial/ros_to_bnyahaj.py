@@ -296,7 +296,7 @@ if __name__ == "__main__":
 
     rclpy.init()
 
-    translate = Translator(self_name, other_name, teensy_name)
+    translate = Translator(teensy_name)
 
     if self_name == "SC" and other_name is None:
         translate.get_logger().warn(
