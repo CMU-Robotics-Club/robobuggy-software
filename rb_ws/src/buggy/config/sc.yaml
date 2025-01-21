@@ -1,0 +1,3 @@
+/**: # Global Params
+  ros__parameters:
+      traj_name: "buggycourse_safe.json"
