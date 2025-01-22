@@ -2,7 +2,7 @@
 
 import sys
 import numpy as np
-
+import json
 import argparse
 import torch
 import cv2
@@ -12,13 +12,26 @@ from ultralytics import YOLO
 from threading import Lock, Thread
 from time import sleep
 
-import ogl_viewer.viewer as gl
+# import ogl_viewer.viewer as gl
 import cv_viewer.tracking_viewer as cv_viewer
 
 lock = Lock()
 run_signal = False
 exit_signal = False
 
+def save_bounding_boxes(objects, file_path="bounding_boxes.json"):
+    box_data = []
+    for obj in objects.object_list:
+        box_info = {
+            "id": obj.id,
+            "label": obj.label,
+            "confidence": obj.confidence,
+            "bounding_box_3d": obj.bounding_box,  # 3D coordinates
+            "position": obj.position,            # Object position
+        }
+        box_data.append(box_info)
+    with open(file_path, "w") as f:
+        json.dump(box_data, f, indent=4)
 
 def xywh2abcd(xywh, im_shape):
     output = np.zeros((4, 2))
@@ -71,10 +84,16 @@ def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
     while not exit_signal:
         if run_signal:
             lock.acquire()
+            print("converting image net")
+            print(type(image_net))
+            print(image_net.shape)
 
-            img = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
+            # img = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
+            # I HAVE NO IDEA WHY THIS ISNT WORKING ^^
             # https://docs.ultralytics.com/modes/predict/#video-suffixes
-            det = model.predict(img, save=False, imgsz=img_size, conf=conf_thres, iou=iou_thres)[0].cpu().numpy().boxes
+            img = image_net[:, :, :3]
+            det = model.predict(img, save=False, imgsz=img_size,
+            conf=conf_thres, iou=iou_thres)[0].cpu().numpy().boxes
 
             # ZED CustomBox format (with inverse letterboxing tf applied)
             detections = detections_to_custom_box(det, image_net)
@@ -134,12 +153,12 @@ def main():
     camera_res = camera_infos.camera_configuration.resolution
     print("test 2")
     # Create OpenGL viewer
-    viewer = gl.GLViewer()
+    # viewer = gl.GLViewer()
     print("test 3")
     point_cloud_res = sl.Resolution(min(camera_res.width, 720), min(camera_res.height, 404))
     point_cloud_render = sl.Mat()
     print("test 4")
-    viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
+    # viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
     # ^^ THIS LINE IS CAUSING ISSUES (freeglut (workflow-test/detector.py): failed to open display '')
     print("test 5")
     point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
@@ -162,7 +181,7 @@ def main():
     print("Initialized display settings")
 
     i = 0
-    while viewer.is_available() and not exit_signal:
+    while not exit_signal:
         if (i % 10 == 0):
             print(i)
         if zed.grab(runtime_params) == sl.ERROR_CODE.SUCCESS:
@@ -170,6 +189,8 @@ def main():
             lock.acquire()
             zed.retrieve_image(image_left_tmp, sl.VIEW.LEFT)
             image_net = image_left_tmp.get_data()
+            print("aquired image")
+            print(type(image_net), type(image_left_tmp))
             lock.release()
             run_signal = True
 
@@ -183,16 +204,17 @@ def main():
             zed.ingest_custom_box_objects(detections)
             lock.release()
             zed.retrieve_objects(objects, obj_runtime_param)
-
+            save_bounding_boxes(objects)
             # -- Display
             # Retrieve display data
             zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU, point_cloud_res)
             point_cloud.copy_to(point_cloud_render)
+            point_cloud.save("point_cloud.ply")
             zed.retrieve_image(image_left, sl.VIEW.LEFT, sl.MEM.CPU, display_resolution)
             zed.get_position(cam_w_pose, sl.REFERENCE_FRAME.WORLD)
 
             # 3D rendering
-            viewer.updateData(point_cloud_render, objects)
+            #  viewer.updateData(point_cloud_render, objects)
             # 2D rendering
             np.copyto(image_left_ocv, image_left.get_data())
             cv_viewer.render_2D(image_left_ocv, image_scale, objects, obj_param.enable_tracking)
@@ -207,7 +229,7 @@ def main():
         else:
             exit_signal = True
 
-    viewer.exit()
+    # viewer.exit()
     exit_signal = True
     zed.close()
 
