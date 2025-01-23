@@ -4,7 +4,6 @@ import threading
 import json
 import rclpy
 from rclpy.node import Node
-from engine import Simulator
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Float64
