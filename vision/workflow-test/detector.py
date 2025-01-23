@@ -4,9 +4,9 @@ import sys
 import numpy as np
 
 import argparse
+import pyzed.sl as sl
 import torch
 import cv2
-import pyzed.sl as sl
 from ultralytics import YOLO
 
 from threading import Lock, Thread
