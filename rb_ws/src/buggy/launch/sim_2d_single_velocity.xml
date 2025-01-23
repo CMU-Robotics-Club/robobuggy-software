@@ -11,7 +11,7 @@
         <param name="traj_name" value="buggycourse_safe.json"/>
         <param name="controller" value="stanley"/>
     </node>
-    <node pkg="buggy" exec="velocity_updater" name="SC_velocity_updater" namespace="SC">
+    <node pkg="buggy" exec="velocity_updater.py" name="SC_velocity_updater" namespace="SC">
         <param name="init_vel" value="12"/>
         <param name="buggy_name" value="SC"/>
     </node>

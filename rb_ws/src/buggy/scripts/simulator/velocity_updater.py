@@ -22,7 +22,9 @@ class VelocityUpdater(Node):
     #     (589701, 4477160, 10000000000, 100) # for testing
     # ]
 
-    with open("checkpoints.json", 'r') as checkpoints_file:
+    checkpoints_path = "/rb_ws/src/buggy/scripts/simulator/checkpoints.json"
+
+    with open(checkpoints_path, 'r') as checkpoints_file:
         CHECKPOINTS = (json.load(checkpoints_file))["checkpoints"]
 
     def __init__(self):
@@ -70,8 +72,7 @@ class VelocityUpdater(Node):
         with self.lock:
             self.position = new_pose.position
 
-    # TODO: maybe we should update velocity directly
-    # instead of calculating form acceleration
+
     def calculate_accel(self):
         '''Check if the position of the buggy is in any of the checkpoints set
         in self.CHECKPOINTS, and update acceleration of buggy accordingly
