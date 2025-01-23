@@ -2,6 +2,7 @@
 import argparse
 
 import rclpy
+from rclpy.node import Node
 from std_msgs.msg import Float64
 import numpy as np
 
@@ -41,6 +42,8 @@ class DebugController(Node):
         self.steer_cmd = self.sin_steer(self.tick_count)
         msg = Float64()
         msg.data = self.steer_cmd
+        # if self.tick_count % 10 == 0:
+            # self.get_logger().info(f"SIN STEER: {self.steer_cmd}")
         self.steer_publisher.publish(msg)
 
         self.tick_count += 1
