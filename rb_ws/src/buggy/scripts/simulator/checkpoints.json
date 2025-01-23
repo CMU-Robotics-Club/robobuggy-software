@@ -2,16 +2,16 @@
     "checkpoints": 
     [
         {
-            "x-pos": 589701,
-            "y-pos": 4477160,
-            "radius": 10,
-            "velocity": 10
+            "x-pos": 589700,
+            "y-pos": 4477159,
+            "radius": 20,
+            "velocity": 12.345
         },
         {
-            "x-pos": 589701,
-            "y-pos": 4476860,
-            "radius": 10,
-            "velocity": 50
+            "x-pos": 589685,
+            "y-pos": 4477153,
+            "radius": 20,
+            "velocity": 17.234
         }
     ]
 }

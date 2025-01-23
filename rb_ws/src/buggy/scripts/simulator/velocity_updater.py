@@ -4,26 +4,18 @@ import threading
 import json
 import rclpy
 from rclpy.node import Node
-# from controller_2d import Controller
+from engine import Simulator
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from std_msgs.msg import Float64
 
 class VelocityUpdater(Node):
     RATE = 100
+
     # Bubbles for updating acceleration based on position
-    # represented as 4-tuples: (x-pos, y-pos, radius, acceleration)
-    # 'list[tuple[float,float,float,float]]'
-    # need further update such as more data or import data from certain files
-
-    # TODO: remove after new version with json is tested
-    # CHECKPOINTS = [
-    #     # (589701, 4477160, 20, 0.5)
-    #     (589701, 4477160, 10000000000, 100) # for testing
-    # ]
-
+    # represented as {x-pos, y-pos, radius, velocity}
+    # imported from checkpoints.json
     checkpoints_path = "/rb_ws/src/buggy/scripts/simulator/checkpoints.json"
-
     with open(checkpoints_path, 'r') as checkpoints_file:
         CHECKPOINTS = (json.load(checkpoints_file))["checkpoints"]
 
@@ -40,24 +32,21 @@ class VelocityUpdater(Node):
 
         # initialize variables
         self.buggy_vel = self.init_vel
-        self.update_vel = 0.0
+        self.debug_dist = 0
+
         self.position = Point()
+        self.lock = threading.Lock()
 
-        # TODO: uncomment after controller is implemented
-        # self.controller = Controller(self.buggy_name)
-        # self.lock = threading.Lock()
-
-        # subscribe pose
+        # subscribe sim_2d/utm for position values
         self.pose_subscriber = self.create_subscription(
             Pose,
-            f"{self.buggy_name}/sim_2d/utm",
+            "sim_2d/utm",
             self.update_position,
-            10  # QoS profile
+            1
         )
 
-        # TODO: remove after controller is implemented
-        # publish velocity
-        self.velocity_publisher = self.create_publisher(Float64, "velocity", 1)
+        # publish velocity to "sim/velocity"
+        self.velocity_publisher = self.create_publisher(Float64, "sim/velocity", 1)
 
         # ROS2 timer for stepping
         self.timer = self.create_timer(1.0 / self.RATE, self.step)
@@ -72,51 +61,33 @@ class VelocityUpdater(Node):
         with self.lock:
             self.position = new_pose.position
 
-
-    def calculate_accel(self):
+    def check_velocity(self):
         '''Check if the position of the buggy is in any of the checkpoints set
-        in self.CHECKPOINTS, and update acceleration of buggy accordingly
+        in self.CHECKPOINTS, and update velocity of buggy accordingly
         '''
-
-        # TODO: remove after new version with json is tested
-        # for (x, y, r, a) in self.CHECKPOINTS:
-        #     dist = math.sqrt((x-self.position.x)**2 + (y-self.position.y)**2)
-        #     if dist < r:
-        #         self.accel = a
-        #         break
-
         for checkpoint in self.CHECKPOINTS:
             x = checkpoint["x-pos"]
             y = checkpoint["y-pos"]
             r = checkpoint["radius"]
             v = checkpoint["velocity"]
             dist = math.sqrt((x-self.position.x)**2 + (y-self.position.y)**2)
+            self.debug_dist = dist
             if dist < r:
-                self.update_vel = v
+                self.buggy_vel = v
                 break
 
     def step(self):
-        '''Update acceleration and velocity of buggy for one timestep'''
-        # self.calculate_accel()
-        for checkpoint in self.CHECKPOINTS:
-            x = checkpoint["x-pos"]
-            y = checkpoint["y-pos"]
-            r = checkpoint["radius"]
-            v = checkpoint["velocity"]
-            dist = math.sqrt((x-self.position.x)**2 + (y-self.position.y)**2)
-            if dist < r:
-                self.update_vel = v
-                break
+        '''Update velocity of buggy for one timestep
+        and publish it so that the simulator engine can subscribe and use it'''
 
-        self.buggy_vel = self.update_vel
+        # update velocity
+        self.check_velocity()
 
-        # TODO: uncomment after controller is implemented
-        # self.controller.set_velocity(self.update_vel)
-
-        # TODO: remove after controller is implemented
+        # publish velocity
         float_64_velocity = Float64()
         float_64_velocity.data = float(self.buggy_vel)
         self.velocity_publisher.publish(float_64_velocity)
+
 
 def main(args=None):
     rclpy.init(args=args)
