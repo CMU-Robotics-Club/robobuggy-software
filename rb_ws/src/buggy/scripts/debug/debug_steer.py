@@ -20,7 +20,7 @@ class DebugController(Node):
     def __init__(self) -> None:
         super().__init__("debug_steer")
         self.steer_publisher = self.create_publisher(
-            Float64, "/buggy/input/steering", 10)
+            Float64, "/input/steering", 10)
         self.rate = 1000  # Hz
         self.tick_count = 0
         self.steer_cmd = 0.0
