@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import os
 import math
 import threading
 import json
@@ -11,16 +12,18 @@ from std_msgs.msg import Float64
 class VelocityUpdater(Node):
     RATE = 100
 
-    # Bubbles for updating acceleration based on position
-    # represented as {x-pos, y-pos, radius, velocity}
-    # imported from checkpoints.json
-    checkpoints_path = "/rb_ws/src/buggy/scripts/simulator/checkpoints.json"
-    with open(checkpoints_path, 'r') as checkpoints_file:
-        CHECKPOINTS = (json.load(checkpoints_file))["checkpoints"]
-
     def __init__(self):
         super().__init__('velocity_updater')
         self.get_logger().info('INITIALIZED.')
+
+        # Bubbles for updating acceleration based on position
+        # represented as {x-pos, y-pos, radius, velocity}
+        # imported from a json file corresponding to the path
+        self.declare_parameter("checkpoints_name", "buggycourse_safe_checkpoints_1.json")
+        checkpoints_name = self.get_parameter("checkpoints_name").value
+        checkpoints_path = os.environ["VELPATH"] + checkpoints_name
+        with open(checkpoints_path, 'r') as checkpoints_file:
+            self.CHECKPOINTS = (json.load(checkpoints_file))["checkpoints"]
 
         # Declare parameters with default values
         self.declare_parameter('init_vel', 12)
