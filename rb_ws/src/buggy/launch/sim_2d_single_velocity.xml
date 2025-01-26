@@ -13,6 +13,7 @@
     </node>
     <node pkg="buggy" exec="velocity_updater.py" name="SC_velocity_updater" namespace="SC">
         <param name="init_vel" value="15"/>
+        <param name="checkpoints_name" value="buggycourse_safe_checkpoints_1.json"/>
         <param name="buggy_name" value="SC"/>
     </node>
 </launch>
