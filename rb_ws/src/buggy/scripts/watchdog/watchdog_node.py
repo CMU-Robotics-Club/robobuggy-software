@@ -34,7 +34,7 @@ class Watchdog(Node):
             "/input/sanity_warning",
             10
         )
-        
+
     def update_status_led(self):
         # Errors
         if BuggyError.REALLY_FREAKING_BAD in self.curr_errors\
