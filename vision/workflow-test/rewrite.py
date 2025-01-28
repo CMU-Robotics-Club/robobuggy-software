@@ -47,11 +47,25 @@ def main():
     input_type = sl.InputType()
     input_type.set_from_svo_file(args.svo)
 
+    # values i stole from sample code
+    conf = 0.2
+    iou = 0.45
+
     initialize_camera_params(zed, input_type)
 
     model = YOLO(args.weights)
 
     detections = []
+    svo_image = sl.Mat()
+    while zed.grab() == sl.ERROR_CODE.SUCCESS:
+        if zed.grab() == sl.ERROR_CODE.SUCCESS:
+            # Read side by side frames stored in the SVO
+            zed.retrieve_image(svo_image, sl.VIEW.LEFT)
+            image_net = svo_image.get_data()
+            img = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
+            det = model.predict(img, save=False, conf=conf, iou=iou)[0].cpu().numpy().boxes
+            detections.append(det)
+
     objects_in = []
     # The "detections" variable contains your custom 2D detections
     for it in detections:
@@ -59,14 +73,19 @@ def main():
         # Fill the detections into the correct SDK format
         tmp.unique_object_id = sl.generate_unique_id()
         tmp.probability = it.conf
-        tmp.label = (int) it.class_id
+        tmp.label = int(it.class_id)
         tmp.bounding_box_2d = it.bounding_box
         tmp.is_grounded = True # objects are moving on the floor plane and tracked in 2D only
         objects_in.append(tmp)
     zed.ingest_custom_box_objects(objects_in)
 
     objects = sl.Objects() # Structure containing all the detected objects
+
+
     zed.retrieve_objects(objects, obj_runtime_param) # Retrieve the 3D tracked objects
+
+    obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
+    obj_runtime_param.detection_confidence_threshold = 40
 
     for object in objects.object_list:
         print("{} {}".format(object.id, object.position))
