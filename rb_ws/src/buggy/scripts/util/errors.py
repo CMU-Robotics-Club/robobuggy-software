@@ -28,7 +28,3 @@ class BuggyError(enum.IntFlag):
     GPS_UNAVAILABLE = enum.auto()
 
     LOW_BATTERY = enum.auto()
-
-    ELEVATED_POLICE_PRESENCE_ON_ROUTE = enum.auto()
-    DEER_ON_THE_COURSE = enum.auto()
-    PRINTER_ON_FIRE = enum.auto()
