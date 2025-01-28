@@ -62,6 +62,8 @@ def main():
             # Read side by side frames stored in the SVO
             zed.retrieve_image(svo_image, sl.VIEW.LEFT)
             image_net = svo_image.get_data()
+            print(type(image_net))
+            print(type(svo_image))
             img = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
             det = model.predict(img, save=False, conf=conf, iou=iou)[0].cpu().numpy().boxes
             detections.append(det)
