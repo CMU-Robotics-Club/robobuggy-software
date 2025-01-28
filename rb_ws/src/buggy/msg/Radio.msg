@@ -1,0 +1,4 @@
+float64 nand_east_gps
+float64 nand_north_gps
+int32 gps_seqnum
+int32 nand_gps_fix

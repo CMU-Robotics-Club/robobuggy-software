@@ -35,6 +35,7 @@ install(PROGRAMS
   scripts/buggy_state_converter.py
   scripts/serial/ros_to_bnyahaj_reader.py
   scripts/serial/ros_to_bnyahaj_writer.py
+  scripts/serial/ros_to_bnyahaj.py
   scripts/visualization/telematics.py
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -44,6 +45,8 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrajectoryMsg.msg"
+  "msg/SCDebugInfoMsg.msg"
+  "msg/SCSensorMsg.msg"
 )
 ament_export_dependencies(rosidl_default_runtime)
 

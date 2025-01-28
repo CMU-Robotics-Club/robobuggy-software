@@ -1,6 +1,5 @@
 <launch>
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
     <node name="debug_steer" pkg="buggy" exec="debug_steer.py" output="screen"/>
-    <node name="bnyahaj_writer" pkg="buggy" exec="ros_to_bnyahaj_writer.py" output="screen" respawn="true"  args="--self_name SC --other_name NAND --teensy_name ttyUSB0" namespace="SC"/>
-    <node name="bnyahaj_reader" pkg="buggy" exec="ros_to_bnyahaj_reader.py" output="screen" respawn="true"  args="--self_name SC --other_name NAND --teensy_name ttyUSB0" namespace="SC"/>
+    <node name="bnyahaj" pkg="buggy" exec="ros_to_bnyahaj.py" output="screen" respawn="true"  args="--self_name SC --other_name NAND --teensy_name ttyUSB0" namespace="SC"/>
 </launch>
