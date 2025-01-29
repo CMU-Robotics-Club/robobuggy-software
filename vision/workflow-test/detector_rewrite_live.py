@@ -1,15 +1,9 @@
-from email.mime import image
-import sys
 import numpy as np
-import json
 import argparse
 import torch
 import cv2
 import pyzed.sl as sl
 from ultralytics import YOLO
-
-from threading import Lock, Thread
-from time import sleep
 
 import ogl_viewer.viewer as gl
 import cv_viewer.tracking_viewer as cv_viewer
@@ -41,6 +35,8 @@ def initialize_camera_params(zed, input_type):
         False  # designed to give person pixel mask with internal OD
     )
     zed.enable_object_detection(obj_param)
+
+    return obj_param
 
 
 def xywh2abcd(xywh, im_shape):
@@ -88,7 +84,7 @@ def main():
     zed = sl.Camera()
     input_type = sl.InputType()
     input_type.set_from_svo_file(args.svo)
-    initialize_camera_params(zed, input_type)
+    obj_param = initialize_camera_params(zed, input_type)
 
     # Load YOLO model
     model = YOLO(args.weights)
@@ -97,7 +93,27 @@ def main():
     obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
     obj_runtime_param.detection_confidence_threshold = 40
 
-    # Video Writer setup
+    camera_infos = zed.get_camera_information()
+    camera_res = camera_infos.camera_configuration.resolution
+
+    # Create OpenGL viewer
+    viewer = gl.GLViewer()
+    point_cloud_res = sl.Resolution(
+        min(camera_res.width, 720), min(camera_res.height, 404)
+    )
+    point_cloud_render = sl.Mat()
+    viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
+    point_cloud = sl.Mat(
+        point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU
+    )
+    image_left = sl.Mat()
+    
+    # Camera pose
+    cam_w_pose = sl.Pose()
+    print("Initialized display settings")
+
+
+    # Video Writer setup -- ignore
     # image_size = zed.get_camera_information().camera_configuration.resolution
     # width, height = image_size.width, image_size.height
     # fourcc = cv2.VideoWriter_fourcc(*"mp4v")
