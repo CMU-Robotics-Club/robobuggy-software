@@ -94,9 +94,9 @@ def main():
         for box in detections:
             tmp = sl.CustomBoxObjectData()
             tmp.unique_object_id = sl.generate_unique_id()
-            tmp.probability = box.conf[0].item()
-            tmp.label = int(box.cls[0].item())
-            tmp.bounding_box_2d = box.xyxy[0].item()
+            tmp.probability = box.conf.item()  # what if array is bigger than 1?
+            tmp.label = int(box.cls.item())
+            tmp.bounding_box_2d = box.xyxy.item()
             tmp.is_grounded = True
             objects_in.append(tmp)
 
