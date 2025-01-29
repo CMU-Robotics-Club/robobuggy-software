@@ -31,8 +31,6 @@ def initialize_camera_params(zed, input_type):
         print(f"Failed to open camera: {repr(status)}")
         exit()
 
-    image_left_tmp = sl.Mat()  # not needed?
-
     positional_tracking_parameters = sl.PositionalTrackingParameters()
     zed.enable_positional_tracking(positional_tracking_parameters)
 
@@ -43,8 +41,6 @@ def initialize_camera_params(zed, input_type):
         False  # designed to give person pixel mask with internal OD
     )
     zed.enable_object_detection(obj_param)
-
-    # return runtime_params
 
 
 def xywh2abcd(xywh, im_shape):
@@ -102,10 +98,10 @@ def main():
     obj_runtime_param.detection_confidence_threshold = 40
 
     # Video Writer setup
-    image_size = zed.get_camera_information().camera_configuration.resolution
-    width, height = image_size.width, image_size.height
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(args.output, fourcc, 30.0, (width, height))
+    # image_size = zed.get_camera_information().camera_configuration.resolution
+    # width, height = image_size.width, image_size.height
+    # fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    # out = cv2.VideoWriter(args.output, fourcc, 30.0, (width, height))
 
     # Detection parameters
     conf = 0.2
@@ -142,33 +138,7 @@ def main():
             first_object = objects.object_list[0]
             print(f"Object ID: {first_object.id}, Position: {first_object.position}")
 
-            # Draw 3D bounding box
-            for obj in objects.object_list:
-                bbox = obj.bounding_box
-                if bbox.any():
-                    for i in range(4):
-                        start = (int(bbox[i][0]), int(bbox[i][1]))
-                        end = (int(bbox[(i + 1) % 4][0]), int(bbox[(i + 1) % 4][1]))
-                        cv2.line(img, start, end, (0, 255, 0), 2)
-                    for i in range(4, 8):
-                        start = (int(bbox[i][0]), int(bbox[i][1]))
-                        end = (
-                            int(bbox[(i + 1) % 4 + 4][0]),
-                            int(bbox[(i + 1) % 4 + 4][1]),
-                        )
-                        cv2.line(img, start, end, (0, 255, 0), 2)
-                    for i in range(4):
-                        cv2.line(
-                            img,
-                            (int(bbox[i][0]), int(bbox[i][1])),
-                            (int(bbox[i + 4][0]), int(bbox[i + 4][1])),
-                            (0, 255, 0),
-                            2,
-                        )
-
-        out.write(cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-
-    out.release()
+    # out.close()
     zed.close()
 
 
