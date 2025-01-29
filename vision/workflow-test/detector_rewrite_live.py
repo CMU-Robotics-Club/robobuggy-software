@@ -71,7 +71,7 @@ def main():
     obj_runtime_param.detection_confidence_threshold = 40
 
     # Video Writer setup
-    image_size = zed.get_camera_information().camera_resolution
+    image_size = zed.get_camera_information().camera_configuration.resolution
     width, height = image_size.width, image_size.height
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(args.output, fourcc, 30.0, (width, height))
