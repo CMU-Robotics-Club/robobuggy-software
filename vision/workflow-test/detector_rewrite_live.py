@@ -96,7 +96,7 @@ def main():
             tmp.unique_object_id = sl.generate_unique_id()
             tmp.probability = box.conf
             tmp.label = int(box.cls)
-            tmp.bounding_box_2d = np.array(box.xyxy)
+            tmp.bounding_box_2d = box.xyxy.cpu().numpy()
             tmp.is_grounded = True
             objects_in.append(tmp)
 
