@@ -88,29 +88,29 @@ def main():
 
         # YOLO detection
         results = model.predict(img, save=False, conf=conf, iou=iou)
-        detections = results[0].cpu().numpy().boxes
-
-        # objects_in = []
-        # for box in detections:
-        #     tmp = sl.CustomBoxObjectData()
-        #     tmp.unique_object_id = sl.generate_unique_id()
-        #     tmp.probability = box.conf[0].item()
-        #     tmp.label = int(box.cls[0].item())
-        #     tmp.bounding_box_2d = box.xyxy[0].cpu().numpy()
-        #     tmp.is_grounded = True
-        #     objects_in.append(tmp)
+        detections = results[0].boxes  # .cpu().numpy()?
 
         objects_in = []
         for box in detections:
             tmp = sl.CustomBoxObjectData()
             tmp.unique_object_id = sl.generate_unique_id()
-            tmp.probability = box.conf
-            tmp.label = int(box.class_id)
-            tmp.bounding_box_2d = box.bounding_box
-            tmp.is_grounded = (
-                True  # objects are moving on the floor plane and tracked in 2D only
-            )
+            tmp.probability = box.conf[0].item()
+            tmp.label = int(box.cls[0].item())
+            tmp.bounding_box_2d = box.xyxy[0].cpu().numpy()
+            tmp.is_grounded = True
             objects_in.append(tmp)
+
+        # objects_in = []
+        # for box in detections:
+        #     tmp = sl.CustomBoxObjectData()
+        #     tmp.unique_object_id = sl.generate_unique_id()
+        #     tmp.probability = box.conf
+        #     tmp.label = int(box.cls)
+        #     tmp.bounding_box_2d = box.bounding_box
+        #     tmp.is_grounded = (
+        #         True  # objects are moving on the floor plane and tracked in 2D only
+        #     )
+        #     objects_in.append(tmp)
 
         # Ingest custom 3D objects into ZED SDK for tracking
         zed.ingest_custom_box_objects(objects_in)
