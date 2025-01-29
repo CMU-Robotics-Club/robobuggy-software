@@ -15,24 +15,24 @@ class BuggyStateConverter(Node):
         namespace = self.get_namespace()
         if namespace == "/SC":
             self.SC_raw_state_subscriber = self.create_subscription(
-                Odometry, "/raw_state", self.convert_SC_state_callback, 10
+                Odometry, "/ekf/odometry_earth", self.convert_SC_state_callback, 10
             )
 
             self.NAND_other_raw_state_subscriber = self.create_subscription(
-                Odometry, "/NAND_raw_state", self.convert_NAND_other_state_callback, 10
+                Odometry, "NAND_raw_state", self.convert_NAND_other_state_callback, 10
             )
 
-            self.other_state_publisher = self.create_publisher(Odometry, "/other/state", 10)
+            self.other_state_publisher = self.create_publisher(Odometry, "other/state", 10)
 
         elif namespace == "/NAND":
             self.NAND_raw_state_subscriber = self.create_subscription(
-                Odometry, "/raw_state", self.convert_NAND_state_callback, 10
+                Odometry, "raw_state", self.convert_NAND_state_callback, 10
             )
 
         else:
             self.get_logger().warn(f"Namespace not recognized for buggy state conversion: {namespace}")
 
-        self.self_state_publisher = self.create_publisher(Odometry, "/state", 10)
+        self.self_state_publisher = self.create_publisher(Odometry, "self/state", 10)
 
         # Initialize pyproj Transformer for ECEF -> UTM conversion for /SC
         self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(

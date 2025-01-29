@@ -48,27 +48,27 @@ class Translator(Node):
 
 
         # DEBUG MESSAGE PUBLISHERS:
-        self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "/debug/firmware", 1)
-        self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "/debug/firmware", 1)
-        self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "/debug/sensor", 1)
-        self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "/debug/raw_gps", 1)
+        self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "debug/firmware", 1)
+        self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
+        self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "debug/sensor", 1)
+        self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
         
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
-            Float64, "/debug/roundtrip_time", 1
+            Float64, "debug/roundtrip_time", 1
         )
 
         if self.self_name == "NAND":
             # NAND POSITION PUBLISHERS
             self.nand_ukf_odom_publisher = self.create_publisher(
-                Odometry, "/raw_state", 1
+                Odometry, "raw_state", 1
             )
 
         if self.self_name == "SC":
 
             # RADIO DATA PUBLISHER
             self.observed_nand_odom_publisher = self.create_publisher(
-                    Odometry, "/NAND_raw_state", 1
+                    Odometry, "NAND_raw_state", 1
                 )
 
     def set_alarm(self, msg):
