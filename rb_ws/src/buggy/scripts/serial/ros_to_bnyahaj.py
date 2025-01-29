@@ -49,47 +49,10 @@ class Translator(Node):
 
         # DEBUG MESSAGE PUBLISHERS:
         self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "/debug/firmware", 1)
+        self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "/debug/firmware", 1)
         self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "/debug/sensor", 1)
-        self.heading_rate_publisher = self.create_publisher(
-            Float64, "/debug/heading_rate", 1
-        )
-        self.encoder_angle_publisher = self.create_publisher(
-            Float64, "/debug/encoder_angle", 1
-        )
-        self.rc_steering_angle_publisher = self.create_publisher(
-            Float64, "/debug/rc_steering_angle", 1
-        )
-        self.software_steering_angle_publisher = self.create_publisher(
-            Float64, "/debug/software_steering_angle", 1
-        )
-        self.true_steering_angle_publisher = self.create_publisher(
-            Float64, "/debug/true_steering_angle", 1
-        )
-        self.rfm69_timeout_num_publisher = self.create_publisher(
-            Int32, "/debug/rfm_timeout_num", 1
-        )
-        self.operator_ready_publisher = self.create_publisher(
-            Bool, "/debug/operator_ready", 1
-        )
-        self.brake_status_publisher = self.create_publisher(
-            Bool, "/debug/brake_status", 1
-        )
-        self.use_auton_steer_publisher = self.create_publisher(
-            Bool, "/debug/use_auton_steer", 1
-        )
-        self.tx12_state_publisher = self.create_publisher(
-            Bool, "/debug/tx12_connected", 1
-        )
-        self.stepper_alarm_publisher = self.create_publisher(
-            UInt8, "/debug/steering_alarm", 1
-        )
-        self.rc_uplink_qual_publisher = self.create_publisher(
-            UInt8, "/debug/rc_uplink_quality", 1
-        )
-        self.nand_gps_seqnum_publisher = self.create_publisher(
-            Int32, "/debug/NAND_gps_seqnum", 1
-        )
-
+        self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "/debug/raw_gps", 1)
+        
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
             Float64, "/debug/roundtrip_time", 1
@@ -100,30 +63,8 @@ class Translator(Node):
             self.nand_ukf_odom_publisher = self.create_publisher(
                 Odometry, "/raw_state", 1
             )
-            self.nand_gps_odom_publisher = self.create_publisher(
-                Odometry, "/debug/gps_odom", 1
-            )
-
-            self.nand_gps_fix_publisher = self.create_publisher(
-                UInt8, "/debug/gps_fix", 1
-            )
-            self.nand_gps_acc_publisher = self.create_publisher(
-                Float64, "/debug/gps_accuracy", 1
-            )
-
-            self.nand_gps_time_publisher = self.create_publisher(
-                UInt64, "/debug/gps_time", 1
-            )
 
         if self.self_name == "SC":
-
-            # SC SENSOR PUBLISHERS
-            self.sc_velocity_publisher = self.create_publisher(
-                Float64, "/sensors/velocity", 1
-            )
-            self.sc_steering_angle_publisher = self.create_publisher(
-                Float64, "/sensors/steering_angle", 1
-            )
 
             # RADIO DATA PUBLISHER
             self.observed_nand_odom_publisher = self.create_publisher(
@@ -154,18 +95,21 @@ class Translator(Node):
             if (packet is None): packet_on_buffer = False
 
             if isinstance(packet, NANDDebugInfo):
-                self.heading_rate_publisher.publish(data=packet.heading_rate)
-                self.encoder_angle_publisher.publish(data=packet.encoder_angle)
-                self.rc_steering_angle_publisher.publish(data=packet.rc_steering_angle)
-                self.software_steering_angle_publisher.publish(data=packet.software_steering_angle)
-                self.true_steering_angle_publisher.publish(data=packet.true_steering_angle)
-                self.rfm69_timeout_num_publisher.publish(data=packet.rfm69_timeout_num)
-                self.operator_ready_publisher.publish(data=packet.operator_ready)
-                self.brake_status_publisher.publish(data=packet.brake_status)
-                self.use_auton_steer_publisher.publish(data=packet.auton_steer)
-                self.tx12_state_publisher.publish(data=packet.tx12_state)
-                self.stepper_alarm_publisher.publish(data=packet.stepper_alarm)
-                self.rc_uplink_qual_publisher.publish(data=packet.rc_uplink_quality)
+                rospacket = NANDDebugInfoMsg()
+                rospacket.heading_rate = packet.heading_rate
+                rospacket.encoder_angle = packet.encoder_angle
+                rospacket.rc_steering_angle = packet.rc_steering_angle
+                rospacket.software_steering_angle = packet.software_steering_angle
+                rospacket.true_steering_angle = packet.true_steering_angle
+                rospacket.rfm69_timeout_num = packet.rfm69_timeout_num
+                rospacket.operator_ready = packet.operator_ready
+                rospacket.brake_status = packet.brake_status
+                rospacket.auton_steer = packet.auton_steer
+                rospacket.tx12_state = packet.tx12_state
+                rospacket.stepper_alarm = packet.stepper_alarm
+                rospacket.rc_uplink_quality = packet.rc_uplink_quality
+                self.nand_debug_info_publisher.publish(rospacket)
+
                 self.get_logger().debug(f'NAND Debug Timestamp: {packet.timestamp}')
             elif isinstance(packet, NANDUKF):
                 odom = Odometry()
@@ -181,19 +125,15 @@ class Translator(Node):
 
 
             elif isinstance(packet, NANDRawGPS):
-                odom = Odometry()
-                odom.pose.pose.position.x = packet.easting
-                odom.pose.pose.position.y = packet.northing
-                odom.pose.pose.orientation.z = 0
-                odom.twist.twist.linear.x = 0
-                odom.twist.twist.linear.y = 0
-                odom.twist.twist.angular.z = 0
+                rospacket = NANDRawGPSMsg()
+                rospacket.easting = packet.easting
+                rospacket.northing = packet.northing
+                rospacket.accuracy = packet.accuracy
+                rospacket.gps_time = packet.gps_time
+                rospacket.gps_seqnum = packet.gps_seqnum
+                rospacket.gps_fix = packet.gps_fix
+                self.nand_raw_gps_publisher.publish(rospacket)
 
-                self.nand_gps_odom_publisher.publish(data=odom)
-                self.nand_gps_fix_publisher.publish(data=packet.gps_fix)
-                self.nand_gps_acc_publisher.publish(data=packet.accuracy)
-                self.nand_gps_seqnum_publisher.publish(data=packet.gps_seqnum)
-                self.nand_gps_time_publisher.publish(data=packet.gps_time)
                 self.get_logger().debug(f'NAND Raw GPS Timestamp: {packet.timestamp}')
 
 
@@ -206,7 +146,6 @@ class Translator(Node):
                 odom.pose.pose.position.x = packet.nand_east_gps
                 odom.pose.pose.position.y = packet.nand_north_gps
                 self.observed_nand_odom_publisher.publish(data=odom)
-                self.nand_gps_seqnum_publisher.publish(data=packet.gps_seqnum)
 
             elif isinstance(packet, SCDebugInfo):
                 rospacket = SCDebugInfoMsg()
