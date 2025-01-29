@@ -94,9 +94,9 @@ def main():
         for box in detections:
             tmp = sl.CustomBoxObjectData()
             tmp.unique_object_id = sl.generate_unique_id()
-            tmp.probability = box.conf[0].item()
-            tmp.label = int(box.cls[0].item())
-            tmp.bounding_box_2d = box.xyxy[0].cpu().numpy()
+            tmp.probability = box.conf
+            tmp.label = int(box.cls)
+            tmp.bounding_box_2d = np.array(box.xyxy)
             tmp.is_grounded = True
             objects_in.append(tmp)
 
