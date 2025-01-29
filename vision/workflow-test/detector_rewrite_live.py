@@ -46,7 +46,7 @@ def initialize_camera_params(zed, input_type):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--weights", type=str, default="yolov8m.pt", help="Path to YOLO model weights."
+        "--weights", type=str, default="yolov11n.pt", help="Path to YOLO model weights."
     )
     parser.add_argument("--svo", type=str, required=True, help="Path to the SVO file.")
     parser.add_argument(
@@ -88,15 +88,15 @@ def main():
 
         # YOLO detection
         results = model.predict(img, save=False, conf=conf, iou=iou)
-        detections = results[0].boxes  # .cpu().numpy()?
+        detections = results[0].boxes.cpu().numpy()
 
         objects_in = []
         for box in detections:
             tmp = sl.CustomBoxObjectData()
             tmp.unique_object_id = sl.generate_unique_id()
-            tmp.probability = box.conf
-            tmp.label = int(box.cls)
-            tmp.bounding_box_2d = box.xyxy.cpu().numpy()
+            tmp.probability = box.conf[0].item()
+            tmp.label = int(box.cls[0].item())
+            tmp.bounding_box_2d = box.xyxy[0].item()
             tmp.is_grounded = True
             objects_in.append(tmp)
 
