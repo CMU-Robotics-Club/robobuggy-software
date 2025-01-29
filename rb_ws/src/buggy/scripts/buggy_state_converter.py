@@ -49,7 +49,6 @@ class BuggyStateConverter(Node):
         converted_msg = self.convert_NAND_state(msg)
         self.self_state_publisher.publish(converted_msg)
 
-
     def convert_NAND_other_state_callback(self, msg):
         """ Callback for processing SC/NAND_raw_state messages and publishing to other/state """
         converted_msg = self.convert_NAND_other_state(msg)
@@ -95,15 +94,9 @@ class BuggyStateConverter(Node):
         converted_msg.pose.covariance = msg.pose.covariance
         converted_msg.twist.covariance = msg.twist.covariance
 
-        # ---- 4. Copy Linear Velocities ----
-        converted_msg.twist.twist.linear.x = msg.twist.twist.linear.x   # m/s in x-direction
-        converted_msg.twist.twist.linear.y = msg.twist.twist.linear.y   # m/s in x-direction
-        converted_msg.twist.twist.linear.z = msg.twist.twist.linear.z   # keep original Z velocity
 
-        # ---- 5. Copy Angular Velocities ----
-        converted_msg.twist.twist.angular.x = msg.twist.twist.angular.x   # copying over
-        converted_msg.twist.twist.angular.y = msg.twist.twist.angular.y   # copying over
-        converted_msg.twist.twist.angular.z = msg.twist.twist.angular.z   # rad/s, heading change rate
+        # ---- 4. Copy Linear/Angular Velocities (Unchanged) ----
+        converted_msg.twist.twist = msg.twist.twist
 
         return converted_msg
 
@@ -151,37 +144,9 @@ class BuggyStateConverter(Node):
     def convert_NAND_other_state(self, msg):
         """ Converts other/raw_state in SC namespace (NAND data) to clean state units and structure """
         converted_msg = Odometry()
-        converted_msg.header = msg.header
-
-        # ---- 1. Directly use UTM Coordinates ----
-        converted_msg.pose.pose.position.x = msg.x    # UTM Easting
-        converted_msg.pose.pose.position.y = msg.y    # UTM Northing
-        converted_msg.pose.pose.position.z = msg.z    # UTM Altitude (not provided in other/raw_state, defaults to 0.0)
-
-        # ---- 2. Orientation in Radians ----
-        converted_msg.pose.pose.orientation.x = msg.roll      # (roll not provided in other/raw_state, defaults to 0.0)
-        converted_msg.pose.pose.orientation.y = msg.pitch     # (pitch not provided in other/raw_state, defaults to 0.0)
-        converted_msg.pose.pose.orientation.z = msg.heading   # heading in radians
-        converted_msg.pose.pose.orientation.w = 0.0           # fourth quaternion term irrelevant for euler angles
-
-        # ---- 3. Copy Covariances (Unchanged) ----
-        converted_msg.pose.covariance = msg.pose_covariance     # (not provided in other/raw_state)
-        converted_msg.twist.covariance = msg.twist_covariance   # (not provided in other/raw_state)
-
-        # ---- 4. Linear Velocities in m/s ----
-        # Convert scalar speed to velocity x/y components using heading (msg.heading)
-        speed = msg.speed       # m/s scalar velocity
-        heading = msg.heading   # heading in radians
-
-        # Calculate velocity components
-        converted_msg.twist.twist.linear.x = speed * np.cos(heading)    # m/s in x-direction
-        converted_msg.twist.twist.linear.y = speed * np.sin(heading)    # m/s in y-direction
-        converted_msg.twist.twist.linear.z = 0.0
-
-        # ---- 5. Angular Velocities ----
-        converted_msg.twist.twist.angular.x = msg.roll_rate      # (roll rate not provided in other/raw_state, defaults to 0.0)
-        converted_msg.twist.twist.angular.y = msg.pitch_rate     # (pitch rate not provided in other/raw_state, defaults to 0.0)
-        converted_msg.twist.twist.angular.z = msg.heading_rate   # rad/s, heading change rate
+        
+        #No actual changes as the other state is just easting northing, everything else is zeroed
+        converted_msg = msg 
 
         return converted_msg
 
