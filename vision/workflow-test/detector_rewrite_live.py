@@ -20,7 +20,7 @@ def initialize_camera_params(zed, input_type):
     init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
     init_params.depth_maximum_distance = 50
 
-    runtime_params = sl.RuntimeParameters()
+    # runtime_params = sl.RuntimeParameters()
     status = zed.open(init_params)
 
     if status != sl.ERROR_CODE.SUCCESS:
@@ -41,6 +41,33 @@ def initialize_camera_params(zed, input_type):
     zed.enable_object_detection(obj_param)
 
     # return runtime_params
+
+
+def xywh2abcd(xywh, im_shape):
+    output = np.zeros((4, 2))
+
+    # Center / Width / Height -> BBox corners coordinates
+    x_min = xywh[0] - 0.5 * xywh[2]  # * im_shape[1]
+    x_max = xywh[0] + 0.5 * xywh[2]  # * im_shape[1]
+    y_min = xywh[1] - 0.5 * xywh[3]  # * im_shape[0]
+    y_max = xywh[1] + 0.5 * xywh[3]  # * im_shape[0]
+
+    # A ------ B
+    # | Object |
+    # D ------ C
+
+    output[0][0] = x_min
+    output[0][1] = y_min
+
+    output[1][0] = x_max
+    output[1][1] = y_min
+
+    output[2][0] = x_max
+    output[2][1] = y_max
+
+    output[3][0] = x_min
+    output[3][1] = y_max
+    return output
 
 
 def main():
@@ -88,7 +115,7 @@ def main():
 
         # YOLO detection
         results = model.predict(img, save=False, conf=conf, iou=iou)
-        detections = results[0].boxes.cpu().numpy()
+        detections = results[0].cpu().numpy().boxes
 
         objects_in = []
         for box in detections:
@@ -96,21 +123,9 @@ def main():
             tmp.unique_object_id = sl.generate_unique_id()
             tmp.probability = box.conf.item()  # what if array is bigger than 1?
             tmp.label = int(box.cls.item())
-            tmp.bounding_box_2d = box.xyxy.item()
+            tmp.bounding_box_2d = xywh2abcd(box.xywh[0], image_net)
             tmp.is_grounded = True
             objects_in.append(tmp)
-
-        # objects_in = []
-        # for box in detections:
-        #     tmp = sl.CustomBoxObjectData()
-        #     tmp.unique_object_id = sl.generate_unique_id()
-        #     tmp.probability = box.conf
-        #     tmp.label = int(box.cls)
-        #     tmp.bounding_box_2d = box.bounding_box
-        #     tmp.is_grounded = (
-        #         True  # objects are moving on the floor plane and tracked in 2D only
-        #     )
-        #     objects_in.append(tmp)
 
         # Ingest custom 3D objects into ZED SDK for tracking
         zed.ingest_custom_box_objects(objects_in)
