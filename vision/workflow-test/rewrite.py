@@ -39,7 +39,9 @@ def initialize_camera_params(zed, input_type):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='yolov8m.pt', help='model.pt path(s)')
+    parser.add_argument(
+        "--weights", type=str, default="yolov11n.pt", help="model.pt path(s)"
+    )
     parser.add_argument('--svo', type=str, default=None, help=' svo file')
 
     args = parser.parse_args()
@@ -81,7 +83,6 @@ def main():
 
     objects = sl.Objects() # Structure containing all the detected objects
 
-
     zed.retrieve_objects(objects, obj_runtime_param) # Retrieve the 3D tracked objects
 
     obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
@@ -90,7 +91,6 @@ def main():
     for object in objects.object_list:
         print("{} {}".format(object.id, object.position))
 
-
     object_id = object.id # Get the object id
     object_label = object.raw_label; # Get the label
     object_position = object.position # Get the object position
@@ -98,9 +98,6 @@ def main():
     object_tracking_state = object.tracking_state # Get the tracking state of the object
     if object_tracking_state == sl.OBJECT_TRACKING_STATE.OK:
         print("Object {0} is tracked\n".format(object_id))
-
-
-
 
 
 if __name__ == '__main__':
