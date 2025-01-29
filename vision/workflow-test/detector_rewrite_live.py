@@ -1,3 +1,4 @@
+from email.mime import image
 import sys
 import numpy as np
 import json
@@ -9,6 +10,9 @@ from ultralytics import YOLO
 
 from threading import Lock, Thread
 from time import sleep
+
+import ogl_viewer.viewer as gl
+import cv_viewer.tracking_viewer as cv_viewer
 
 
 def initialize_camera_params(zed, input_type):
@@ -123,7 +127,7 @@ def main():
             tmp.unique_object_id = sl.generate_unique_id()
             tmp.probability = box.conf.item()  # what if array is bigger than 1?
             tmp.label = int(box.cls.item())
-            tmp.bounding_box_2d = xywh2abcd(box.xywh[0], image_net)
+            tmp.bounding_box_2d = xywh2abcd(box.xywh[0], image_net.shape)
             tmp.is_grounded = True
             objects_in.append(tmp)
 
@@ -141,7 +145,7 @@ def main():
             # Draw 3D bounding box
             for obj in objects.object_list:
                 bbox = obj.bounding_box
-                if bbox:
+                if bbox.any():
                     for i in range(4):
                         start = (int(bbox[i][0]), int(bbox[i][1]))
                         end = (int(bbox[(i + 1) % 4][0]), int(bbox[(i + 1) % 4][1]))
