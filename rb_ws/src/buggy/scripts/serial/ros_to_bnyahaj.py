@@ -44,9 +44,9 @@ class Translator(Node):
         self.lock = Lock()
 
         self.create_subscription(
-            Float64, "/input/steering", self.set_steering, 1
+            Float64, "input/steering", self.set_steering, 1
         )
-        self.create_subscription(Int8, "/input/sanity_warning", self.set_alarm, 1)
+        self.create_subscription(Int8, "input/sanity_warning", self.set_alarm, 1)
 
         # upper bound of reading data from Bnyahaj Serial, at 1ms
         self.timer = self.create_timer(0.001, self.loop)
@@ -180,7 +180,7 @@ class Translator(Node):
 
             elif isinstance(packet, RoundtripTimestamp):
 
-                self.get_logger().info(f'Roundtrip Timestamp: {packet.returned_time}, {(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3}')
+                self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, {(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3}')
                 self.roundtrip_time_publisher.publish(Float64(data=(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3))
         
         if self.fresh_steer:
@@ -203,3 +203,6 @@ def main(args=None):
 
     translator.destroy_node()
     rclpy.shutdown()
+
+if __name__ == "__main__":
+    main()

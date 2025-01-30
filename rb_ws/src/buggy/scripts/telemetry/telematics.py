@@ -22,11 +22,11 @@ class Telematics(Node):
         def wrap_args(callback, callback_args):
             return lambda msg: callback(msg, callback_args)
 
-        self.self_publisher = self.create_publisher(NavSatFix, "/self/state_navsatfix", 10)
-        self.self_subscriber = self.create_subscription(Odometry, "/self/state", wrap_args(self.convert_buggystate, self.self_publisher), 1)
+        self.self_publisher = self.create_publisher(NavSatFix, "self/state_navsatfix", 10)
+        self.self_subscriber = self.create_subscription(Odometry, "self/state", wrap_args(self.convert_buggystate, self.self_publisher), 1)
 
-        self.other_publisher = self.create_publisher(NavSatFix, "/other/state_navsatfix", 10)
-        self.other_subscriber = self.create_subscription(Odometry, "/other/state", wrap_args(self.convert_buggystate, self.other_publisher), 1)
+        self.other_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 10)
+        self.other_subscriber = self.create_subscription(Odometry, "other/state", wrap_args(self.convert_buggystate, self.other_publisher), 1)
 
     # TODO Make this a static method?
     def convert_buggystate(self, msg, publisher):

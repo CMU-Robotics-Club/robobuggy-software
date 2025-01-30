@@ -100,8 +100,8 @@ class Controller(Node):
             self.get_logger().warn("WARNING: no available position estimate")
             return False
 
-        elif (self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 > 1**2):
-            self.get_logger().warn("checking position estimate certainty")
+        elif (self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 > 1):
+            self.get_logger().warn("checking position estimate certainty | current covariance: " + str(self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 ))
             return False
 
         #Originally under a lock, doesn't seem necessary?
