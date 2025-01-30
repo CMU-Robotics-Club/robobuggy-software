@@ -37,6 +37,7 @@ install(PROGRAMS
   scripts/serial/ros_to_bnyahaj_writer.py
   scripts/serial/ros_to_bnyahaj.py
   scripts/visualization/telematics.py
+  scripts/debug/debug_steer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

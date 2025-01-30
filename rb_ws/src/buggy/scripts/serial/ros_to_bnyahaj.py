@@ -48,10 +48,12 @@ class Translator(Node):
 
 
         # DEBUG MESSAGE PUBLISHERS:
-        self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "debug/firmware", 1)
-        self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
-        self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "debug/sensor", 1)
-        self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
+        if self.self_name == "SC":
+            self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "debug/firmware", 1)
+            self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "debug/sensor", 1)
+        else:
+            self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)        
+            self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
         
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
