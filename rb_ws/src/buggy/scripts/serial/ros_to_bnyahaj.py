@@ -17,7 +17,7 @@ class Translator(Node):
     be careful of multithreading synchronizaiton issues.
     """
 
-    def __init__(self, teensy_name):
+    def __init__(self):
         """
         teensy_name: required for communication, different for SC and NAND
 
@@ -25,6 +25,11 @@ class Translator(Node):
         """
 
         super().__init__('ROS_serial_translator')
+        self.get_logger().info('INITIALIZED.')
+
+        #Parameters
+        self.declare_parameter("teensy_name", "ttyUSB0") #Default is SC's port
+        teensy_name = self.get_parameter("teensy_name").value
 
         self.comms = Comms("/dev/" + teensy_name)
         namespace = self.get_namespace()
@@ -188,39 +193,11 @@ class Translator(Node):
             self.comms.send_timestamp(time.time_ns() * 1e-6)
 
 
-# Initializes ros nodes, using self and other name
-# other name is not requires, and if not submitted, use NONE
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--self_name", type=str, help="name of ego-buggy", required=True
-    )
-    parser.add_argument(
-        "--other_name",
-        type=str,
-        help="name of other buggy",
-        required=False,
-        default=None,
-    )
-    parser.add_argument(
-        "--teensy_name", type=str, help="name of teensy port", required=True
-    )
-    args, _ = parser.parse_known_args()
-    self_name = args.self_name
-    other_name = args.other_name
-    teensy_name = args.teensy_name
+def main(args=None):
+    rclpy.init(args=args)
 
-    rclpy.init()
+    translator = Translator()
+    rclpy.spin(translator)
 
-    translate = Translator(teensy_name)
-
-    if self_name == "SC" and other_name is None:
-        translate.get_logger().warn(
-            "Not reading NAND Odometry messages, double check roslaunch files for ros_to_bnyahaj"
-        )
-    elif other_name is None:
-        translate.get_logger().info("No other name passed in, presuming that this is NAND ")
-
-    rclpy.spin(translate)
-
+    translator.destroy_node()
     rclpy.shutdown()

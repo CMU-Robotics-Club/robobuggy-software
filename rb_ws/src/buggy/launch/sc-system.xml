@@ -2,9 +2,15 @@
     <include file="$(find-pkg-share microstrain_inertial_driver)/launch/microstrain_launch.py">
         <arg name="params_file" value="$(env RBROOT)/src/buggy/INS_params.yml"/>
     </include>
-    
-    <node name="bnyahaj" pkg="buggy" exec="ros_to_bnyahaj.py" respawn="true" output="screen" args="--self_name SC --other_name NAND --teensy_name ttyUSB0"/>
+    <arg name="config_file" default="src/buggy/config/sc-mockroll.yaml"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
-    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC"/>
+    
+    <node name="bnyahaj" pkg="buggy" exec="ros_to_bnyahaj.py" respawn="true" output="screen", namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+    <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen", namespace="SC"/>
+    
+    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
+    <node name="watchdog" pkg="buggy" exec="watchdog_node.py" namespace="SC" output="screen"/>
 </launch>

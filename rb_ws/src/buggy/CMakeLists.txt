@@ -33,10 +33,8 @@ install(PROGRAMS
   scripts/simulator/engine.py
   scripts/watchdog/watchdog_node.py
   scripts/buggy_state_converter.py
-  scripts/serial/ros_to_bnyahaj_reader.py
-  scripts/serial/ros_to_bnyahaj_writer.py
   scripts/serial/ros_to_bnyahaj.py
-  scripts/visualization/telematics.py
+  scripts/telemetry/telematics.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
