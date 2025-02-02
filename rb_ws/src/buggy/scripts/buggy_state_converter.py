@@ -144,9 +144,9 @@ class BuggyStateConverter(Node):
     def convert_NAND_other_state(self, msg):
         """ Converts other/raw_state in SC namespace (NAND data) to clean state units and structure """
         converted_msg = Odometry()
-        
+
         #No actual changes as the other state is just easting northing, everything else is zeroed
-        converted_msg = msg 
+        converted_msg = msg
 
         return converted_msg
 

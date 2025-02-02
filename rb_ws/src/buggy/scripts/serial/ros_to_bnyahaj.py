@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-import argparse
 from threading import Lock
-import threading
 import rclpy
 from host_comm import *
 from rclpy.node import Node
 
-from std_msgs.msg import Float64, Int8, Int32, UInt8, Bool, UInt64
+from std_msgs.msg import Float64, Int8
 from nav_msgs.msg import Odometry
 from buggy.msg import *
 class Translator(Node):
@@ -57,9 +55,9 @@ class Translator(Node):
             self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "debug/firmware", 1)
             self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "debug/sensor", 1)
         else:
-            self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)        
+            self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
             self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
-        
+
         # SERIAL DEBUG PUBLISHERS
         self.roundtrip_time_publisher = self.create_publisher(
             Float64, "debug/roundtrip_time", 1
@@ -174,7 +172,7 @@ class Translator(Node):
                 rospacket.velocity = packet.velocity
                 rospacket.steering_angle = packet.steering_angle
                 self.sc_sensor_publisher.publish(rospacket)
-                
+
                 self.get_logger().debug(f'SC Sensors Timestamp: {packet.timestamp}')
 
 
@@ -182,7 +180,7 @@ class Translator(Node):
 
                 self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, {(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3}')
                 self.roundtrip_time_publisher.publish(Float64(data=(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3))
-        
+
         if self.fresh_steer:
             with self.lock:
                 self.comms.send_steering(self.steer_angle)
