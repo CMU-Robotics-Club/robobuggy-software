@@ -19,11 +19,6 @@ class BuggyError(enum.IntFlag):
     VISION_UNAVAILABLE = enum.auto()
     SENSOR_UNAVAILABLE = enum.auto()
 
-    PNEUMATIC_FAULT = enum.auto()
-    MOTOR_FAULT = enum.auto()
-    SENSOR_FAULT = enum.auto()
-
-    CONTROLLER_CONNECTION_LOST = enum.auto()
     INTERBUGGY_COMMUNICATION_LOST = enum.auto()
     GPS_UNAVAILABLE = enum.auto()
 

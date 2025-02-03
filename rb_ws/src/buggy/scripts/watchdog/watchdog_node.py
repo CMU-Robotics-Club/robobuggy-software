@@ -39,16 +39,12 @@ class Watchdog(Node):
         # Errors
         if BuggyError.REALLY_FREAKING_BAD in self.curr_errors\
                 or BuggyError.PATH_PLANNING_FAULT in self.curr_errors\
-                or BuggyError.PNEUMATIC_FAULT in self.curr_errors\
-                or BuggyError.MOTOR_FAULT in self.curr_errors\
-                or BuggyError.SENSOR_FAULT in self.curr_errors\
-                or BuggyError.CONTROLLER_CONNECTION_LOST in self.curr_errors:
+                or BuggyError.STANLEY_CRAPPED_ITSELF in self.curr_errors:
             self.led_publisher.publish(Int8(data=2))
         # Warnings
         elif BuggyError.LOW_BATTERY in self.curr_errors\
                 or BuggyError.SENSOR_UNAVAILABLE in self.curr_errors\
                 or BuggyError.VISION_UNAVAILABLE in self.curr_errors\
-                or BuggyError.STANLEY_CRAPPED_ITSELF in self.curr_errors\
                 or BuggyError.INTERBUGGY_COMMUNICATION_LOST in self.curr_errors\
                 or BuggyError.GPS_UNAVAILABLE in self.curr_errors:
             self.led_publisher.publish(Int8(data=1))
