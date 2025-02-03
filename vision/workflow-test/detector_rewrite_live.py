@@ -98,15 +98,15 @@ def main():
 
     # Create OpenGL viewer
 
-    # viewer = gl.GLViewer()
-    # point_cloud_res = sl.Resolution(
-    #     min(camera_res.width, 720), min(camera_res.height, 404)
-    # )
-    # point_cloud_render = sl.Mat()
-    # viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
-    # point_cloud = sl.Mat(
-    #     point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU
-    # )
+    viewer = gl.GLViewer()
+    point_cloud_res = sl.Resolution(
+        min(camera_res.width, 720), min(camera_res.height, 404)
+    )
+    point_cloud_render = sl.Mat()
+    viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
+    point_cloud = sl.Mat(
+        point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU
+    )
 
     image_left = sl.Mat()
 
@@ -122,7 +122,7 @@ def main():
     # out = cv2.VideoWriter(args.output, fourcc, 30.0, (width, height))
 
     # Detection parameters
-    conf = 0.2
+    conf = 0.3
     iou = 0.45
 
     while zed.grab() == sl.ERROR_CODE.SUCCESS:

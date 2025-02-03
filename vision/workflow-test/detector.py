@@ -54,8 +54,8 @@ def detections_to_custom_box(detections, im0):
         # Creating ingestable objects for the ZED SDK
         obj = sl.CustomBoxObjectData()
         obj.bounding_box_2d = xywh2abcd(xywh, im0.shape)
-        obj.label = det.cls
-        obj.probability = det.conf
+        obj.label = int(det.cls.item())
+        obj.probability = det.conf.item()
         obj.is_grounded = False
         output.append(obj)
     return output
@@ -66,7 +66,7 @@ def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
 
     print("Intializing Network...")
 
-    model = YOLO("yolo11n.pt")
+    model = YOLO(weights)
 
     while not exit_signal:
         if run_signal:
@@ -200,10 +200,16 @@ def main():
             # Tracking view
             track_view_generator.generate_view(objects, cam_w_pose, image_track_ocv, objects.is_tracked)
 
-            cv2.imwrite("output/ZED__" + i, global_image)
+            cv2.imwrite("output/ZED__" + str(i) + ".jpg", global_image)
             key = cv2.waitKey(10)
             if key == 27 or key == ord('q') or key == ord('Q'):
                 exit_signal = True
+            
+            # Print Position of 3D object
+            if objects.object_list:
+                first_object = objects.object_list[0]
+                print(f"Object ID: {first_object.id}, Position: {first_object.position}")
+
         else:
             exit_signal = True
 
@@ -214,10 +220,10 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default='yolov8m.pt', help='model.pt path(s)')
-    parser.add_argument('--svo', type=str, default=None, help='optional svo file, if not passed, use the plugged camera instead')
-    parser.add_argument('--img_size', type=int, default=416, help='inference size (pixels)')
-    parser.add_argument('--conf_thres', type=float, default=0.4, help='object confidence threshold')
+    parser.add_argument('--weights', type=str, default='../trained-models/01-15-25_no_pushbar_yolov11n.pt', help='model.pt path(s)')
+    parser.add_argument('--svo', type=str, default  =None, help='optional svo file, if not passed, use the plugged camera instead')
+    parser.add_argument('--img_size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--conf_thres', type=float, default=0.3, help='object confidence threshold')
     opt = parser.parse_args()
 
     with torch.no_grad():
