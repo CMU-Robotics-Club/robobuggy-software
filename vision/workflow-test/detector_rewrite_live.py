@@ -97,17 +97,19 @@ def main():
     camera_res = camera_infos.camera_configuration.resolution
 
     # Create OpenGL viewer
-    viewer = gl.GLViewer()
-    point_cloud_res = sl.Resolution(
-        min(camera_res.width, 720), min(camera_res.height, 404)
-    )
-    point_cloud_render = sl.Mat()
-    viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
-    point_cloud = sl.Mat(
-        point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU
-    )
+
+    # viewer = gl.GLViewer()
+    # point_cloud_res = sl.Resolution(
+    #     min(camera_res.width, 720), min(camera_res.height, 404)
+    # )
+    # point_cloud_render = sl.Mat()
+    # viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
+    # point_cloud = sl.Mat(
+    #     point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU
+    # )
+
     image_left = sl.Mat()
-    
+
     # Camera pose
     cam_w_pose = sl.Pose()
     print("Initialized display settings")
