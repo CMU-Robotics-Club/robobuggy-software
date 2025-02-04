@@ -128,35 +128,32 @@ def main():
 
     objects = sl.Objects()
     obj_runtime_param = sl.ObjectDetectionRuntimeParameters()
-    print("test 1")
+
     # Display
     camera_infos = zed.get_camera_information()
     camera_res = camera_infos.camera_configuration.resolution
-    print("test 2")
+
     # Create OpenGL viewer
     viewer = gl.GLViewer()
-    print("test 3")
     point_cloud_res = sl.Resolution(min(camera_res.width, 720), min(camera_res.height, 404))
     point_cloud_render = sl.Mat()
-    print("test 4")
     viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
-    # ^^ THIS LINE IS CAUSING ISSUES (freeglut (workflow-test/detector.py): failed to open display '')
-    print("test 5")
+
     point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
     image_left = sl.Mat()
-    print("test 3")
+
     # Utilities for 2D display
     display_resolution = sl.Resolution(min(camera_res.width, 1280), min(camera_res.height, 720))
     image_scale = [display_resolution.width / camera_res.width, display_resolution.height / camera_res.height]
     image_left_ocv = np.full((display_resolution.height, display_resolution.width, 4), [245, 239, 239, 255], np.uint8)
-    print("test 4")
+
     # Utilities for tracks view
     camera_config = camera_infos.camera_configuration
     tracks_resolution = sl.Resolution(400, display_resolution.height)
     track_view_generator = cv_viewer.TrackingViewer(tracks_resolution, camera_config.fps, init_params.depth_maximum_distance)
     track_view_generator.set_camera_calibration(camera_config.calibration_parameters)
     image_track_ocv = np.zeros((tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
-    print("test 5")
+
     # Camera pose
     cam_w_pose = sl.Pose()
     print("Initialized display settings")
@@ -201,10 +198,12 @@ def main():
             track_view_generator.generate_view(objects, cam_w_pose, image_track_ocv, objects.is_tracked)
 
             cv2.imwrite("output/ZED__" + str(i) + ".jpg", global_image)
+            cv2.imshow("2D View w/ tracking", global_image)
+
             key = cv2.waitKey(10)
             if key == 27 or key == ord('q') or key == ord('Q'):
                 exit_signal = True
-            
+
             # Print Position of 3D object
             if objects.object_list:
                 first_object = objects.object_list[0]
