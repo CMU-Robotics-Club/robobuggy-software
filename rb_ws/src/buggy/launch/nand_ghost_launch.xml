@@ -15,9 +15,9 @@
         <param from="$(var config_file)"/>
     </node>
 
-    <node pkg="ros2topic" exec="relay" name="relay_node">
-        <param name="from_topic" value="/NAND/self/state"/>
-        <param name="to_topic" value="/SC/other/state"/>
+    <node pkg="topic_tools" exec="relay" name="relay_node" output="screen">
+        <param name="input_topic" value="/NAND/self/state"/>
+        <param name="output_topic" value="/SC/other/state"/>
     </node>
 
     <node pkg="buggy" exec="engine.py" name="NAND_sim_single" output = "screen" namespace="NAND">
