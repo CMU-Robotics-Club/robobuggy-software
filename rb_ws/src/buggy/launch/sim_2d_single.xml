@@ -11,4 +11,6 @@
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
+
+    <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
 </launch>
