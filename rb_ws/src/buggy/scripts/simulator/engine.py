@@ -40,7 +40,7 @@ class Simulator(Node):
             "UC_TO_PURNELL_PASS": (589637.81, 4477470.36, 160),
         }
 
-        self.declare_parameter('velocity', 12)
+        self.declare_parameter('velocity', 12.0)
         if (self.get_namespace() == "/SC"):
             self.buggy_name = "SC"
             self.declare_parameter('pose', "Hill1_SC")

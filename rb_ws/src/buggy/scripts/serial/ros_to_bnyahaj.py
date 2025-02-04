@@ -184,7 +184,7 @@ class Translator(Node):
         if self.fresh_steer:
             with self.lock:
                 self.comms.send_steering(self.steer_angle)
-                # self.get_logger().info(f"Sent steering angle of: {self.steer_angle}")
+                self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
                 self.fresh_steer = False
 
         with self.lock:

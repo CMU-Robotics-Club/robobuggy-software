@@ -50,7 +50,7 @@ class Telematics(Node):
 
         except Exception as e:
             self.get_logger().warn(
-                "Unable to convert other buggy position to lon lat" + str(e)
+                f"Unable to convert buggy position to lon ({x}) lat ({y}) " + str(e)
             )
 
 
