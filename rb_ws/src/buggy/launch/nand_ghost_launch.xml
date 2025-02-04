@@ -1,0 +1,12 @@
+<launch>
+    <arg name="config_file" default="src/buggy/config/nand_ghost_launch_mockroll.yaml"/>
+    
+    <node pkg="buggy" exec="controller_node.py" name="NAND_controller" output = "screen" namespace="NAND">
+        <param from="$(var config_file)"/>
+    </node>
+
+    <node pkg="buggy" exec="engine.py" name="NAND_sim_single" output = "screen" namespace="NAND">
+        <param from="$(var config_file)"/>
+    </node>
+
+</launch>

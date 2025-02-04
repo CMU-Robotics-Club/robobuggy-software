@@ -13,24 +13,31 @@ from util.constants import Constants
 
 class Simulator(Node):
 
-
     def __init__(self):
         super().__init__('sim_single')
         self.get_logger().info('INITIALIZED.')
 
         self.starting_poses = {
-            "Hill1_NAND": (Constants.UTM_EAST_ZERO + 0, Constants.UTM_NORTH_ZERO + 0, -110),
-            "Hill1_SC": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
+            "Hill1_NAND": (
+                Constants.UTM_EAST_ZERO + 0,
+                Constants.UTM_NORTH_ZERO + 0,
+                -110,
+            ),
+            "Hill1_SC": (
+                Constants.UTM_EAST_ZERO + 20,
+                Constants.UTM_NORTH_ZERO + 30,
+                -110,
+            ),
             "WESTINGHOUSE": (589647, 4477143, -150),
             "UC_TO_PURNELL": (589635, 4477468, 160),
             "UC": (589681, 4477457, 160),
             "TRACK_EAST_END": (589953, 4477465, 90),
             "TRACK_RESNICK": (589906, 4477437, -20),
             "GARAGE": (589846, 4477580, 180),
-            "PASS_PT": (589491, 4477003, -160),
             "FREW_ST": (589646, 4477359, -20),
             "FREW_ST_PASS": (589644, 4477368, -20),
             "RACELINE_PASS": (589468.02, 4476993.07, -160),
+            "UC_TO_PURNELL_PASS": (589637.81, 4477470.36, 160),
         }
 
         self.declare_parameter('velocity', 12)
