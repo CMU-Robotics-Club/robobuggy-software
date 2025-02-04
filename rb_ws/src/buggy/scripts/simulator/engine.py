@@ -37,7 +37,7 @@ class Simulator(Node):
             "FREW_ST": (589646, 4477359, -20),
             "FREW_ST_PASS": (589644, 4477368, -20),
             "RACELINE_PASS": (589468.02, 4476993.07, -160),
-            "UC_TO_PURNELL_PASS": (589637.81, 4477470.36, 160),
+            "UC_TO_PURNELL_PASS": (589638, 4477468, 160),
         }
 
         self.declare_parameter('velocity', 12.0)
