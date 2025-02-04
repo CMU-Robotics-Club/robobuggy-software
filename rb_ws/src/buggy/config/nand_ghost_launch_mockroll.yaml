@@ -8,12 +8,6 @@ NAND:
       velocity: 0.0001
       pose: "UC_TO_PURNELL_PASS"
 
-  NAND_controller:
-    ros__parameters:
-      dist: 0.0
-      # traj_name: "buggycourse_safe.json"
-      controller: "stanley"
-
 SC:
   bnyahaj:
     ros__parameters:
