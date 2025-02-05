@@ -1,0 +1,29 @@
+/**: # Global Params
+  ros__parameters:
+      traj_name: "buggycourse_safe.json"
+
+NAND:
+  NAND_sim_single:
+    ros__parameters:
+      velocity: 0.0001
+      pose: "RACELINE_PASS"
+
+SC:
+  bnyahaj:
+    ros__parameters:
+      teensy_name: "ttyUSB0"
+
+  SC_controller:
+    ros__parameters:
+      dist: 0.0
+      # traj_name: "buggycourse_safe.json"
+      controller: "stanley"
+
+  SC_path_planner:
+    ros__parameters:
+      # traj_name: "buggycourse_safe.json"
+      curb_name: "buggycourse_curb.json"
+  SC_sim_single:
+    ros__parameters:
+        velocity: 12.0
+        pose: "UC_TO_PURNELL"
