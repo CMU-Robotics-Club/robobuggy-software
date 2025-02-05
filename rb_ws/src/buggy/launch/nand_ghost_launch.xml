@@ -1,11 +1,5 @@
 <launch>
     <arg name="config_file" default="src/buggy/config/nand_ghost_launch_mockroll.yaml"/>
-    
-    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
-    
-    <node pkg="buggy" exec="engine.py" name="SC_sim_single" namespace="SC">
-        <param from="$(var config_file)"/>
-    </node>
 
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC">
             <param from="$(var config_file)"/>

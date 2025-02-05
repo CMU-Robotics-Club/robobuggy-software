@@ -29,7 +29,7 @@ class Translator(Node):
         self.declare_parameter("teensy_name", "ttyUSB0") #Default is SC's port
         teensy_name = self.get_parameter("teensy_name").value
 
-        self.comms = Comms("/dev/" + teensy_name)
+        self.comms = Comms("/dev/" + teensy_name, self.get_logger())
         namespace = self.get_namespace()
         if namespace == "/SC":
             self.self_name = "SC"
@@ -98,6 +98,7 @@ class Translator(Node):
         while packet_on_buffer:
             packet = self.comms.read_packet()
             if (packet is None): packet_on_buffer = False
+            self.get_logger().debug(f"received a packet {packet}")
 
             if isinstance(packet, NANDDebugInfo):
                 rospacket = NANDDebugInfoMsg()
@@ -125,7 +126,7 @@ class Translator(Node):
                 odom.twist.twist.linear.x = packet.velocity
                 odom.twist.twist.angular.z = packet.heading_rate
 
-                self.nand_ukf_odom_publisher.publish(data=odom)
+                self.nand_ukf_odom_publisher.publish(odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
 
 
@@ -150,7 +151,7 @@ class Translator(Node):
 
                 odom.pose.pose.position.x = packet.nand_east_gps
                 odom.pose.pose.position.y = packet.nand_north_gps
-                self.observed_nand_odom_publisher.publish(data=odom)
+                self.observed_nand_odom_publisher.publish(odom)
 
             elif isinstance(packet, SCDebugInfo):
                 rospacket = SCDebugInfoMsg()

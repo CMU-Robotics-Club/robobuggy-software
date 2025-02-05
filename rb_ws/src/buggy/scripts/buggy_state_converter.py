@@ -14,7 +14,7 @@ class BuggyStateConverter(Node):
 
         namespace = self.get_namespace()
         if namespace == "/SC":
-            self.SC_raw_state_subscriber = self.create_subscription(
+            self.SC_raw_state_subscriber =self.create_subscription(
                 Odometry, "/ekf/odometry_earth", self.convert_SC_state_callback, 10
             )
 
@@ -143,6 +143,7 @@ class BuggyStateConverter(Node):
 
     def convert_NAND_other_state(self, msg):
         """ Converts other/raw_state in SC namespace (NAND data) to clean state units and structure """
+        
         converted_msg = Odometry()
 
         #No actual changes as the other state is just easting northing, everything else is zeroed

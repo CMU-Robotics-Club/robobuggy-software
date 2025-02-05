@@ -23,3 +23,7 @@ SC:
     ros__parameters:
       # traj_name: "buggycourse_safe.json"
       curb_name: ""
+  SC_sim_single:
+    ros__parameters:
+        velocity: 12.0
+        pose: "UC_TO_PURNELL"

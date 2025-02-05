@@ -63,7 +63,7 @@ MAX_PAYLOAD_LEN = 100
 MSG_TYPE_NAND_DEBUG = b'ND'
 MSG_TYPE_NAND_UKF = b'NU'
 MSG_TYPE_NAND_GPS = b'NG'
-MSG_TYPE_RADIO = b'RA'
+MSG_TYPE_RADIO = b'SR'
 MSG_TYPE_SC_DEBUG = b'SD'
 MSG_TYPE_SC_SENSORS = b'SS'
 MSG_TYPE_ROUNDTRIP_TIMESTAMP = b'RT'
@@ -164,9 +164,10 @@ class ChecksumMismatch(Exception):
     pass
 
 class Comms:
-    def __init__(self, path_to_port):
+    def __init__(self, path_to_port, logger):
         self.port = Serial(path_to_port, 1_000_000, exclusive=True)
         self.rx_buffer = b''
+        self.logger = logger
 
     def send_packet_raw(self, msg_type: bytes, payload: bytes):
         assert(len(msg_type) == 2)
@@ -275,7 +276,7 @@ class Comms:
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            data = struct.unpack('<ffIBxxx', payload)
+            data = struct.unpack('<ddIBxxx', payload)
             return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:
@@ -290,7 +291,7 @@ class Comms:
             time = struct.unpack('<d', payload)
             return RoundtripTimestamp(*time)
         else:
-            print(f'Unknown packet type {msg_type}')
+            self.logger.error(f'Unknown packet type {msg_type}')
             return None
 
 

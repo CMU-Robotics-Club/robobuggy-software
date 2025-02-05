@@ -29,7 +29,7 @@ class Simulator(Node):
                 -110,
             ),
             "WESTINGHOUSE": (589647, 4477143, -150),
-            "UC_TO_PURNELL": (589635, 4477468, 160),
+            "UC_TO_PURNELL": (589635.0, 4477468.0, 160),
             "UC": (589681, 4477457, 160),
             "TRACK_EAST_END": (589953, 4477465, 90),
             "TRACK_RESNICK": (589906, 4477437, -20),
@@ -37,7 +37,7 @@ class Simulator(Node):
             "FREW_ST": (589646, 4477359, -20),
             "FREW_ST_PASS": (589644, 4477368, -20),
             "RACELINE_PASS": (589468.02, 4476993.07, -160),
-            "UC_TO_PURNELL_PASS": (589638, 4477468, 160),
+            "UC_TO_PURNELL_PASS": (589638.0, 4477470.5, 160),
         }
 
         self.declare_parameter('velocity', 12.0)
