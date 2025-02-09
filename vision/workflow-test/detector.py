@@ -2,6 +2,7 @@
 
 import sys
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 import argparse
 import pyzed.sl as sl
@@ -59,6 +60,20 @@ def detections_to_custom_box(detections, im0):
         obj.is_grounded = False
         output.append(obj)
     return output
+
+
+def convert_to_utm(buggy_pos, buggy_pitch, detection_pos):
+    """
+    :param buggy_pos: Buggy position with .pos in utm (2d vec) and .heading in radians
+    :param buggy_pitch: Buggy pitch in radians. Positive is nose up.
+    :param detection_pos: Detection position with .x, .y, .z in meters
+    """
+    CAMERA_OFFSET = 0.6  # Distance from INS to camera
+
+    rot = Rotation.from_euler('xyz', [0, -buggy_pitch, buggy_pos.heading])
+    vec = rot.apply(np.array([-detection_pos.z + CAMERA_OFFSET, -detection_pos.x, detection_pos.y]))
+
+    return buggy_pos.pos + vec
 
 
 def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
