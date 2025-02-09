@@ -9,11 +9,9 @@ from ultralytics import YOLO
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
+from scipy.spatial.transform import Rotation
 
 
-# https://github.com/stereolabs/zed-ros2-wrapper/blob/master/README.md
-# https://wiki.ros.org/zed-ros-wrapper (cant find ros2 equiv)
-# https://github.com/stereolabs/zed-ros2-interfaces
 
 class Detector(Node):
 
@@ -31,22 +29,22 @@ class Detector(Node):
 
         self.bridge = CvBridge()
 
+        # Subscribers:
+        # TODO: need to subscribe to get SC position
+
         # Publishers
         self.observed_nand_odom_publisher = self.create_publisher(
                     Odometry, "/NAND_raw_state", 1
                 )
-
         self.raw_camera_frame_publisher = self.create_publisher(
                     Image, "debug/raw_camera_frame", 1
                 )
-
         self.annotated_camera_frame_publisher = self.create_publisher(
                     Image, "debug/annotated_camera_frame", 1
                 )
         self.num_detections_publisher = self.create_publisher(
                     Int32, "debug/num_detections", 1
                 )
-
 
         timer_period = 0.01  # seconds (100 Hz)
         self.timer = self.create_timer(timer_period, self.loop)
@@ -115,7 +113,23 @@ class Detector(Node):
             output.append(obj)
         return output
 
-    def objects_to_utm(self):
+    def convert_to_utm(self):
+
+        # TODO: MOVE TO CONSTANTS FILE
+        CAMERA_OFFSET = 0.6  # Distance from INS to camera in meters
+
+        # TODO: get detection_pos from self.objects
+        # TODO: get buggy_pos and buggy_pitch from the subscriber (you probably need to add a listener to regularly update a self.self_state variable)
+        self.objects
+
+        buggy_pos = None
+        buggy_pitch = None()
+        detection_pos = None()
+
+        rot = Rotation.from_euler('xyz', [0, -buggy_pitch, buggy_pos.heading])
+        vec = rot.apply(np.array([-detection_pos.z + CAMERA_OFFSET, -detection_pos.x, detection_pos.y]))
+
+        return buggy_pos.pos + vec
 
     def loop(self):
         raw_frame_publish = None
@@ -142,6 +156,7 @@ class Detector(Node):
 
         num_detections = len(self.objects.object_list)
         if num_detections > 0:
+            # TODO: this function needs to be written!
             utms = self.objects_to_utm()
             # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
             nand_utm = utms[0]
@@ -155,12 +170,7 @@ class Detector(Node):
 def main(args=None):
     rclpy.init(args=args)
     detector_node = Detector()
-
     rclpy.spin(detector_node)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     detector_node.destroy_node()
     rclpy.shutdown()
 
