@@ -160,7 +160,7 @@ class Detector(Node):
         raw_frame_publish = None
         annotated_frame_publish = None
         num_detections = 0
-        nand_utm = None
+        NAND_utm = None
 
         # Loop for the code that operates every 10ms
         # get a new frame from camera and get objects in that frame
@@ -191,12 +191,16 @@ class Detector(Node):
         if num_detections > 0:
             utms = self.objects_to_utm()
             # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
-            nand_utm = utms[0]
+            NAND_utm = utms[0]
+            NAND_pose = Odometry()
+            NAND_pose.pose.pose.position.x = NAND_utm[0]
+            NAND_pose.pose.pose.position.y = NAND_utm[1]
+            NAND_pose.pose.pose.position.z = NAND_utm[2]
 
         self.raw_camera_frame_publisher.publish(raw_frame_publish)
         self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
         self.num_detections_publisher.publish(num_detections)
-        self.observed_NAND_odom_publisher.publish(nand_utm)
+        self.observed_NAND_odom_publisher.publish(NAND_pose)
 
 
 def main(args=None):
