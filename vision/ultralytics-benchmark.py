@@ -31,7 +31,7 @@ while cap.isOpened():
         cropped_frame = frame[:, : width // 2]
 
         # Run YOLO11 tracking on the frame, persisting tracks between frames
-        results = model.track(cropped_frame, persist=True)
+        results = model.predict(cropped_frame)
 
         # Visualize the results on the frame
         annotated_frame = results[0].plot()

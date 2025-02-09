@@ -12,11 +12,13 @@ from cv_bridge import CvBridge
 from scipy.spatial.transform import Rotation
 
 
-
 class Detector(Node):
 
     def __init__(self):
         super().__init__('detector')
+        self.get_logger().info("INITIALIZED.")
+
+        self.SC_pose = None  # will hold msg.pose.pose of SC/self/state
 
         self.cam = sl.Camera()
         self.initialize_camera()
@@ -29,13 +31,15 @@ class Detector(Node):
 
         self.bridge = CvBridge()
 
-        # Subscribers:
-        # TODO: need to subscribe to get SC position
+        # Subscribers
+        self.SC_state_subscriber = self.create_subscription(
+            Odometry, "self/state", self.set_SC_state, 1
+        )
 
         # Publishers
-        self.observed_nand_odom_publisher = self.create_publisher(
-                    Odometry, "/NAND_raw_state", 1
-                )
+        self.observed_NAND_odom_publisher = self.create_publisher(
+            Odometry, "/NAND_raw_state", 1
+        )
         self.raw_camera_frame_publisher = self.create_publisher(
                     Image, "debug/raw_camera_frame", 1
                 )
@@ -49,11 +53,14 @@ class Detector(Node):
         timer_period = 0.01  # seconds (100 Hz)
         self.timer = self.create_timer(timer_period, self.loop)
 
+    def set_SC_state(self, msg):
+        # TODO: does this need locking to prevent conflict with object detection? --> probably not, but needs to be tested
+        self.SC_pose = msg.pose.pose
+
     def initialize_camera(self):
         init_params = sl.InitParameters(svo_real_time_mode=True)
         positional_tracking_params = sl.PositionalTrackingParameters()
         obj_params = sl.ObjectDetectionParameters()
-
 
         init_params.coordinate_units = sl.UNIT.METER
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
@@ -65,10 +72,12 @@ class Detector(Node):
         obj_params.enable_segmentation = False  # designed to give person pixel mask
 
         # TODO: is exiting a node this way safe? will it interfere with other operation? (might need to test by trying to run node without camera plugged in)
+        # --> changed from exit(1) to destroy_node(), still needs to be tested
         status = self.cam.open(init_params)
         if status != sl.ERROR_CODE.SUCCESS:
-            print("Camera Open", status, "Exit program.")
-            exit(1)
+            self.get_logger().error("Camera Open", status, "Exiting program.")
+            self.destroy_node()
+            rclpy.shutdown()
 
         self.cam.enable_positional_tracking(positional_tracking_params)
         self.cam.enable_object_detection(obj_params)
@@ -113,23 +122,39 @@ class Detector(Node):
             output.append(obj)
         return output
 
-    def convert_to_utm(self):
+    def objects_to_utm(self):
 
         # TODO: MOVE TO CONSTANTS FILE
         CAMERA_OFFSET = 0.6  # Distance from INS to camera in meters
 
-        # TODO: get detection_pos from self.objects
-        # TODO: get buggy_pos and buggy_pitch from the subscriber (you probably need to add a listener to regularly update a self.self_state variable)
-        self.objects
+        buggy_position = self.SC_pose.position
+        buggy_orientation = self.SC_pose.orientation
 
-        buggy_pos = None
-        buggy_pitch = None()
-        detection_pos = None()
+        # TODO: conversion to UTM needs to be tested
+        utms = []
+        for obj in self.objects.object_list:
+            detection_position = obj.position
 
-        rot = Rotation.from_euler('xyz', [0, -buggy_pitch, buggy_pos.heading])
-        vec = rot.apply(np.array([-detection_pos.z + CAMERA_OFFSET, -detection_pos.x, detection_pos.y]))
+            rot = Rotation.from_euler(
+                "xyz", [0, -buggy_orientation.y, buggy_orientation.z]
+            )
+            vec = rot.apply(
+                np.array(
+                    [
+                        -detection_position.z + CAMERA_OFFSET,
+                        -detection_position.x,
+                        detection_position.y,
+                    ]
+                )
+            )
 
-        return buggy_pos.pos + vec
+            utm_position = (
+                np.array([buggy_position.x, buggy_position.y, buggy_position.z]) + vec
+            )
+
+            utms.append(utm_position)
+
+        return utms
 
     def loop(self):
         raw_frame_publish = None
@@ -143,6 +168,7 @@ class Detector(Node):
             self.cam.retrieve_image(self.raw_image, sl.VIEW.LEFT)
             image_net = self.raw_image.get_data()
 
+            # publish raw frame
             self.raw_image = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
             raw_frame_publish = self.bridge.cv2_to_imgmsg(image_net, encoding="rgb8")
 
@@ -150,13 +176,19 @@ class Detector(Node):
             detections = self.model.predict(self.raw_image, save=False)
             custom_boxes = self.detections_to_custom_box(detections, image_net)
 
+            # publish annotated frame
+            annotated_frame_publish = detections[0].plot()
+
             # pass into 2D to 3D to get approximate depth
             self.cam.ingest_custom_box_objects(custom_boxes)
             self.cam.retrieve_objects(self.objects, self.object_det_params)
 
+            # sort object_list by confidence
+            # NOTE: unsure how this will affect self.objects since only the object_list is sorted
+            self.objects.object_list.sort(key=lambda obj: obj.confidence, reverse=True)
+
         num_detections = len(self.objects.object_list)
         if num_detections > 0:
-            # TODO: this function needs to be written!
             utms = self.objects_to_utm()
             # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
             nand_utm = utms[0]
@@ -164,13 +196,16 @@ class Detector(Node):
         self.raw_camera_frame_publisher.publish(raw_frame_publish)
         self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
         self.num_detections_publisher.publish(num_detections)
-        self.observed_nand_odom_publisher.publish(nand_utm)
+        self.observed_NAND_odom_publisher.publish(nand_utm)
 
 
 def main(args=None):
+
     rclpy.init(args=args)
     detector_node = Detector()
+
     rclpy.spin(detector_node)
+
     detector_node.destroy_node()
     rclpy.shutdown()
 
