@@ -23,6 +23,7 @@ from signal import signal, SIGINT
 import argparse
 
 
+# THIS HOPEFULLY WILL BECOME A DEBUG FILE
 import pyzed.sl as sl
 
 cam = sl.Camera()

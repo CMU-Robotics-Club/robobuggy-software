@@ -3,6 +3,9 @@ from rclpy.node import Node
 from sensor_msgs import Image
 from zed_msgs import Object
 
+
+# this node is an experiment with integrating SC with the builtin ZED node
+
 # https://github.com/stereolabs/zed-ros2-wrapper/blob/master/README.md
 # https://wiki.ros.org/zed-ros-wrapper (cant find ros2 equiv)
 # https://github.com/stereolabs/zed-ros2-interfaces
