@@ -13,7 +13,7 @@ from ultralytics import YOLO
 from threading import Lock, Thread
 from time import sleep
 
-import ogl_viewer.viewer as gl
+# import ogl_viewer.viewer as gl
 import cv_viewer.tracking_viewer as cv_viewer
 
 lock = Lock()
@@ -149,12 +149,12 @@ def main():
     camera_res = camera_infos.camera_configuration.resolution
 
     # Create OpenGL viewer
-    viewer = gl.GLViewer()
-    point_cloud_res = sl.Resolution(min(camera_res.width, 720), min(camera_res.height, 404))
-    point_cloud_render = sl.Mat()
-    viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
+    # viewer = gl.GLViewer()
+    # point_cloud_res = sl.Resolution(min(camera_res.width, 720), min(camera_res.height, 404))
+    # point_cloud_render = sl.Mat()
+    # viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
 
-    point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
+    # point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
     image_left = sl.Mat()
 
     # Utilities for 2D display
@@ -174,7 +174,7 @@ def main():
     print("Initialized display settings")
 
     i = 0
-    while viewer.is_available() and not exit_signal:
+    while not exit_signal: # viewer.is_available() and
         if (i % 10 == 0):
             print(i)
         if zed.grab(runtime_params) == sl.ERROR_CODE.SUCCESS:
@@ -198,22 +198,22 @@ def main():
 
             # -- Display
             # Retrieve display data
-            zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU, point_cloud_res)
-            point_cloud.copy_to(point_cloud_render)
-            zed.retrieve_image(image_left, sl.VIEW.LEFT, sl.MEM.CPU, display_resolution)
-            zed.get_position(cam_w_pose, sl.REFERENCE_FRAME.WORLD)
+            # zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU, point_cloud_res)
+            # point_cloud.copy_to(point_cloud_render)
+            # zed.retrieve_image(image_left, sl.VIEW.LEFT, sl.MEM.CPU, display_resolution)
+            # zed.get_position(cam_w_pose, sl.REFERENCE_FRAME.WORLD)
 
             # 3D rendering
-            viewer.updateData(point_cloud_render, objects)
+            # viewer.updateData(point_cloud_render, objects)
             # 2D rendering
-            np.copyto(image_left_ocv, image_left.get_data())
-            cv_viewer.render_2D(image_left_ocv, image_scale, objects, obj_param.enable_tracking)
-            global_image = cv2.hconcat([image_left_ocv, image_track_ocv])
+            # np.copyto(image_left_ocv, image_left.get_data())
+            # cv_viewer.render_2D(image_left_ocv, image_scale, objects, obj_param.enable_tracking)
+            # global_image = cv2.hconcat([image_left_ocv, image_track_ocv])
             # Tracking view
-            track_view_generator.generate_view(objects, cam_w_pose, image_track_ocv, objects.is_tracked)
+            # track_view_generator.generate_view(objects, cam_w_pose, image_track_ocv, objects.is_tracked)
 
-            cv2.imwrite("output/ZED__" + str(i) + ".jpg", global_image)
-            cv2.imshow("2D View w/ tracking", global_image)
+            # cv2.imwrite("output/ZED__" + str(i) + ".jpg", global_image)
+            # cv2.imshow("2D View w/ tracking", global_image)
 
             key = cv2.waitKey(10)
             if key == 27 or key == ord('q') or key == ord('Q'):
@@ -227,7 +227,7 @@ def main():
         else:
             exit_signal = True
 
-    viewer.exit()
+    # viewer.exit()
     exit_signal = True
     zed.close()
 
@@ -235,7 +235,7 @@ def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='../trained-models/01-15-25_no_pushbar_yolov11n.pt', help='model.pt path(s)')
-    parser.add_argument('--svo', type=str, default  =None, help='optional svo file, if not passed, use the plugged camera instead')
+    parser.add_argument('--svo', type=str, default=None, help='optional svo file, if not passed, use the plugged camera instead')
     parser.add_argument('--img_size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf_thres', type=float, default=0.3, help='object confidence threshold')
     opt = parser.parse_args()
