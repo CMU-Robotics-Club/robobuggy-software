@@ -12,6 +12,7 @@ services:
       - "${FEATHER_PORT:-/dev/null}:/dev/ttyACM1"
     stdin_open: true # docker run -i
     tty: true # docker run -t
+    env_file: .env.dev
     environment:
       - DISPLAY=host.docker.internal:0
     hostname: main

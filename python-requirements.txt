@@ -1,10 +1,12 @@
 matplotlib
 NavPy
 numba
-numpy
+numpy<2
 osqp
 pandas
 pymap3d
+pyproj
+pyserial
 scipy
 setuptools==58.2.0
 trimesh

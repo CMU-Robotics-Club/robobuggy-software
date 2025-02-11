@@ -1,4 +1,4 @@
 <launch>
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
-    <node pkg="buggy" exec="watchdog" name="SC_watchdog" namespace="SC"/>
+    <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
 </launch>
