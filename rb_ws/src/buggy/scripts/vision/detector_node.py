@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
-from sensor_msgs import Image
-from std_msgs import Int32
-from nav_msgs import Odometry
-from zed_msgs import Object
+from sensor_msgs.msg import Image
+from std_msgs.msg import Int32
+from nav_msgs.msg import Odometry
+# from zed_msgs import Object
 import pyzed.sl as sl
 from ultralytics import YOLO
 import cv2
@@ -24,7 +26,7 @@ class Detector(Node):
         self.initialize_camera()
         self.raw_image = sl.Mat()
         self.objects = sl.Objects()
-        self.model = YOLO("model")
+        self.model = YOLO("src/buggy/scripts/vision/01-15-25_no_pushbar_yolov11n.pt")
 
         self.runtime_params = sl.RuntimeParameters()
         self.object_det_params = sl.ObjectDetectionRuntimeParameters()
@@ -169,15 +171,16 @@ class Detector(Node):
             image_net = self.raw_image.get_data()
 
             # publish raw frame
-            self.raw_image = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
-            raw_frame_publish = self.bridge.cv2_to_imgmsg(image_net, encoding="rgb8")
+            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
+            # raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
 
             # pass frame into YOLO model (get 2D)
-            detections = self.model.predict(self.raw_image, save=False)
-            custom_boxes = self.detections_to_custom_box(detections, image_net)
+            detections = self.model.predict(raw_image_np, save=False)
+            detection_boxes = detections[0].cpu().numpy().boxes    # what is the [0] indexing into, does this pull out the first detection
+            custom_boxes = self.detections_to_custom_box(detection_boxes, image_net)
 
             # publish annotated frame
-            annotated_frame_publish = detections[0].plot()
+            # annotated_frame_publish = self.bridge.cv2_to_imgmsg(detections[0].plot(), encoding="rgb8")
 
             # pass into 2D to 3D to get approximate depth
             self.cam.ingest_custom_box_objects(custom_boxes)
@@ -188,19 +191,21 @@ class Detector(Node):
             self.objects.object_list.sort(key=lambda obj: obj.confidence, reverse=True)
 
         num_detections = len(self.objects.object_list)
+        NAND_pose = None
         if num_detections > 0:
             utms = self.objects_to_utm()
             # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
-            NAND_utm = utms[0]
             NAND_pose = Odometry()
+            NAND_utm = utms[0]
             NAND_pose.pose.pose.position.x = NAND_utm[0]
             NAND_pose.pose.pose.position.y = NAND_utm[1]
             NAND_pose.pose.pose.position.z = NAND_utm[2]
 
-        self.raw_camera_frame_publisher.publish(raw_frame_publish)
-        self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
-        self.num_detections_publisher.publish(num_detections)
-        self.observed_NAND_odom_publisher.publish(NAND_pose)
+        # self.raw_camera_frame_publisher.publish(raw_frame_publish)
+        # self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
+        self.num_detections_publisher.publish(Int32(data=num_detections))
+        if (NAND_pose is not None):
+          self.observed_NAND_odom_publisher.publish(NAND_pose)
 
 
 def main(args=None):

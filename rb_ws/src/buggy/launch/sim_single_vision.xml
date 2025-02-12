@@ -13,6 +13,6 @@
     </node>
 
     <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
-    <node name="detector" pkg="buggy" exec="detector_node.py" output="screen" namespace="SC"/>
+    <node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC"/>
 
 </launch>
