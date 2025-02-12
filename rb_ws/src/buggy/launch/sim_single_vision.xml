@@ -1,0 +1,18 @@
+<launch>
+
+    <arg name="config_file" default="src/buggy/config/sim_single_sc.yaml"/>
+
+    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
+    
+    <node pkg="buggy" exec="engine.py" name="SC_sim_single" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" namespace="SC"/>
+    <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+
+    <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
+    <node name="detector" pkg="buggy" exec="detector_node.py" output="screen" namespace="SC"/>
+
+</launch>
