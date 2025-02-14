@@ -35,6 +35,8 @@ install(PROGRAMS
   scripts/watchdog/watchdog_node.py
   scripts/buggy_state_converter.py
   scripts/serial/ros_to_bnyahaj.py
+  scripts/telemetry/telematics.py
+  scripts/debug/debug_steer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -43,6 +45,10 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrajectoryMsg.msg"
+  "msg/SCDebugInfoMsg.msg"
+  "msg/SCSensorMsg.msg"
+  "msg/NANDRawGPSMsg.msg"
+  "msg/NANDDebugInfoMsg.msg"
 )
 ament_export_dependencies(rosidl_default_runtime)
 
