@@ -63,7 +63,7 @@ MAX_PAYLOAD_LEN = 100
 MSG_TYPE_NAND_DEBUG = b'ND'
 MSG_TYPE_NAND_UKF = b'NU'
 MSG_TYPE_NAND_GPS = b'NG'
-MSG_TYPE_RADIO = b'RA'
+MSG_TYPE_RADIO = b'SR'
 MSG_TYPE_SC_DEBUG = b'SD'
 MSG_TYPE_SC_SENSORS = b'SS'
 MSG_TYPE_ROUNDTRIP_TIMESTAMP = b'RT'
@@ -275,7 +275,7 @@ class Comms:
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            data = struct.unpack('<ffIBxxx', payload)
+            data = struct.unpack('<ddIBxxx', payload)
             return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:

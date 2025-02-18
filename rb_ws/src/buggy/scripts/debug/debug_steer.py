@@ -20,13 +20,14 @@ class DebugController(Node):
     def __init__(self) -> None:
         super().__init__("debug_steer")
         self.steer_publisher = self.create_publisher(
-            Float64, "/input/steering", 10)
+            Float64, "input/steering", 10)
         self.rate = 1000  # Hz
         self.tick_count = 0
         self.steer_cmd = 0.0
 
         # Create a timer to call the loop function
         self.timer = self.create_timer(1.0 / self.rate, self.loop)
+        self.get_logger().info("INITIALIZED")
 
     # Outputs a continuous sine wave ranging from -50 to 50, with a period of 500 ticks
     def sin_steer(self, tick_count):
