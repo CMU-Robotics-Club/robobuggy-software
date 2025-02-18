@@ -41,8 +41,8 @@ class DebugController(Node):
         self.steer_cmd = self.sin_steer(self.tick_count)
         msg = Float64()
         msg.data = self.steer_cmd
-        # if self.tick_count % 10 == 0:
-            # self.get_logger().info(f"SIN STEER: {self.steer_cmd}")
+        if self.tick_count % 10 == 0:
+            self.get_logger().info(f"SIN STEER: {self.steer_cmd}")
         self.steer_publisher.publish(msg)
 
         self.tick_count += 1

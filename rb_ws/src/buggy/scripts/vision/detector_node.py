@@ -52,7 +52,7 @@ class Detector(Node):
                     Int32, "debug/num_detections", 1
                 )
 
-        timer_period = 0.01  # seconds (100 Hz)
+        timer_period = 0.1  # seconds (100 Hz)
         self.timer = self.create_timer(timer_period, self.loop)
 
     def set_SC_state(self, msg):
@@ -172,7 +172,7 @@ class Detector(Node):
 
             # publish raw frame
             raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
-            # raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
+            raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
 
             # pass frame into YOLO model (get 2D)
             detections = self.model.predict(raw_image_np, save=False)
@@ -180,7 +180,7 @@ class Detector(Node):
             custom_boxes = self.detections_to_custom_box(detection_boxes, image_net)
 
             # publish annotated frame
-            # annotated_frame_publish = self.bridge.cv2_to_imgmsg(detections[0].plot(), encoding="rgb8")
+            annotated_frame_publish = self.bridge.cv2_to_imgmsg(detections[0].plot(), encoding="rgb8")
 
             # pass into 2D to 3D to get approximate depth
             self.cam.ingest_custom_box_objects(custom_boxes)
@@ -201,8 +201,8 @@ class Detector(Node):
             NAND_pose.pose.pose.position.y = NAND_utm[1]
             NAND_pose.pose.pose.position.z = NAND_utm[2]
 
-        # self.raw_camera_frame_publisher.publish(raw_frame_publish)
-        # self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
+        self.raw_camera_frame_publisher.publish(raw_frame_publish)
+        self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
         self.num_detections_publisher.publish(Int32(data=num_detections))
         if (NAND_pose is not None):
           self.observed_NAND_odom_publisher.publish(NAND_pose)
