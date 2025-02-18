@@ -1,0 +1,5 @@
+Each checkpoints file have a corresponding traj file. Each traj file may have multiple checkpoints file.
+Each checkpoints file also needs explaination and comments on the source of data. That is what this file does.\
+
+Checkpoints File                        | Corresponding Traj File       | Data Source and/or comments
+buggycourse_safe_checkpoints_1.json     | buggycourse_safe.json         | Nonsense data for testing only with on decrease and than increase in velocity
