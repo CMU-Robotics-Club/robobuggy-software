@@ -97,7 +97,11 @@ class Translator(Node):
         packet_on_buffer = True
         while packet_on_buffer:
             packet = self.comms.read_packet()
-            if (packet is None): packet_on_buffer = False
+            if (packet is None): 
+                packet_on_buffer = False
+                self.get_logger().debug("NO PACKET")
+            else:
+                self.get_logger().debug("PACKET")
 
             if isinstance(packet, NANDDebugInfo):
                 rospacket = NANDDebugInfoMsg()
@@ -146,13 +150,15 @@ class Translator(Node):
             elif isinstance(packet, Radio):
 
                 # Publish to odom topic x and y coord
+                self.get_logger().info("GOT PACKET")
                 odom = Odometry()
 
                 odom.pose.pose.position.x = packet.nand_east_gps
                 odom.pose.pose.position.y = packet.nand_north_gps
-                self.observed_nand_odom_publisher.publish(data=odom)
+                self.observed_nand_odom_publisher.publish(odom)
 
             elif isinstance(packet, SCDebugInfo):
+                self.get_logger().debug("GOT DEBUG PACKET")
                 rospacket = SCDebugInfoMsg()
                 rospacket.rc_steering_angle = packet.rc_steering_angle
                 rospacket.software_steering_angle = packet.software_steering_angle
@@ -184,7 +190,7 @@ class Translator(Node):
         if self.fresh_steer:
             with self.lock:
                 self.comms.send_steering(self.steer_angle)
-                # self.get_logger().info(f"Sent steering angle of: {self.steer_angle}")
+                self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
                 self.fresh_steer = False
 
         with self.lock:
