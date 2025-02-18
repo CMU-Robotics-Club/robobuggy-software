@@ -165,7 +165,7 @@ class ChecksumMismatch(Exception):
 
 class Comms:
     def __init__(self, path_to_port):
-        self.port = Serial(path_to_port, 1_000_000)
+        self.port = Serial(path_to_port, 1_000_000, exclusive=True)
         self.rx_buffer = b''
 
     def send_packet_raw(self, msg_type: bytes, payload: bytes):
@@ -263,23 +263,23 @@ class Comms:
 
         msg_type, payload = packet
         if msg_type == MSG_TYPE_NAND_DEBUG:
-            data = struct.unpack('<ddIfffI????BB', payload)
+            data = struct.unpack('<ddIfffI????BBxxxx', payload)
             return NANDDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_NAND_UKF:
-            data = struct.unpack('<dddddI', payload)
+            data = struct.unpack('<dddddIxxxx', payload)
             return NANDUKF(*data)
 
         elif msg_type == MSG_TYPE_NAND_GPS:
-            data = struct.unpack('<dddQIIB', payload)
+            data = struct.unpack('<dddQIIBxxxxxxx', payload)
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            data = struct.unpack('<ffIB', payload)
+            data = struct.unpack('<ffIBxxx', payload)
             return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:
-            data = struct.unpack('<dfffII??B??B', payload)
+            data = struct.unpack('<dfffII??B??Bxxxxxx', payload)
             return SCDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_SC_SENSORS:
@@ -288,7 +288,7 @@ class Comms:
 
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
             time = struct.unpack('<d', payload)
-            return RoundtripTimestamp(time)
+            return RoundtripTimestamp(*time)
         else:
             print(f'Unknown packet type {msg_type}')
             return None

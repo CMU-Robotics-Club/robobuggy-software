@@ -13,4 +13,6 @@
 
     <!-- <node name="foxglove" pkg="foxglove_bridge" type="foxglove_bridge" />
     <node name="hello_world" pkg="buggy" type="hello_world" /> -->
+
+    <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
 </launch>

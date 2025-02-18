@@ -1,7 +1,7 @@
 matplotlib
 NavPy
 numba
-numpy
+numpy<2
 osqp
 pandas
 pymap3d

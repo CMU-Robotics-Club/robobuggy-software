@@ -30,5 +30,5 @@ SC:
 SC:
   SC_path_planner:
     ros__parameters:
-      traj_name: "buggycourse_safe.json"
+      # traj_name: "buggycourse_safe.json"
       curb_name: "buggycourse_curb.json"
