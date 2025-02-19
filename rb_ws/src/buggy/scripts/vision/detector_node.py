@@ -40,7 +40,7 @@ class Detector(Node):
 
         # Publishers
         self.observed_NAND_odom_publisher = self.create_publisher(
-            Odometry, "/NAND_raw_state", 1
+            Odometry, "other/state", 1
         )
         self.raw_camera_frame_publisher = self.create_publisher(
                     Image, "debug/raw_camera_frame", 1
@@ -58,6 +58,7 @@ class Detector(Node):
     def set_SC_state(self, msg):
         # TODO: does this need locking to prevent conflict with object detection? --> probably not, but needs to be tested
         self.SC_pose = msg.pose.pose
+        self.get_logger().info("SC state received: " + str(self.SC_pose.position))
 
     def initialize_camera(self):
         init_params = sl.InitParameters(svo_real_time_mode=True)
@@ -68,6 +69,11 @@ class Detector(Node):
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
         init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
         init_params.depth_maximum_distance = 50
+        
+        # testing with a sample SVO file
+        # TODO: comment out when running
+        input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
+        init_params.set_from_svo_file(input_path)
 
         obj_params.detection_model = sl.OBJECT_DETECTION_MODEL.CUSTOM_BOX_OBJECTS
         obj_params.enable_tracking = True
@@ -143,9 +149,9 @@ class Detector(Node):
             vec = rot.apply(
                 np.array(
                     [
-                        -detection_position.z + CAMERA_OFFSET,
-                        -detection_position.x,
-                        detection_position.y,
+                        -detection_position[2] + CAMERA_OFFSET,
+                        -detection_position[0],
+                        detection_position[1],
                     ]
                 )
             )
@@ -171,7 +177,7 @@ class Detector(Node):
             image_net = self.raw_image.get_data()
 
             # publish raw frame
-            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
+            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_BGRA2RGB)
             raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
 
             # pass frame into YOLO model (get 2D)
@@ -204,7 +210,7 @@ class Detector(Node):
         self.raw_camera_frame_publisher.publish(raw_frame_publish)
         self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
         self.num_detections_publisher.publish(Int32(data=num_detections))
-        if (NAND_pose is not None):
+        if NAND_pose is not None:
           self.observed_NAND_odom_publisher.publish(NAND_pose)
 
 
