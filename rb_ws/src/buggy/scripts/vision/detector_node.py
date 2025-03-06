@@ -69,7 +69,7 @@ class Detector(Node):
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
         init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
         init_params.depth_maximum_distance = 50
-        
+
         # testing with a sample SVO file
         # TODO: comment out when running
         input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
@@ -165,7 +165,7 @@ class Detector(Node):
         return utms
 
     def loop(self):
-        raw_frame_publish = None
+        # raw_frame_publish = None
         annotated_frame_publish = None
         num_detections = 0
         NAND_utm = None
@@ -176,9 +176,9 @@ class Detector(Node):
             self.cam.retrieve_image(self.raw_image, sl.VIEW.LEFT)
             image_net = self.raw_image.get_data()
 
-            # publish raw frame
+            # get raw frame
             raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_BGRA2RGB)
-            raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
+            # raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
 
             # pass frame into YOLO model (get 2D)
             detections = self.model.predict(raw_image_np, save=False)
@@ -193,26 +193,28 @@ class Detector(Node):
             self.cam.retrieve_objects(self.objects, self.object_det_params)
 
             # sort object_list by confidence
-            # NOTE: unsure how this will affect self.objects since only the object_list is sorted
             self.objects.object_list.sort(key=lambda obj: obj.confidence, reverse=True)
 
-        num_detections = len(self.objects.object_list)
-        NAND_pose = None
-        if num_detections > 0:
-            utms = self.objects_to_utm()
-            # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
-            NAND_pose = Odometry()
-            NAND_utm = utms[0]
-            NAND_pose.pose.pose.position.x = NAND_utm[0]
-            NAND_pose.pose.pose.position.y = NAND_utm[1]
-            NAND_pose.pose.pose.position.z = NAND_utm[2]
+            num_detections = len(self.objects.object_list)
+            NAND_pose = None
+            if num_detections > 0:
+                utms = self.objects_to_utm()
+                # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
+                NAND_pose = Odometry()
+                NAND_utm = utms[0]
+                NAND_pose.pose.pose.position.x = NAND_utm[0]
+                NAND_pose.pose.pose.position.y = NAND_utm[1]
+                NAND_pose.pose.pose.position.z = NAND_utm[2]
 
-        # self.raw_camera_frame_publisher.publish(raw_frame_publish)
-        if annotated_frame_publish is not None:
-            self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
-        self.num_detections_publisher.publish(Int32(data=num_detections))
-        if NAND_pose is not None:
-          self.observed_NAND_odom_publisher.publish(NAND_pose)
+            # self.raw_camera_frame_publisher.publish(raw_frame_publish)
+            self.num_detections_publisher.publish(Int32(data=num_detections))
+            if annotated_frame_publish is not None:  # should always be true
+                self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
+            if NAND_pose is not None:
+                self.observed_NAND_odom_publisher.publish(NAND_pose)
+
+        else:
+            self.get_logger().error("Zed camera frame grab failed.")
 
 
 def main(args=None):
