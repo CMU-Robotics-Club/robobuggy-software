@@ -207,8 +207,9 @@ class Detector(Node):
             NAND_pose.pose.pose.position.y = NAND_utm[1]
             NAND_pose.pose.pose.position.z = NAND_utm[2]
 
-        self.raw_camera_frame_publisher.publish(raw_frame_publish)
-        self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
+        # self.raw_camera_frame_publisher.publish(raw_frame_publish)
+        if annotated_frame_publish is not None:
+            self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
         self.num_detections_publisher.publish(Int32(data=num_detections))
         if NAND_pose is not None:
           self.observed_NAND_odom_publisher.publish(NAND_pose)
