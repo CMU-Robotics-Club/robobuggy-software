@@ -52,8 +52,10 @@ class Detector(Node):
                     Int32, "debug/num_detections", 1
                 )
 
-        timer_period = 0.1  # seconds (10 Hz)
-        self.timer = self.create_timer(timer_period, self.loop)
+        # while ROS is up, run the buggy detector loop
+        # processes new frame only after previous frame is done
+        while rclpy.ok():
+            self.loop()
 
     def set_SC_state(self, msg):
         # TODO: does this need locking to prevent conflict with object detection? --> probably not, but needs to be tested
