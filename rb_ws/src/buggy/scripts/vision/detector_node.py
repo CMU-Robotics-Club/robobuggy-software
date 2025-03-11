@@ -58,7 +58,7 @@ class Detector(Node):
     def set_SC_state(self, msg):
         # TODO: does this need locking to prevent conflict with object detection? --> probably not, but needs to be tested
         self.SC_pose = msg.pose.pose
-        self.get_logger().info("SC state received: " + str(self.SC_pose.position))
+        self.get_logger().debug("SC state received: " + str(self.SC_pose.position))
 
     def initialize_camera(self):
         init_params = sl.InitParameters(svo_real_time_mode=True)
@@ -72,8 +72,8 @@ class Detector(Node):
 
         # testing with a sample SVO file
         # TODO: comment out when running
-        input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
-        init_params.set_from_svo_file(input_path)
+        # input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
+        # init_params.set_from_svo_file(input_path)
 
         obj_params.detection_model = sl.OBJECT_DETECTION_MODEL.CUSTOM_BOX_OBJECTS
         obj_params.enable_tracking = True
@@ -217,7 +217,6 @@ class Detector(Node):
 
         else:
             self.get_logger().error("Zed camera frame grab failed.")
-
 
 def main(args=None):
 

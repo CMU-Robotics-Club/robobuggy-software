@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "UC_to_purnell.json"
+      traj_name: "cut_square.json"
 
 SC:
   bnyahaj:

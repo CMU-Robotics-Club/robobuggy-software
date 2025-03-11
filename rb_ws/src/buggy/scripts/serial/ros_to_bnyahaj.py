@@ -150,7 +150,7 @@ class Translator(Node):
             elif isinstance(packet, Radio):
 
                 # Publish to odom topic x and y coord
-                self.get_logger().info("GOT PACKET")
+                self.get_logger().debug("GOT PACKET")
                 odom = Odometry()
 
                 odom.pose.pose.position.x = packet.nand_east_gps
