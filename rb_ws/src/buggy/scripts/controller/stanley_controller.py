@@ -102,10 +102,26 @@ class StanleyController(Controller):
             StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
         )
 
+        accel_x, accel_y = trajectory.get_acceleration_by_index(trajectory.get_index_from_distance(traj_dist))
+        # this works because tan(heading) = dydt/dxdt (do the math)
+        dxdt, dydt = np.cos(ref_heading), np.sin(ref_heading)
+
+        # this was dervied by doing the chain rule on the target derivative of theta.
+        # dtheta/dt = d/dt (arctan (dydt/dxdt)) << do math.
+        r_traj_2 = (1/(1 + (dydt/dxdt)**2)) * (accel_y/dxdt - (dydt * accel_x)/(dxdt ** 2))
+
         # Calculate yaw rate error
         r_meas = yaw_rate
-        r_traj = current_speed * (trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist) + 0.05)
-        - trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist))) / 0.05
+
+        r_traj = current_speed * (trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist) + 0.05) -trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist))) / 0.05
+
+        # if (abs(StanleyController.K_D_YAW * (r_meas - r_traj)) > 6.0):
+        #     rclpy.logwarn(f"spiked yaw_rate: actual: {r_meas}, expected_basic: {r_traj}, expected_analytic: {r_traj_2}")
+
+        self.debug_yaw_rate_publisher.publish(StanleyController.K_D_YAW * (r_traj - r_meas))
+
+        self.debug_yaw_rate2_publisher.publish(StanleyController.K_D_YAW * (r_traj_2 - r_meas))
+
 
         #Determine steering_command
         steering_cmd = error_heading + cross_track_component + StanleyController.K_D_YAW * (r_traj - r_meas)
