@@ -58,7 +58,7 @@ class Detector(Node):
     def set_SC_state(self, msg):
         # TODO: does this need locking to prevent conflict with object detection? --> probably not, but needs to be tested
         self.SC_pose = msg.pose.pose
-        self.get_logger().info("SC state received: " + str(self.SC_pose.position))
+        self.get_logger().debug("SC state received: " + str(self.SC_pose.position))
 
     def initialize_camera(self):
         init_params = sl.InitParameters(svo_real_time_mode=True)
@@ -72,8 +72,8 @@ class Detector(Node):
         
         # testing with a sample SVO file
         # TODO: comment out when running
-        input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
-        init_params.set_from_svo_file(input_path)
+        # input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
+        # init_params.set_from_svo_file(input_path)
 
         obj_params.detection_model = sl.OBJECT_DETECTION_MODEL.CUSTOM_BOX_OBJECTS
         obj_params.enable_tracking = True
@@ -207,12 +207,11 @@ class Detector(Node):
             NAND_pose.pose.pose.position.y = NAND_utm[1]
             NAND_pose.pose.pose.position.z = NAND_utm[2]
 
-        self.raw_camera_frame_publisher.publish(raw_frame_publish)
+        # self.raw_camera_frame_publisher.publish(raw_frame_publish)      # TODO: maybe uncomment later
         self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
         self.num_detections_publisher.publish(Int32(data=num_detections))
         if NAND_pose is not None:
           self.observed_NAND_odom_publisher.publish(NAND_pose)
-
 
 def main(args=None):
 
