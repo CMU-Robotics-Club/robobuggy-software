@@ -52,7 +52,7 @@ class Detector(Node):
                     Int32, "debug/num_detections", 1
                 )
 
-        timer_period = 0.1  # seconds (100 Hz)
+        timer_period = 0.1  # seconds (10 Hz)
         self.timer = self.create_timer(timer_period, self.loop)
 
     def set_SC_state(self, msg):
@@ -67,7 +67,7 @@ class Detector(Node):
 
         init_params.coordinate_units = sl.UNIT.METER
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
-        init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP
+        init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Z_UP_X_FWD
         init_params.depth_maximum_distance = 50
 
         # testing with a sample SVO file
@@ -144,14 +144,14 @@ class Detector(Node):
             detection_position = obj.position
 
             rot = Rotation.from_euler(
-                "xyz", [0, -buggy_orientation.y, buggy_orientation.z]
+                "xyz", [buggy_orientation.x, buggy_orientation.y, buggy_orientation.z]
             )
             vec = rot.apply(
                 np.array(
                     [
-                        -detection_position[2] + CAMERA_OFFSET,
-                        -detection_position[0],
+                        detection_position[0] + CAMERA_OFFSET,
                         detection_position[1],
+                        detection_position[2],
                     ]
                 )
             )
@@ -182,7 +182,9 @@ class Detector(Node):
 
             # pass frame into YOLO model (get 2D)
             detections = self.model.predict(raw_image_np, save=False)
-            detection_boxes = detections[0].cpu().numpy().boxes    # what is the [0] indexing into, does this pull out the first detection
+            detection_boxes = (
+                detections[0].cpu().numpy().boxes
+            )  # what is the [0] indexing into, does this pull out the first detection?
             custom_boxes = self.detections_to_custom_box(detection_boxes, image_net)
 
             # publish annotated frame

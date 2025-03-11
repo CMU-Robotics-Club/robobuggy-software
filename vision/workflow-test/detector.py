@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 
-import sys
+import argparse
+from threading import Lock, Thread
+from time import sleep
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-import argparse
 import pyzed.sl as sl
 import torch
 import cv2
 from ultralytics import YOLO
-
-from threading import Lock, Thread
-from time import sleep
 
 # import ogl_viewer.viewer as gl
 import cv_viewer.tracking_viewer as cv_viewer
@@ -49,7 +48,7 @@ def xywh2abcd(xywh, im_shape):
 
 def detections_to_custom_box(detections, im0):
     output = []
-    for i, det in enumerate(detections):
+    for det in enumerate(detections):
         xywh = det.xywh[0]
 
         # Creating ingestable objects for the ZED SDK
@@ -155,22 +154,22 @@ def main():
     # viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
 
     # point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
-    image_left = sl.Mat()
+    # image_left = sl.Mat()
 
     # Utilities for 2D display
     display_resolution = sl.Resolution(min(camera_res.width, 1280), min(camera_res.height, 720))
-    image_scale = [display_resolution.width / camera_res.width, display_resolution.height / camera_res.height]
-    image_left_ocv = np.full((display_resolution.height, display_resolution.width, 4), [245, 239, 239, 255], np.uint8)
+    # image_scale = [display_resolution.width / camera_res.width, display_resolution.height / camera_res.height]
+    # image_left_ocv = np.full((display_resolution.height, display_resolution.width, 4), [245, 239, 239, 255], np.uint8)
 
     # Utilities for tracks view
     camera_config = camera_infos.camera_configuration
     tracks_resolution = sl.Resolution(400, display_resolution.height)
     track_view_generator = cv_viewer.TrackingViewer(tracks_resolution, camera_config.fps, init_params.depth_maximum_distance)
     track_view_generator.set_camera_calibration(camera_config.calibration_parameters)
-    image_track_ocv = np.zeros((tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
+    # image_track_ocv = np.zeros((tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
 
     # Camera pose
-    cam_w_pose = sl.Pose()
+    # cam_w_pose = sl.Pose()
     print("Initialized display settings")
 
     i = 0
