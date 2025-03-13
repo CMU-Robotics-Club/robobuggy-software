@@ -54,8 +54,12 @@ class Detector(Node):
 
         # while ROS is up, run the buggy detector loop
         # processes new frame only after previous frame is done
-        while rclpy.ok():
-            self.loop()
+
+        timer_period = 0.1
+        self.timer = self.create_timer(timer_period, callback=self.loop)
+
+        # while rclpy.ok():
+        #     self.loop()
 
     def set_SC_state(self, msg):
         # TODO: does this need locking to prevent conflict with object detection? --> probably not, but needs to be tested
@@ -133,7 +137,6 @@ class Detector(Node):
         return output
 
     def objects_to_utm(self):
-
         # TODO: MOVE TO CONSTANTS FILE
         CAMERA_OFFSET = 0.6  # Distance from INS to camera in meters
 

@@ -1,0 +1,4 @@
+<launch>
+<node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC"/>
+<node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
+</launch>
