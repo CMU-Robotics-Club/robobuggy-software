@@ -20,7 +20,9 @@ class Detector(Node):
         super().__init__('detector')
         self.get_logger().info("INITIALIZED.")
 
-        self.SC_pose = None  # will hold msg.pose.pose of SC/self/state
+        self.SC_pose = (
+            Odometry()
+        )  # will hold msg.pose.pose of SC/self/state; 0,0,0 if not received yet
 
         self.cam = sl.Camera()
         self.initialize_camera()
