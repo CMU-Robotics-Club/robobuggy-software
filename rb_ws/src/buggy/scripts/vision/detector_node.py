@@ -5,6 +5,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Pose
 # from zed_msgs import Object
 import pyzed.sl as sl
 from ultralytics import YOLO
@@ -21,7 +22,7 @@ class Detector(Node):
         self.get_logger().info("INITIALIZED.")
 
         self.SC_pose = (
-            Odometry()
+            Pose()
         )  # will hold msg.pose.pose of SC/self/state; 0,0,0 if not received yet
 
         self.cam = sl.Camera()
@@ -42,7 +43,7 @@ class Detector(Node):
 
         # Publishers
         self.observed_NAND_odom_publisher = self.create_publisher(
-            Odometry, "other/state", 1
+            Odometry, "vision/other/state", 1
         )
         self.raw_camera_frame_publisher = self.create_publisher(
                     Image, "debug/raw_camera_frame", 1
