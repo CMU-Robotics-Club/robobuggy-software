@@ -1,5 +1,5 @@
 <launch>
-    <arg name="config_file" default="src/buggy/config/sc-mockroll.yaml"/>
+    <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC">
             <param from="$(var config_file)"/>
     </node>
