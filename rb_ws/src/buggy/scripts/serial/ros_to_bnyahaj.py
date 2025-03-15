@@ -97,7 +97,7 @@ class Translator(Node):
         packet_on_buffer = True
         while packet_on_buffer:
             packet = self.comms.read_packet()
-            if (packet is None): 
+            if (packet is None):
                 packet_on_buffer = False
                 self.get_logger().debug("NO PACKET")
             else:
@@ -150,7 +150,7 @@ class Translator(Node):
             elif isinstance(packet, Radio):
 
                 # Publish to odom topic x and y coord
-                self.get_logger().debug("GOT PACKET")
+                self.get_logger().debug("GOT RADIO PACKET")
                 odom = Odometry()
 
                 odom.pose.pose.position.x = packet.nand_east_gps
