@@ -15,7 +15,7 @@ class Simulator(Node):
 
 
     def __init__(self):
-        super().__init__('sim_single')
+        super().__init__('engine')
         self.get_logger().info('INITIALIZED.')
 
         self.starting_poses = {
