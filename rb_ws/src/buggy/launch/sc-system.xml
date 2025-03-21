@@ -10,7 +10,8 @@
         <param from="$(var config_file)"/>
     </node>
     <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen" namespace="SC"/>
-    
+     
+    <node name="estimator" pkg="buggy" exec="ukf_node.py" output="screen" namespace="SC"/>
     <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
     <node name="watchdog" pkg="buggy" exec="watchdog_node.py" namespace="SC" output="screen"/>
 </launch>

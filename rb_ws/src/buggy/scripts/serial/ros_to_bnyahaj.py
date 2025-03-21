@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import random
 from threading import Lock
 import rclpy
 from host_comm import *

@@ -33,8 +33,8 @@ def rk4(x_curr, u_curr, params, dt):
 def generate_sigma_points(x_hat, Sigma):
     Nx = len(x_hat)
     A = scipy.linalg.sqrtm(Sigma)
-    sigma = np.zeros(Nx, 2 * Nx + 1)
-    W = np.zeros(2 * Nx + 1)
+    sigma = np.zeros((Nx, 2 * Nx + 1))
+    W = np.zeros((2 * Nx + 1))
     W[0] = 1 / 3
 
     sigma[:, 0] = x_hat
@@ -66,15 +66,15 @@ def ukf_predict(x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
     for k in range(2 * Nx + 1):
         sigma[:, k] = rk4(sigma[:, k], u_curr, params, dt)
 
-    x_hat_next = np.zeros(Nx)
-    Sigma_next = np.zeros(Nx, Nx)
+    x_hat_next = np.zeros((Nx,))
+    Sigma_next = np.zeros((Nx, Nx))
 
     for k in range(2 * Nx + 1):
         x_hat_next += W[k] * sigma[:, k]
 
     for k in range(2 * Nx + 1):
         Sigma_next += W[k] * (
-            (sigma[:, k] - x_hat_next) @ np.transpose(sigma[:, k] - x_hat_next)
+            (sigma[:, k] - x_hat_next)[:, np.newaxis] @ np.transpose((sigma[:, k] - x_hat_next)[:, np.newaxis])
         )
 
     Sigma_next += Q * dt
@@ -90,25 +90,24 @@ def ukf_update(x_hat, Sigma, y, R):
     Nx = len(x_hat)
     Ny = len(y)
     sigma, W = generate_sigma_points(x_hat, Sigma)
-    z = np.zeros(Ny, 2 * Nx + 1)
+    z = np.zeros((Ny, 2 * Nx + 1))
 
     for k in range(2 * Nx + 1):
         z[:, k] = measurement(sigma[:, k])
 
-    z_hat = np.zeros(Ny)
-    S = np.zeros(Ny, Ny)
-    Cxz = np.zeros(Nx, Ny)
+    z_hat = np.zeros((Ny))
+    S = np.zeros((Ny, Ny))
+    Cxz = np.zeros((Nx, Ny))
 
     for k in range(2 * Nx + 1):
         z_hat += W[k] * z[:, k]
 
     for k in range(2 * Nx + 1):
-        S += W[k] * (z[:, k] - z_hat) @ np.transpose(z[:, k] - z_hat)
-        Cxz += W[k] * (sigma[:, k] - x_hat) @ np.transpose(z[:, k] - z_hat)
+        S += W[k] * (z[:, k] - z_hat)[:, np.newaxis] @ np.transpose((z[:, k] - z_hat)[:, np.newaxis])
+        Cxz += W[k] * (sigma[:, k] - x_hat)[:, np.newaxis] @ np.transpose((z[:, k] - z_hat)[:, np.newaxis])
 
     S += R
-
-    K = Cxz * np.linalg.inv(S)
+    K = Cxz @ np.linalg.inv(S)
 
     x_hat_next = x_hat + K @ (y - z_hat)
     Sigma_next = Sigma - K @ S @ np.transpose(K)

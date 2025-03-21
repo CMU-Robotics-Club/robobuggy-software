@@ -47,7 +47,7 @@ class UKF(Node):
         newMsg.pose.pose.position.y = self.x_hat[1]
         newMsg.pose.pose.orientation.z = self.x_hat[2]
         newMsg.twist.twist.linear.x = self.x_hat[4]
-        self.nand_steering.publish(Float64(self.x_hat[3]))
+        self.nand_steering.publish(Float64(data=self.x_hat[3]))
         self.nand_publisher.publish(newMsg)
 
         
@@ -57,3 +57,17 @@ class UKF(Node):
         sigma = (accuracy / (0.848867684498)) * (accuracy / (0.848867684498))
         return np.diag([sigma, sigma])
 
+def main(args=None):
+    rclpy.init(args=args)
+
+    # Create the BuggyStateConverter node and spin it
+    ukf = UKF()
+    rclpy.spin(ukf)
+
+    # Shutdown when done
+    ukf.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()
