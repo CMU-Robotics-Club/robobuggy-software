@@ -27,5 +27,6 @@
         <param from="$(var config_file)"/>
     </node>
     <node name="estimator" pkg="buggy" exec="ukf_node.py" output="screen" namespace="SC"/>
+    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
 
 </launch>
