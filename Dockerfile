@@ -14,6 +14,7 @@ RUN apt-get install -y -qq \
 RUN apt-get install -y -qq \
     ros-${ROS_DISTRO}-foxglove-bridge \
     ros-${ROS_DISTRO}-microstrain-inertial-driver \
+    ros-$ROS_DISTRO-rosbag2-storage-mcap \
     ros-${ROS_DISTRO}-mavros ros-${ROS_DISTRO}-mavros-extras ros-${ROS_DISTRO}-mavros-msgs
 
 COPY python-requirements.txt python-requirements.txt
