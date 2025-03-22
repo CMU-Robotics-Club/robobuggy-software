@@ -3,6 +3,8 @@ import numpy as np
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Pose as ROSPose
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Float64
+
 
 from util.trajectory import Trajectory
 from controller.controller_superclass import Controller
@@ -32,6 +34,12 @@ class StanleyController(Controller):
         )
         self.debug_error_publisher = self.node.create_publisher(
             ROSPose, "controller/debug/stanley_error", 1
+        )
+        self.debug_yaw_rate_publisher = self.node.create_publisher(
+            Float64, "controller/debug/yaw", 1
+        )
+        self.debug_yaw_rate2_publisher = self.node.create_publisher(
+            Float64, "controller/debug/yaw2", 1
         )
 
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
@@ -118,9 +126,13 @@ class StanleyController(Controller):
         # if (abs(StanleyController.K_D_YAW * (r_meas - r_traj)) > 6.0):
         #     rclpy.logwarn(f"spiked yaw_rate: actual: {r_meas}, expected_basic: {r_traj}, expected_analytic: {r_traj_2}")
 
-        self.debug_yaw_rate_publisher.publish(StanleyController.K_D_YAW * (r_traj - r_meas))
+        yaw = Float64()
+        yaw.data = float(StanleyController.K_D_YAW * (r_traj - r_meas))
+        self.debug_yaw_rate_publisher.publish(yaw)
 
-        self.debug_yaw_rate2_publisher.publish(StanleyController.K_D_YAW * (r_traj_2 - r_meas))
+        yaw2 = Float64()
+        yaw2.data = float(StanleyController.K_D_YAW * (r_traj_2 - r_meas))
+        self.debug_yaw_rate2_publisher.publish(yaw2)
 
 
         #Determine steering_command
