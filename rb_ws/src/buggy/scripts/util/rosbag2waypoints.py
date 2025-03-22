@@ -32,7 +32,7 @@ def main():
 
     # Loop through bag
     while reader.has_next():
-        topic, data, timestamp = reader.read_next()
+        topic, data, _ = reader.read_next()
 
         if topic == "/SC/self/state_navsatfix":
             msg = deserialize_message(data, msg_type)
