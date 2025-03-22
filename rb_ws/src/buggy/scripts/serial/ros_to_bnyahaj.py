@@ -129,7 +129,7 @@ class Translator(Node):
                 odom.twist.twist.linear.x = packet.velocity
                 odom.twist.twist.angular.z = packet.heading_rate
 
-                self.nand_ukf_odom_publisher.publish(data=odom)
+                self.nand_ukf_odom_publisher.publish(odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
 
 
