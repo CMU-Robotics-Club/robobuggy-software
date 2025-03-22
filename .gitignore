@@ -9,6 +9,7 @@ rb_ws/bags
 rb_ws/src/buggy/bags/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 *.bag
 rb_ws/rosbag2*/
+*/rosbags*/
 
 # VISION
 .vision/
