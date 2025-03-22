@@ -36,7 +36,6 @@ install(PROGRAMS
   scripts/serial/ros_to_bnyahaj.py
   scripts/telemetry/telematics.py
   scripts/debug/debug_steer.py
-  scripts/vision/detector_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
