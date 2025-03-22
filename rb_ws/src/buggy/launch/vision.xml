@@ -1,3 +1,0 @@
-<launch>
-<node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC"/>
-</launch>
