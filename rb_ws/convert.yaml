@@ -1,4 +1,4 @@
 output_bags:
-  - uri: ros2_output
+  - uri: nand-raceline-mcap
     storage_id: mcap
     all: true

@@ -1,0 +1,13 @@
+<launch>
+    <arg name="config_file" default="src/buggy/config/nand-roll.yaml"/>
+
+    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="NAND"/>
+    
+    <node name="bnyahaj" pkg="buggy" exec="ros_to_bnyahaj.py" respawn="true" output="screen" namespace="NAND">
+        <param from="$(var config_file)"/>
+    </node>
+    <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen" namespace="NAND"/>
+    
+    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="NAND" output="screen"/>
+    <node name="watchdog" pkg="buggy" exec="watchdog_node.py" namespace="NAND" output="screen"/>
+</launch>
