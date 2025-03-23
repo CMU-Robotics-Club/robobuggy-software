@@ -9,6 +9,7 @@ from rclpy.node import Node
 from std_msgs.msg import Float64, Int8
 from nav_msgs.msg import Odometry
 from buggy.msg import *
+import numpy as np
 class Translator(Node):
     """
     Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
@@ -36,6 +37,7 @@ class Translator(Node):
             self.self_name = "SC"
         else:
             self.self_name = "NAND"
+        self.get_logger().info("BUGGY" + self.self_name)
 
         self.steer_angle = 0
         self.alarm = 0
@@ -55,27 +57,25 @@ class Translator(Node):
         if self.self_name == "SC":
             self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "debug/firmware", 1)
             self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "debug/sensor", 1)
-        else:
-            self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
-            self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
-
-        # SERIAL DEBUG PUBLISHERS
-        self.roundtrip_time_publisher = self.create_publisher(
-            Float64, "debug/roundtrip_time", 1
-        )
-
-        if self.self_name == "NAND":
-            # NAND POSITION PUBLISHERS
-            self.nand_ukf_odom_publisher = self.create_publisher(
-                Odometry, "raw_state", 1
-            )
-
-        if self.self_name == "SC":
 
             # RADIO DATA PUBLISHER
             self.observed_nand_odom_publisher = self.create_publisher(
                     Odometry, "NAND_raw_state", 1
                 )
+        else:
+            self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
+            self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
+            self.nand_ukf_odom_publisher = self.create_publisher(
+                Odometry, "raw_state", 1
+            )
+            self.CIRCLEN = 20
+            self.nandCircArray = np.zeros(self.CIRCLEN)
+            self.nandIndex = 0
+
+        # SERIAL DEBUG PUBLISHERS
+        self.roundtrip_time_publisher = self.create_publisher(
+            Float64, "debug/roundtrip_time", 1
+        )
 
     def set_alarm(self, msg):
         """
@@ -127,10 +127,12 @@ class Translator(Node):
                 odom.pose.pose.position.y = packet.northing
                 odom.pose.pose.orientation.z = packet.theta
 
-                odom.twist.twist.linear.x = packet.velocity
+                self.nandCircArray[self.nandIndex] = packet.velocity
+                self.nandIndex = (self.nandIndex + 1) % self.CIRCLEN
+                odom.twist.twist.linear.x = np.mean(self.nandCircArray)
                 odom.twist.twist.angular.z = packet.heading_rate
 
-                self.nand_ukf_odom_publisher.publish(data=odom)
+                self.nand_ukf_odom_publisher.publish(odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
 
 

@@ -1,8 +1,8 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "cut_square.json"
+      traj_name: "buggycourse_safe.json"
 
-SC:
+NAND:
   bnyahaj:
     ros__parameters:
       teensy_name: "ttyUSB0"

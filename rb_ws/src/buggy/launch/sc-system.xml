@@ -2,7 +2,7 @@
     <include file="$(find-pkg-share microstrain_inertial_driver)/launch/microstrain_launch.py">
         <arg name="params_file" value="$(env RBROOT)/src/buggy/INS_params.yml"/>
     </include>
-    <arg name="config_file" default="src/buggy/config/sc-mockroll.yaml"/>
+    <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
     
