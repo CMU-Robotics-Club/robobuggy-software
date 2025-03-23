@@ -105,7 +105,7 @@ class Controller(Node):
             return False
 
         #Originally under a lock, doesn't seem necessary?
-        current_heading = self.odom.pose.pose.orientation.z
+        current_heading = np.arctan2(np.sin(self.odom.pose.pose.orientation.z), np.cos(self.odom.pose.pose.orientation.z))
         closest_heading = self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))
 
         self.get_logger().info("current heading: " + str(np.rad2deg(current_heading)))
