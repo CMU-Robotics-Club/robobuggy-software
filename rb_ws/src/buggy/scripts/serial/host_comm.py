@@ -263,7 +263,7 @@ class Comms:
 
         msg_type, payload = packet
         if msg_type == MSG_TYPE_NAND_DEBUG:
-            data = struct.unpack('<ddIfffI????BBxxxx', payload)
+            data = struct.unpack('<ddIfffI????BBxxxxxx', payload)
             return NANDDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_NAND_UKF:
