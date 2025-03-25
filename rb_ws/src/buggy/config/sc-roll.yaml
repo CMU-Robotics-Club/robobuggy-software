@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "cut_square.json"
+      traj_name: "buggycourse_safe.json"
 
 SC:
   bnyahaj:
@@ -16,4 +16,4 @@ SC:
   SC_path_planner:
     ros__parameters:
       # traj_name: "buggycourse_safe.json"
-      curb_name: ""
+      curb_name: "buggycourse_curb.json"
