@@ -123,9 +123,6 @@ class StanleyController(Controller):
 
         r_traj = current_speed * (trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist) + 0.05) -trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist))) / 0.05
 
-        # if (abs(StanleyController.K_D_YAW * (r_meas - r_traj)) > 6.0):
-        #     rclpy.logwarn(f"spiked yaw_rate: actual: {r_meas}, expected_basic: {r_traj}, expected_analytic: {r_traj_2}")
-
         yaw = Float64()
         yaw.data = float(StanleyController.K_D_YAW * (r_traj - r_meas))
         self.debug_yaw_rate_publisher.publish(yaw)
@@ -136,7 +133,7 @@ class StanleyController(Controller):
 
 
         #Determine steering_command
-        steering_cmd = error_heading + cross_track_component + StanleyController.K_D_YAW * (r_traj - r_meas)
+        steering_cmd = error_heading + cross_track_component + yaw2
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
 
