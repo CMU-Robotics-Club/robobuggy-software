@@ -118,16 +118,12 @@ class StanleyController(Controller):
         # Calculate yaw rate error
         r_meas = yaw_rate
 
-
-        yaw = Float64()
-        yaw.data = float(StanleyController.K_D_YAW * (r_traj - r_meas))
-        self.debug_yaw_rate_publisher.publish(yaw)
-
-
-        #Determine steering_command
-        steering_cmd = error_heading + cross_track_component + yaw
+        yaw = float(StanleyController.K_D_YAW * (r_traj - r_meas))
+         #Determine steering_command
+        steering_cmd = error_heading + cross_track_component + yaw.data
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
+        self.debug_yaw_rate_publisher.publish(Float64(data=yaw))
 
         #Calculate error, where x is in orientation of buggy, y is cross track error
         current_pose = Pose(current_rospose.position.x, current_rospose.position.y, heading)
