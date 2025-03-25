@@ -11,23 +11,43 @@ NAND:
   NAND_controller:
     ros__parameters:
       dist: 0.0
+      stateTopic: "self/state"
+      trajectoryTopic: "self/cur_traj"
+      steeringTopic: "input/steering"
+      useHeadingRate: true
+      controllerName: "controller"
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
 
-SC:
+
   SC_sim_single:
     ros__parameters:
       velocity: 12
       pose: "Hill1_SC"
 
-SC:
   SC_controller:
     ros__parameters:
       dist: 0.0
+      stateTopic: "self/state"
+      trajectoryTopic: "self/cur_traj"
+      steeringTopic: "input/steering"
+      useHeadingRate: true
+      controllerName: "controller"
+      # traj_name: "buggycourse_safe.json"
+      controller: "stanley"
+  
+  SC_NAND_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "other/stateEstimate"
+      trajectoryTopic: "other/cur_traj"
+      steeringTopic: "other/steering"
+      useHeadingRate: true
+      controllerName: "NAND_controller"
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
 
-SC:
+
   SC_path_planner:
     ros__parameters:
       # traj_name: "buggycourse_safe.json"

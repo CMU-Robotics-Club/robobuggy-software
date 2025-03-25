@@ -18,7 +18,7 @@ class Radio(Node):
         self.state_publisher = self.create_publisher(Odometry, "/SC/other/state", 1)
 
     def republish(self, msg):
-        if random.randint(0, 8) < 1:
+        if random.randint(0, 20) < 1:
             self.state_publisher.publish(msg)
 
 

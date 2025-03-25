@@ -27,20 +27,22 @@ class StanleyController(Controller):
     K_SOFT = 1.0 # m/s
     K_D_YAW = 0.012 # rad / (rad/s)
 
-    def __init__(self, start_index, namespace, node):
+    def __init__(self, start_index, namespace, node, usingHeadingRateError, controllerName):
         super(StanleyController, self).__init__(start_index, namespace, node)
         self.debug_reference_pos_publisher = self.node.create_publisher(
-            NavSatFix, "controller/debug/reference_navsat", 1
+            NavSatFix, controllerName + "/debug/reference_navsat", 1
         )
         self.debug_error_publisher = self.node.create_publisher(
-            ROSPose, "controller/debug/stanley_error", 1
+            ROSPose, controllerName + "/debug/stanley_error", 1
         )
         self.debug_yaw_rate_publisher = self.node.create_publisher(
-            Float64, "controller/debug/yaw", 1
+            Float64, controllerName + "/debug/yaw", 1
         )
         self.debug_yaw_rate2_publisher = self.node.create_publisher(
-            Float64, "controller/debug/yaw2", 1
+            Float64, controllerName + "/debug/yaw2", 1
         )
+
+        self.usingHeadingRateError = usingHeadingRateError
 
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
         """Computes the steering angle determined by Stanley controller.
@@ -136,7 +138,10 @@ class StanleyController(Controller):
 
 
         #Determine steering_command
-        steering_cmd = error_heading + cross_track_component + StanleyController.K_D_YAW * (r_traj - r_meas)
+
+
+        steering_cmd = error_heading + cross_track_component
+        if self.usingHeadingRateError:  steering_cmd += StanleyController.K_D_YAW * (r_traj - r_meas)
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
 

@@ -10,9 +10,10 @@ import scipy.linalg
 # f, Kinematic bicycle
 def dynamics(x, u, params):
     l = params[0]
-    px, py, theta, delta, v = x
+    px, py, theta, v = x
+    delta = u[0]
     x_dot = np.array(
-        [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta) / l, 0.0, 0.0]
+        [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta) / l, 0.0]
     )
     return x_dot
 
