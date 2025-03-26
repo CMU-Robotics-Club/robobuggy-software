@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_safe.json"
+      traj_name: "buggycourse_sc.json"
 
 SC:
   bnyahaj:
@@ -26,7 +26,7 @@ SC:
       steeringTopic: "other/steering"
       useHeadingRate: true
       controllerName: "NAND_controller"
-      # traj_name: "buggycourse_safe.json"
+      traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
   SC_path_planner:
