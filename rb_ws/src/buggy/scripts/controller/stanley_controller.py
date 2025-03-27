@@ -38,9 +38,6 @@ class StanleyController(Controller):
         self.debug_yaw_rate_publisher = self.node.create_publisher(
             Float64, controllerName + "/debug/yaw", 1
         )
-        self.debug_yaw_rate2_publisher = self.node.create_publisher(
-            Float64, controllerName + "/debug/yaw2", 1
-        )
 
         self.usingHeadingRateError = usingHeadingRateError
 
@@ -118,32 +115,17 @@ class StanleyController(Controller):
 
         # this was dervied by doing the chain rule on the target derivative of theta.
         # dtheta/dt = d/dt (arctan (dydt/dxdt)) << do math.
-        r_traj_2 = (1/(1 + (dydt/dxdt)**2)) * (accel_y/dxdt - (dydt * accel_x)/(dxdt ** 2))
+        r_traj = (1/(1 + (dydt/dxdt)**2)) * (accel_y/dxdt - (dydt * accel_x)/(dxdt ** 2))
 
         # Calculate yaw rate error
         r_meas = yaw_rate
 
-        r_traj = current_speed * (trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist) + 0.05) -trajectory.get_heading_by_index(trajectory.get_index_from_distance(traj_dist))) / 0.05
-
-        # if (abs(StanleyController.K_D_YAW * (r_meas - r_traj)) > 6.0):
-        #     rclpy.logwarn(f"spiked yaw_rate: actual: {r_meas}, expected_basic: {r_traj}, expected_analytic: {r_traj_2}")
-
-        yaw = Float64()
-        yaw.data = float(StanleyController.K_D_YAW * (r_traj - r_meas))
-        self.debug_yaw_rate_publisher.publish(yaw)
-
-        yaw2 = Float64()
-        yaw2.data = float(StanleyController.K_D_YAW * (r_traj_2 - r_meas))
-        self.debug_yaw_rate2_publisher.publish(yaw2)
-
-
-        #Determine steering_command
-
-
-        steering_cmd = error_heading + cross_track_component
-        if self.usingHeadingRateError:  steering_cmd += StanleyController.K_D_YAW * (r_traj - r_meas)
+        yaw = float(StanleyController.K_D_YAW * (r_traj - r_meas))
+         #Determine steering_command
+        steering_cmd = error_heading + cross_track_component + yaw
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
+        self.debug_yaw_rate_publisher.publish(Float64(data=yaw))
 
         #Calculate error, where x is in orientation of buggy, y is cross track error
         current_pose = Pose(current_rospose.position.x, current_rospose.position.y, heading)
