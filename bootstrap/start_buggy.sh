@@ -4,10 +4,8 @@ set -x
 
 # Accepts env vars:
 # PROJECT_ROOT  the directory where CMU-Robotics-Club/robobuggy-software is pulled (default: $PWD)
-# BAG_DIR       the directory to write bags to (default: $PROJECT_ROOT/bags)
 
 : ${PROJECT_ROOT=$PWD}
-: ${BAG_DIR="$PROJECT_ROOT/bags"}
 
 # ROS environment
 source /opt/ros/humble/setup.bash
@@ -67,10 +65,7 @@ tmux send-keys -t buggy.0 "ros2 launch buggy ${BUGGY}-system.xml" Enter
 tmux send-keys -t buggy.1 "ros2 launch buggy ${BUGGY}-main.xml" Enter
 
 # Set up bag recording in the third pane
-DATETIME=$(get_datetime_filename)
-BAG_FILE="${BAG_DIR}/${DATETIME}"
-mkdir -p "${BAG_DIR}"
-tmux send-keys -t buggy.2 "ros2 bag record -a -o \"${BAG_FILE}\" -s mcap"
+tmux send-keys -t buggy.2 "startbag"
 
 echo "RoboBuggy tmux session refreshed"
 
