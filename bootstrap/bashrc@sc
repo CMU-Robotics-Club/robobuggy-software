@@ -281,7 +281,7 @@ function startbag {
     echo "writing to $F"
     ros2 bag record -a -s mcap -o "$F"
   elif [ $# -eq 1 ]; then
-    F="${BAG_DIR}/$1_${DATE}"
+    F="${BAG_DIR}/${DATE}_$1"
     echo "writing to $F"
     ros2 bag record -a -s mcap -o "$F"
   else
