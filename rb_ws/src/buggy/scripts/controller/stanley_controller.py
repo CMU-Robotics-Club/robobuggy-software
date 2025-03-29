@@ -38,6 +38,9 @@ class StanleyController(Controller):
         self.debug_yaw_rate_publisher = self.node.create_publisher(
             Float64, "controller/debug/yaw", 1
         )
+        self.debug_error_heading_publisher = self.node.create_publisher(
+            Float64, "controller/debug/heading", 1
+        )
 
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
         """Computes the steering angle determined by Stanley controller.
@@ -123,6 +126,7 @@ class StanleyController(Controller):
         steering_cmd = error_heading + cross_track_component + yaw
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
+        self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
         self.debug_yaw_rate_publisher.publish(Float64(data=yaw))
 
         #Calculate error, where x is in orientation of buggy, y is cross track error
