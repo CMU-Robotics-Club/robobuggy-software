@@ -105,23 +105,20 @@ class Controller(Node):
             return False
 
         #Originally under a lock, doesn't seem necessary?
-        current_heading = np.arctan2(np.sin(self.odom.pose.pose.orientation.z), np.cos(self.odom.pose.pose.orientation.z))
-        closest_heading = self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))
+        current_heading = self.odom.pose.pose.orientation.z % (2 * np.pi)
+        closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))) % (2 * np.pi)
 
         self.get_logger().info("current heading: " + str(np.rad2deg(current_heading)))
         msg = Float32()
         msg.data = np.rad2deg(current_heading)
         self.heading_publisher.publish(msg)
 
-        #Converting headings from [-pi, pi] to [0, 2pi]
-        if (current_heading < 0):
-            current_heading = 2 * np.pi + current_heading
-        if (closest_heading < 0):
-            closest_heading = 2 * np.pi + closest_heading
+        # https://math.stackexchange.com/questions/1649841/signed-angle-difference-without-conditions
+        delta = (current_heading - closest_heading + 3 * np.pi) % (2 * np.pi) - np.pi
 
-        if (abs(current_heading - closest_heading) >= np.pi/2):
+        if (abs(delta) >= np.pi/2):
             self.get_logger().error("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
-            return True #BROKEN. BAD. STOP. REVERSE. ONLY FOR RD25
+            return False #BROKEN. BAD. STOP. REVERSE. ONLY FOR RD25
 
         return True
 
