@@ -1,19 +1,14 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_safe.json"
+      traj_name: "buggycourse_nand.json"
 
 NAND:
   bnyahaj:
     ros__parameters:
       teensy_name: "ttyUSB0"
 
-  SC_controller:
+  NAND_controller:
     ros__parameters:
       dist: 0.0
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
-
-  SC_path_planner:
-    ros__parameters:
-      # traj_name: "buggycourse_safe.json"
-      curb_name: ""
