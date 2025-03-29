@@ -118,7 +118,7 @@ class Controller(Node):
 
         if (abs(delta) >= np.pi/2):
             self.get_logger().error("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
-            return False #BROKEN. BAD. STOP. REVERSE. ONLY FOR RD25
+            return False
 
         return True
 
