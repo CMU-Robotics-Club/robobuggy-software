@@ -24,7 +24,7 @@ SC:
       stateTopic: "other/state"
       trajectoryTopic: "other/cur_traj"
       steeringTopic: "other/steering"
-      useHeadingRate: true
+      useHeadingRate: false
       controllerName: "NAND_controller"
       traj_name: "buggycourse_nand.json"
       controller: "stanley"
