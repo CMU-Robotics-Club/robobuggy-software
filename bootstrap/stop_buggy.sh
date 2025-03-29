@@ -24,10 +24,10 @@ cd "${PROJECT_ROOT}/rb_ws"
 
 # Check if tmux session exists
 if tmux has-session -t buggy 2>/dev/null; then
-  # If it exists, send C-c to all panes to stop current processes
-  # this doesn't kill bags!
-  tmux send-keys -t buggy.0 C-c
-  tmux send-keys -t buggy.1 C-c
+  # see stop_buggy
+  tmux respawn-pane -k -t buggy.0
+  tmux respawn-pane -k -t buggy.1
+  tmux send-keys -t buggy.2 C-c
   
   # Wait a moment for processes to terminate
   sleep 1

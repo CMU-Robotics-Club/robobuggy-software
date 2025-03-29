@@ -29,10 +29,15 @@ get_datetime_filename() {
 
 # Check if tmux session exists
 if tmux has-session -t buggy 2>/dev/null; then
-  # If it exists, send C-c to all panes to stop current processes
-  tmux send-keys -t buggy.0 C-c
-  tmux send-keys -t buggy.1 C-c
-  
+  # system and main just need to be refreshed entirely
+  tmux respawn-pane -k -t buggy.0
+  tmux respawn-pane -k -t buggy.1
+
+  # want to keep history in pane 3, so
+  # we'll just politely ask it to stop
+  # instead of forcing it to.
+  tmux send-keys -t buggy.2 C-c
+
   # Wait a moment for processes to terminate
   sleep 1
 else
