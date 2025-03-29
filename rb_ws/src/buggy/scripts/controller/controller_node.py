@@ -120,8 +120,8 @@ class Controller(Node):
             closest_heading = 2 * np.pi + closest_heading
 
         if (abs(current_heading - closest_heading) >= np.pi/2):
-            self.get_logger().warn("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
-            return True
+            self.get_logger().error("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
+            return True #BROKEN. BAD. STOP. REVERSE. ONLY FOR RD25
 
         return True
 
