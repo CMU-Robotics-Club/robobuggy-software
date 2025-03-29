@@ -21,7 +21,7 @@ SC:
   SC_NAND_controller:
     ros__parameters:
       dist: 0.0
-      stateTopic: "other/stateEstimate"
+      stateTopic: "other/state"
       trajectoryTopic: "other/cur_traj"
       steeringTopic: "other/steering"
       useHeadingRate: true
