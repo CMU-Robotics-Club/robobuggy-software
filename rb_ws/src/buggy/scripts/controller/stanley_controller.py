@@ -36,7 +36,10 @@ class StanleyController(Controller):
             ROSPose, controllerName + "/debug/stanley_error", 1
         )
         self.debug_yaw_rate_publisher = self.node.create_publisher(
-            Float64, controllerName + "/debug/yaw", 1
+            Float64, "controller/debug/yaw", 1
+        )
+        self.debug_error_heading_publisher = self.node.create_publisher(
+            Float64, "controller/debug/heading", 1
         )
 
         self.usingHeadingRateError = usingHeadingRateError
@@ -127,6 +130,7 @@ class StanleyController(Controller):
             steering_cmd += yaw
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
+        self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
         self.debug_yaw_rate_publisher.publish(Float64(data=yaw))
 
         #Calculate error, where x is in orientation of buggy, y is cross track error

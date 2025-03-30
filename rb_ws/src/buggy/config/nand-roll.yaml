@@ -17,8 +17,3 @@ NAND:
       controllerName: "controller"
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
-
-  NAND_path_planner:
-    ros__parameters:
-      # traj_name: "buggycourse_safe.json"
-      curb_name: ""
