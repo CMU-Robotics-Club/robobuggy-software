@@ -2,15 +2,15 @@ import numpy as np
 import scipy
 import scipy.linalg
 
-# Σ0 = diagm([1e-4; 1e-4; 1e-6]) 
+# Σ0 = diagm([1e-4; 1e-4; 1e-6])
 # R = diagm([1e-2; 1e-2]) # Sensor covariances (m^2, m^2) -- these should come from GPS reported accuracy
-# Q = diagm([1e-4; 1e-4; 1e-2; 1e-2; 2.5e-1]) # Process covariances (m^2/s, m^2/s, rad^2/s, rad^2/s, (m/s)^2/s) 
+# Q = diagm([1e-4; 1e-4; 1e-2; 1e-2; 2.5e-1]) # Process covariances (m^2/s, m^2/s, rad^2/s, rad^2/s, (m/s)^2/s)
 #                               # ^ the process covariances are timestep size dependent
 
 # f, Kinematic bicycle
 def dynamics(x, u, params):
     l = params[0]
-    px, py, theta, v = x
+    _, _, theta, v = x
     delta = u[0]
     x_dot = np.array(
         [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta) / l, 0.0]

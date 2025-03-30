@@ -27,7 +27,7 @@ class Telematics(Node):
 
         self.other_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 10)
         self.other_subscriber = self.create_subscription(Odometry, "other/state", wrap_args(self.convert_buggystate, self.other_publisher), 1)
-        
+
         self.other_estim_publisher = self.create_publisher(NavSatFix, "other/stateNoUKF_navsatfix", 10)
         self.other_estim_subscriber = self.create_subscription(Odometry, "other/stateNoUKF", wrap_args(self.convert_buggystate, self.other_estim_publisher), 1)
 

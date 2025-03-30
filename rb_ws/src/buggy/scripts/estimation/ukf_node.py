@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from threading import Lock
 import numpy as np
 
 import rclpy
@@ -41,7 +40,7 @@ class UKF(Node):
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R)
-    
+
     def loop(self):
         if not self.start:
             return
@@ -54,7 +53,7 @@ class UKF(Node):
         newMsg.twist.twist.linear.x = self.x_hat[3]
         self.nand_publisher.publish(newMsg)
 
-        
+
 
     def accuracy_to_mat(self, accuracy):
         accuracy /= 1000.0

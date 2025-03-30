@@ -1,9 +1,8 @@
 #! /usr/bin/env python3
 import random
+import random
 import rclpy
 from rclpy.node import Node
-import time
-import random
 from nav_msgs.msg import Odometry
 
 class Radio(Node):
