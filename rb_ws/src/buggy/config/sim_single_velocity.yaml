@@ -1,0 +1,30 @@
+/**: # Global Params
+  ros__parameters:
+      traj_name: "buggycourse_safe.json"
+      checkpoints_name : "buggycourse_safe_checkpoints_1.json"
+
+
+SC:
+  SC_sim_single:
+    ros__parameters:
+      velocity: 12
+      pose: "Hill1_SC"
+
+SC:
+  SC_controller:
+    ros__parameters:
+      dist: 0.0
+      # traj_name: "buggycourse_safe.json"
+      controller: "stanley"
+
+SC:
+  SC_path_planner:
+    ros__parameters:
+      traj_name: "buggycourse_safe.json"
+      curb_name: "buggycourse_curb.json"
+
+SC:
+  SC_velocity_updater:
+    ros__parameters:
+      init_vel: 12
+      checkpoints_name : "buggycourse_safe_checkpoints_1.json"
