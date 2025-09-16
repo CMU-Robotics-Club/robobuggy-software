@@ -1,7 +1,5 @@
 #! /usr/bin/env python3
 import argparse
-import uuid
-import json
 import rosbag2_py
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
@@ -34,11 +32,10 @@ def main():
 
     # Create data structure
     offsets = []
-    i = 0
 
     # Loop through bag
     while reader.has_next():
-        topic, data, header = reader.read_next()
+        topic, data, _ = reader.read_next()
 
         if topic == error_topic:
             msg = deserialize_message(data, error_type)
@@ -49,10 +46,10 @@ def main():
         elif topic == state_topic:
             msg = deserialize_message(data, state_type)
             velocity = np.sqrt(msg.twist.twist.linear.x**2 + msg.twist.twist.linear.y**2)
-    plt.plot(offsets) # plotting by columns
+    plt.plot(offsets)  # plotting by columns
     plt.ylim(ymin=0)
     plt.ylim(ymax=20)
     plt.savefig("test.jpg")
- 
+
 if __name__ == "__main__":
     main()

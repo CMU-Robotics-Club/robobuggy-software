@@ -155,7 +155,7 @@ class SCSensors:
 @dataclass
 class RoundtripTimestamp:
     fw_time: int
-    returned_time: float 
+    returned_time: float
 
 
 class IncompletePacket(Exception):
