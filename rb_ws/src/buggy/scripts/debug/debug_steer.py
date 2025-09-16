@@ -17,7 +17,6 @@ class DebugController(Node):
     """
     @input: self_name, for namespace for current buggy
     Initializes steer publisher to publish steering angles
-    Tick = 1ms
     """
     def __init__(self) -> None:
         super().__init__("debug_steer")
@@ -28,9 +27,12 @@ class DebugController(Node):
 
         self.t0 = None
 
+        # steering source
+        self.steer_fn = self.sin_steer
+
         # sin_steer params
-        self.steer_freq = 2  # Hz
-        self.steer_range = 50
+        self.STEER_FREQ = 2  # Hz
+        self.STEER_RANGE = 50
 
         # Create a timer to call the loop function
         self.timer = self.create_timer(1.0 / self.rate, self.loop)
@@ -38,11 +40,11 @@ class DebugController(Node):
 
     # Outputs a continuous sine wave
     def sin_steer(self, t):
-        return self.steer_range * np.sin(2 * np.pi * self.steer_freq * t)
+        return self.STEER_RANGE * np.sin(2 * np.pi * self.STEER_FREQ * t)
 
     # Outputs a stepped version of sin steer
     def step_steer(self, t):
-        return self.steer_range * np.sign(self.sin_steer(t))
+        return self.STEER_RANGE * np.sign(self.sin_steer(t))
 
     #returns a constant steering angle of 42 degrees
     def constant_steer(self, _):
@@ -55,7 +57,7 @@ class DebugController(Node):
 
         t = time.time() - self.t0
 
-        self.steer_cmd = self.sin_steer(t)
+        self.steer_cmd = self.steer_fn(t)
         msg = Float64()
         msg.data = self.steer_cmd
         if self.tick_count % 10 == 0:
