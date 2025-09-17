@@ -1,5 +1,5 @@
 <launch>
-    <arg name="config_file" default="src/buggy/config/nand-roll.yaml"/>
+    <arg name="config_file" default="src/buggy/config/nand-mockroll.yaml"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="NAND"/>
     

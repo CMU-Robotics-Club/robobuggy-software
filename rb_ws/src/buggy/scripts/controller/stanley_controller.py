@@ -19,7 +19,7 @@ class StanleyController(Controller):
     Referenced from this paper: https://ai.stanford.edu/~gabeh/papers/hoffmann_stanley_control07.pdf
     """
 
-    LOOK_AHEAD_DIST_®CONST = 0.05 # s
+    LOOK_AHEAD_DIST_CONST = 0.05 # s
     MIN_LOOK_AHEAD_DIST = 0.1 #m
     MAX_LOOK_AHEAD_DIST = 2.0 #m
 

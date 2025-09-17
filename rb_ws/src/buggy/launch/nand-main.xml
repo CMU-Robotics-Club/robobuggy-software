@@ -1,5 +1,5 @@
 <launch>
-    <arg name="config_file" default="src/buggy/config/nand-roll.yaml"/>
+    <arg name="config_file" default="src/buggy/config/nand-mockroll.yaml"/>
     <node pkg="buggy" exec="controller_node.py" name="NAND_controller" output = "screen" namespace="NAND">
             <param from="$(var config_file)"/>
     </node>

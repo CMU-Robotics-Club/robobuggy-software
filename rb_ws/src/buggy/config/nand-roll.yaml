@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_nand.json"
+      traj_name: "waypoints.json"
 
 NAND:
   bnyahaj:

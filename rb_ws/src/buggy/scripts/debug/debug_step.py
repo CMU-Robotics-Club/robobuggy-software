@@ -5,14 +5,12 @@ from rclpy.node import Node
 from std_msgs.msg import Float64
 import numpy as np
 
-import time
-
 
 """
-Debug Controller
-Sends oscillating steering command for firmware and system level debug
+Debug Step Controller
+Sends stepped steering command for firmware and system level debug
 """
-class DebugController(Node):
+class StepDebugController(Node):
 
     """
     @input: self_name, for namespace for current buggy
@@ -23,51 +21,25 @@ class DebugController(Node):
         super().__init__("debug_steer")
         self.steer_publisher = self.create_publisher(
             Float64, "input/steering", 10)
-        self.rate = 100  # Hz
+        self.rate = 1000  # Hz
         self.tick_count = 0
         self.steer_cmd = 0.0
-        self.t0 = None
-
-        self.looptime_pub = self.create_publisher(Float64, "debug/looptime", 10)
 
         # Create a timer to call the loop function
         self.timer = self.create_timer(1.0 / self.rate, self.loop)
         self.get_logger().info("INITIALIZED")
 
     # Outputs a continuous sine wave ranging from -50 to 50, with a period of 500 ticks
-    def sin_steer(self, tick_count):
-        return 50 * np.sin(.2 * (2 * np.pi) * tick_count/500)
-
     def step_steer(self, tick_count):
-
-        return 20 * np.sign(np.sin(2 * (2 * np.pi) * tick_count/500))
-
-    #returns a constant steering angle of 42 degrees
-    def constant_steer(self, _):
-        return 42.0
+        return 50 * np.sign(np.sin((2 * np.pi) * tick_count/500))
 
     #Creates a loop based on tick counter
     def loop(self):
-
-        if self.t0 is None:
-            self.t0 = time.time()
-        else:
-            t = time.time()
-            dt = (t - self.t0)
-            f = 1 / dt
-            self.get_logger().info(f"loop hz: {f}")
-            self.t0 = t
-
-            msg = Float64()
-            msg.data = f
-            self.looptime_pub.publish(msg)
-
         self.steer_cmd = self.step_steer(self.tick_count)
-
         msg = Float64()
         msg.data = self.steer_cmd
         if self.tick_count % 10 == 0:
-            self.get_logger().info(f"SIN STEER: {self.steer_cmd}")
+            self.get_logger().info(f"STEP STEER: {self.steer_cmd}")
         self.steer_publisher.publish(msg)
 
         self.tick_count += 1
