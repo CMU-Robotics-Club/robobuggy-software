@@ -52,7 +52,6 @@ class Translator(Node):
         # upper bound of reading data from Bnyahaj Serial, at 1ms
         self.timer = self.create_timer(0.001, self.loop)
 
-        self.foo = 0
 
 
         # DEBUG MESSAGE PUBLISHERS:
@@ -189,9 +188,9 @@ class Translator(Node):
 
             elif isinstance(packet, RoundtripTimestamp):
 
-                # self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, {(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3}')
-                self.get_logger().info(f'Roundtrip Timestamp: {packet.returned_time}, Currently {time.time_ns()} BUT AKTSHUALLY {self.foo}')
-                self.roundtrip_time_publisher.publish(Float64(data=(time.time_ns() - packet.returned_time) * 1e-9))
+                # self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, {(time.time_us() * 1e-6 - packet.returned_time) * 1e-3}')
+                self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, Currently {time.time_ns()//1000}')
+                self.roundtrip_time_publisher.publish(Float64(data=(time.time_ns()//1000 - packet.returned_time) * 1e-6))
 
         if self.fresh_steer:
             with self.lock:
@@ -202,10 +201,9 @@ class Translator(Node):
         with self.lock:
             self.comms.send_alarm(self.alarm)
         with self.lock:
-            t = time.time_ns()
-            self.get_logger().info(f"Sending timestamp {t} but AKTSCHUALLY {self.foo}")
-            self.comms.send_timestamp(self.foo)
-            self.foo += 1
+            t = time.time_ns()//1000
+            self.get_logger().debug(f"Sending timestamp: {t}")
+            self.comms.send_timestamp(t)
 
 
 def main(args=None):
