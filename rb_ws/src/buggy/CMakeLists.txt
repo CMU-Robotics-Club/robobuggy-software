@@ -37,6 +37,7 @@ install(PROGRAMS
   scripts/serial/ros_to_bnyahaj.py
   scripts/telemetry/telematics.py
   scripts/debug/debug_steer.py
+  scripts/debug/set_steer.py
   scripts/estimation/ukf_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
