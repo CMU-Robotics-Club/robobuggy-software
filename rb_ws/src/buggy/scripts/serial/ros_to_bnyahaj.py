@@ -6,7 +6,7 @@ import rclpy
 from host_comm import *
 from rclpy.node import Node
 
-from std_msgs.msg import Float64, Int8
+from std_msgs.msg import Float64, Int8, Int64
 from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
@@ -192,7 +192,7 @@ class Translator(Node):
                 rtt = (time.time_ns() - packet.returned_time) * 1e-9
                 self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, RTT: {rtt}')
                 self.roundtrip_time_publisher.publish(Float64(data=rtt))
-                self.teensycycle_time_publisher.publish(Float64(data=float(packet.teensy_cycle_time)))
+                self.teensycycle_time_publisher.publish(Int64(data=float(packet.teensy_cycle_time)))
 
         if self.fresh_steer:
             with self.lock:
