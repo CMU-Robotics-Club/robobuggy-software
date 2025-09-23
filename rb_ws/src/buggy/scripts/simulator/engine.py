@@ -10,9 +10,10 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import utm
 from util.constants import Constants
+from collections import deque
+
 
 class Simulator(Node):
-
 
     def __init__(self):
         super().__init__('engine')
@@ -55,7 +56,15 @@ class Simulator(Node):
         self.steering_angle = 0  # degrees
         self.rate = 100  # Hz
         self.tick_count = 0
-        self.interval = 2 # how frequently to publish
+        self.interval = 2  # how frequently to publish
+
+        # Steering delay configuration (each step = 10ms at 100 Hz)
+        self.declare_parameter("steering_delay", 0)
+        self.steering_delay_steps = self.get_parameter("steering_delay").value
+        self.steering_buffer = deque(maxlen=max(1, self.steering_delay_steps + 1))
+        # Initialize buffer with zero steering commands
+        for _ in range(self.steering_buffer.maxlen):
+            self.steering_buffer.append(0.0)
 
         self.lock = threading.Lock()
 
@@ -84,7 +93,10 @@ class Simulator(Node):
 
     def update_steering_angle(self, data: Float64):
         with self.lock:
-            self.steering_angle = data.data
+            # Add new steering command to buffer
+            self.steering_buffer.append(data.data)
+            # Use delayed steering command (oldest in buffer)
+            self.steering_angle = self.steering_buffer[0]
 
     def update_velocity(self, data: Float64):
         with self.lock:
@@ -186,12 +198,12 @@ def main(args=None):
         time.sleep(0.01)
         sim.publish()
 
-
     sim.get_logger().info("STARTED PUBLISHING")
     rclpy.spin(sim)
 
     sim.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()
