@@ -1,19 +1,33 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "cut_square.json"
+    traj_name: 'cut_square.json'
 
 SC:
   bnyahaj:
     ros__parameters:
-      teensy_name: "ttyUSB0"
+      teensy_name: 'ttyUSB0'
 
   SC_controller:
     ros__parameters:
       dist: 0.0
-      # traj_name: "buggycourse_safe.json"
-      controller: "stanley"
+      stateTopic: 'self/state'
+      trajectoryTopic: 'self/cur_traj'
+      steeringTopic: 'input/steering'
+      useHeadingRate: true
+      controllerName: 'controller'
+      controller: 'stanley'
+
+  SC_NAND_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: 'other/state'
+      trajectoryTopic: 'other/cur_traj'
+      steeringTopic: 'other/steering'
+      useHeadingRate: false
+      controllerName: 'NAND_controller'
+      traj_name: 'cut_square.json'
+      controller: 'stanley'
 
   SC_path_planner:
     ros__parameters:
-      # traj_name: "buggycourse_safe.json"
-      curb_name: ""
+      curb_name: ''

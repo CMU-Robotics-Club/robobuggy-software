@@ -154,7 +154,9 @@ class SCSensors:
 
 @dataclass
 class RoundtripTimestamp:
-    returned_time: float # double
+    returned_time: int  # uint64
+    teensy_cycle_time: int # uint64
+    fw_time: int
 
 
 class IncompletePacket(Exception):
@@ -191,8 +193,8 @@ class Comms:
     def send_alarm(self, status: int):
         self.send_packet_raw(MSG_TYPE_ALARM, struct.pack('<B', status))
 
-    def send_timestamp(self, time: float):
-        self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<d', time))
+    def send_timestamp(self, time: int):
+        self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<Q', time))
 
     def read_packet_raw(self):
         self.rx_buffer += self.port.read_all() #type:ignore
@@ -287,7 +289,7 @@ class Comms:
             return SCSensors(*data)
 
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
-            time = struct.unpack('<d', payload)
+            time = struct.unpack('<QQIxxxx', payload)
             return RoundtripTimestamp(*time)
         else:
             print(f'Unknown packet type {msg_type}')

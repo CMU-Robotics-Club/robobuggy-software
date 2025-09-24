@@ -27,7 +27,7 @@ class PathPlanner(Node):
     CURB_MARGIN = 1 #m
 
     # the offset is calculated as a mirrored sigmoid function of distance
-    OFFSET_SCALE_CROSS_TRACK = 2 #m
+    OFFSET_SCALE_CROSS_TRACK = 2.5 #m
     OFFSET_SCALE_ALONG_TRACK = 0.2
     ACTIVATE_OTHER_SCALE_ALONG_TRACK = 0.1
     OFFSET_SHIFT_ALONG_TRACK = 4 #m

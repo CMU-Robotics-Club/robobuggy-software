@@ -6,7 +6,7 @@ import rclpy
 from host_comm import *
 from rclpy.node import Node
 
-from std_msgs.msg import Float64, Int8
+from std_msgs.msg import Float64, Int8, Int64
 from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
@@ -76,6 +76,9 @@ class Translator(Node):
         self.roundtrip_time_publisher = self.create_publisher(
             Float64, "debug/roundtrip_time", 1
         )
+        self.teensycycle_time_publisher = self.create_publisher(
+            Float64, "debug/teensycycle_time", 1
+        )
 
     def set_alarm(self, msg):
         """
@@ -132,7 +135,7 @@ class Translator(Node):
                 odom.twist.twist.linear.x = np.mean(self.nandCircArray)
                 odom.twist.twist.angular.z = packet.heading_rate
 
-                self.nand_ukf_odom_publisher.publish(odom)
+                self.nand_ukf_odom_publisher.publish(data=odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
 
 
@@ -186,9 +189,10 @@ class Translator(Node):
 
 
             elif isinstance(packet, RoundtripTimestamp):
-
-                self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, {(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3}')
-                self.roundtrip_time_publisher.publish(Float64(data=(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3))
+                rtt = (time.time_ns() - packet.returned_time) * 1e-9
+                self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, RTT: {rtt}')
+                self.roundtrip_time_publisher.publish(Float64(data=rtt))
+                self.teensycycle_time_publisher.publish(Int64(data=float(packet.teensy_cycle_time)))
 
         if self.fresh_steer:
             with self.lock:
@@ -199,7 +203,7 @@ class Translator(Node):
         with self.lock:
             self.comms.send_alarm(self.alarm)
         with self.lock:
-            self.comms.send_timestamp(time.time_ns() * 1e-6)
+            self.comms.send_timestamp(time.time_ns())
 
 
 def main(args=None):
