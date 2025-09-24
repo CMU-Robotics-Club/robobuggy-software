@@ -155,6 +155,7 @@ class SCSensors:
 @dataclass
 class RoundtripTimestamp:
     returned_time: int  # uint64
+    teensy_cycle_time: int # uint64
     fw_time: int
 
 
@@ -288,7 +289,7 @@ class Comms:
             return SCSensors(*data)
 
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
-            time = struct.unpack('<QIxxxx', payload)
+            time = struct.unpack('<QQIxxxx', payload)
             return RoundtripTimestamp(*time)
         else:
             print(f'Unknown packet type {msg_type}')
