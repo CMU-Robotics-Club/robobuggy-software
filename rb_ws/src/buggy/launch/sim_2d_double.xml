@@ -19,8 +19,19 @@
     <node pkg="buggy" exec="engine.py" name="SC_sim_single" output = "screen" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
+    <node pkg="buggy" exec="radio_sim.py" name="SC_radio" output = "screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+
     <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen">
         <param from="$(var config_file)"/>
     </node>
+
+    <node pkg="buggy" exec="controller_node.py" name="SC_NAND_controller" output = "screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+
+    <node name="estimator" pkg="buggy" exec="ukf_node.py" output="screen" namespace="SC"/>
+    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
 
 </launch>

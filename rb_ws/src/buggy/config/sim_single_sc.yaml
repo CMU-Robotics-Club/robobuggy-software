@@ -3,6 +3,7 @@ SC:
       ros__parameters:
          velocity: 12
          pose: "Hill1_SC"
+
    SC_controller:
       ros__parameters:
          dist: 0.0

@@ -15,12 +15,14 @@ class Simulator(Node):
 
 
     def __init__(self):
-        super().__init__('sim_single')
+        super().__init__('engine')
         self.get_logger().info('INITIALIZED.')
 
         self.starting_poses = {
-            "Hill1_NAND": (Constants.UTM_EAST_ZERO + 0, Constants.UTM_NORTH_ZERO + 0, -110),
-            "Hill1_SC": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
+            "Hill1_NAND": (589760.46, 4477322.07, -110),
+            "Hill1_SC": (589761.40, 4477321.75, -110),
+            "Hill2_NAND": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
+            "Hill2_SC": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
             "WESTINGHOUSE": (589647, 4477143, -150),
             "UC_TO_PURNELL": (589635, 4477468, 160),
             "UC": (589681, 4477457, 160),

@@ -160,6 +160,19 @@ class Trajectory:
         index = self.get_index_from_distance(distance)
         return self.get_position_by_index(index)
 
+    def get_acceleration_by_index(self, index):
+        """Gets the acceleration given index along trajectory,
+        interpolating if necessary
+        Args:
+            index (float): index along the trajectory
+        Returns:
+            ddxdt, ddydt (float, float): in meters/timestep^2
+        """
+        # theta = np.interp(index, self.indices, self.positions[:, 2])
+        ddxdt, ddydt = self.interpolation(index, nu=2).reshape((-1, 2)).T
+
+        return ddxdt, ddydt
+
     def get_steering_angle_by_index(self, index, wheelbase):
         """Gets the bicycle-model steering angle at a given distance along the trajectory,
         interpolating if necessary. Assumes that the origin point of the buggy is at the
