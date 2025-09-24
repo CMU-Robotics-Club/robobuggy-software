@@ -31,18 +31,29 @@ class Controller(Node):
         self.declare_parameter("dist", 0.0) #Starting Distance along path
         start_dist = self.get_parameter("dist").value
 
+        self.declare_parameter("controllerName", "controller")
+
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
         self.cur_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name)
+
+        self.declare_parameter("stateTopic", "self/state")
+        self.declare_parameter("steeringTopic", "input/steering")
+        self.declare_parameter("trajectoryTopic", "self/cur_traj")
 
         start_index = self.cur_traj.get_index_from_distance(start_dist)
 
         self.declare_parameter("controller", "stanley")
 
+
+        self.declare_parameter("useHeadingRate", True)
+
         controller_name = self.get_parameter("controller").value
         print(controller_name.lower)
         if (controller_name.lower() == "stanley"):
-            self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(), node=self) #IMPORT STANLEY
+            self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(),
+                                                node=self, usingHeadingRateError=self.get_parameter("useHeadingRate").value,
+                                                controllerName=self.get_parameter("controllerName").value) #IMPORT STANLEY
         else:
             self.get_logger().error("Invalid Controller Name: " + controller_name.lower())
             raise Exception("Invalid Controller Argument")
@@ -52,15 +63,15 @@ class Controller(Node):
             "debug/init_safety_check", 1
         )
         self.steer_publisher = self.create_publisher(
-            Float64, "input/steering", 1
+            Float64, self.get_parameter("steeringTopic").value, 1
         )
         self.heading_publisher = self.create_publisher(
             Float32, "debug/heading", 1
         )
 
         # Subscribers
-        self.odom_subscriber = self.create_subscription(Odometry, 'self/state', self.odom_listener, 1)
-        self.traj_subscriber = self.create_subscription(TrajectoryMsg, 'self/cur_traj', self.traj_listener, 1)
+        self.odom_subscriber = self.create_subscription(Odometry, self.get_parameter("stateTopic").value, self.odom_listener, 1)
+        self.traj_subscriber = self.create_subscription(TrajectoryMsg, self.get_parameter("trajectoryTopic").value, self.traj_listener, 1)
 
         self.lock = threading.Lock()
 
@@ -105,22 +116,19 @@ class Controller(Node):
             return False
 
         #Originally under a lock, doesn't seem necessary?
-        current_heading = self.odom.pose.pose.orientation.z
-        closest_heading = self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))
+        current_heading = self.odom.pose.pose.orientation.z % (2 * np.pi)
+        closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))) % (2 * np.pi)
 
         self.get_logger().info("current heading: " + str(np.rad2deg(current_heading)))
         msg = Float32()
         msg.data = np.rad2deg(current_heading)
         self.heading_publisher.publish(msg)
 
-        #Converting headings from [-pi, pi] to [0, 2pi]
-        if (current_heading < 0):
-            current_heading = 2 * np.pi + current_heading
-        if (closest_heading < 0):
-            closest_heading = 2 * np.pi + closest_heading
+        # https://math.stackexchange.com/questions/1649841/signed-angle-difference-without-conditions
+        delta = (current_heading - closest_heading + 3 * np.pi) % (2 * np.pi) - np.pi
 
-        if (abs(current_heading - closest_heading) >= np.pi/2):
-            self.get_logger().warn("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
+        if (abs(delta) >= np.pi/2):
+            self.get_logger().error("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
             return False
 
         return True

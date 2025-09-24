@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
+# import random
 from threading import Lock
 import rclpy
 from host_comm import *
 from rclpy.node import Node
 
-from std_msgs.msg import Float64, Int8
+from std_msgs.msg import Float64, Int8, Int64
 from nav_msgs.msg import Odometry
 from buggy.msg import *
+import numpy as np
 class Translator(Node):
     """
     Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
@@ -35,6 +37,7 @@ class Translator(Node):
             self.self_name = "SC"
         else:
             self.self_name = "NAND"
+        self.get_logger().info("BUGGY" + self.self_name)
 
         self.steer_angle = 0
         self.alarm = 0
@@ -54,27 +57,28 @@ class Translator(Node):
         if self.self_name == "SC":
             self.sc_debug_info_publisher = self.create_publisher(SCDebugInfoMsg, "debug/firmware", 1)
             self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "debug/sensor", 1)
-        else:
-            self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
-            self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
-
-        # SERIAL DEBUG PUBLISHERS
-        self.roundtrip_time_publisher = self.create_publisher(
-            Float64, "debug/roundtrip_time", 1
-        )
-
-        if self.self_name == "NAND":
-            # NAND POSITION PUBLISHERS
-            self.nand_ukf_odom_publisher = self.create_publisher(
-                Odometry, "raw_state", 1
-            )
-
-        if self.self_name == "SC":
 
             # RADIO DATA PUBLISHER
             self.observed_nand_odom_publisher = self.create_publisher(
                     Odometry, "NAND_raw_state", 1
                 )
+        else:
+            self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
+            self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
+            self.nand_ukf_odom_publisher = self.create_publisher(
+                Odometry, "raw_state", 1
+            )
+            self.CIRCLEN = 20
+            self.nandCircArray = np.zeros(self.CIRCLEN)
+            self.nandIndex = 0
+
+        # SERIAL DEBUG PUBLISHERS
+        self.roundtrip_time_publisher = self.create_publisher(
+            Float64, "debug/roundtrip_time", 1
+        )
+        self.teensycycle_time_publisher = self.create_publisher(
+            Float64, "debug/teensycycle_time", 1
+        )
 
     def set_alarm(self, msg):
         """
@@ -97,7 +101,11 @@ class Translator(Node):
         packet_on_buffer = True
         while packet_on_buffer:
             packet = self.comms.read_packet()
-            if (packet is None): packet_on_buffer = False
+            if (packet is None):
+                packet_on_buffer = False
+                self.get_logger().debug("NO PACKET")
+            else:
+                self.get_logger().debug("PACKET")
 
             if isinstance(packet, NANDDebugInfo):
                 rospacket = NANDDebugInfoMsg()
@@ -122,7 +130,9 @@ class Translator(Node):
                 odom.pose.pose.position.y = packet.northing
                 odom.pose.pose.orientation.z = packet.theta
 
-                odom.twist.twist.linear.x = packet.velocity
+                self.nandCircArray[self.nandIndex] = packet.velocity
+                self.nandIndex = (self.nandIndex + 1) % self.CIRCLEN
+                odom.twist.twist.linear.x = np.mean(self.nandCircArray)
                 odom.twist.twist.angular.z = packet.heading_rate
 
                 self.nand_ukf_odom_publisher.publish(data=odom)
@@ -146,13 +156,15 @@ class Translator(Node):
             elif isinstance(packet, Radio):
 
                 # Publish to odom topic x and y coord
+                self.get_logger().debug("GOT RADIO PACKET")
                 odom = Odometry()
 
                 odom.pose.pose.position.x = packet.nand_east_gps
                 odom.pose.pose.position.y = packet.nand_north_gps
-                self.observed_nand_odom_publisher.publish(data=odom)
+                self.observed_nand_odom_publisher.publish(odom)
 
             elif isinstance(packet, SCDebugInfo):
+                self.get_logger().debug("GOT DEBUG PACKET")
                 rospacket = SCDebugInfoMsg()
                 rospacket.rc_steering_angle = packet.rc_steering_angle
                 rospacket.software_steering_angle = packet.software_steering_angle
@@ -177,20 +189,21 @@ class Translator(Node):
 
 
             elif isinstance(packet, RoundtripTimestamp):
-
-                self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, {(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3}')
-                self.roundtrip_time_publisher.publish(Float64(data=(time.time_ns() * 1e-6 - packet.returned_time) * 1e-3))
+                rtt = (time.time_ns() - packet.returned_time) * 1e-9
+                self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, RTT: {rtt}')
+                self.roundtrip_time_publisher.publish(Float64(data=rtt))
+                self.teensycycle_time_publisher.publish(Int64(data=float(packet.teensy_cycle_time)))
 
         if self.fresh_steer:
             with self.lock:
                 self.comms.send_steering(self.steer_angle)
-                # self.get_logger().info(f"Sent steering angle of: {self.steer_angle}")
+                self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
                 self.fresh_steer = False
 
         with self.lock:
             self.comms.send_alarm(self.alarm)
         with self.lock:
-            self.comms.send_timestamp(time.time_ns() * 1e-6)
+            self.comms.send_timestamp(time.time_ns())
 
 
 def main(args=None):

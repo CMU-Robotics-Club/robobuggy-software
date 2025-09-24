@@ -1,0 +1,18 @@
+/**: # Global Params
+  ros__parameters:
+    traj_name: 'cut_square.json'
+
+NAND:
+  bnyahaj:
+    ros__parameters:
+      teensy_name: 'ttyUSB0'
+
+  NAND_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: 'self/state'
+      trajectoryTopic: 'self/cur_traj'
+      steeringTopic: 'input/steering'
+      useHeadingRate: true
+      controllerName: 'controller'
+      controller: 'stanley'

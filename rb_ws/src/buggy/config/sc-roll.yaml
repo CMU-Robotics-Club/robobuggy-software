@@ -1,29 +1,11 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_sc.json"
-
-NAND:
-  NAND_sim_single:
-    ros__parameters:
-      velocity: 10
-      pose: "Hill1_NAND"
-  NAND_controller:
-    ros__parameters:
-      dist: 0.0
-      stateTopic: "self/state"
-      trajectoryTopic: "self/cur_traj"
-      steeringTopic: "input/steering"
-      useHeadingRate: true
-      controllerName: "controller"
-      traj_name: "buggycourse_nand.json"
-      controller: "stanley"
-
+      traj_name: "buggycourse_pavedline.json"
 
 SC:
-  SC_sim_single:
+  bnyahaj:
     ros__parameters:
-      velocity: 12
-      pose: "Hill1_SC"
+      teensy_name: "ttyUSB0"
 
   SC_controller:
     ros__parameters:
@@ -42,11 +24,10 @@ SC:
       stateTopic: "other/state"
       trajectoryTopic: "other/cur_traj"
       steeringTopic: "other/steering"
-      useHeadingRate: true
+      useHeadingRate: false
       controllerName: "NAND_controller"
-      traj_name: "buggycourse_nand.json"
+      traj_name: "buggycourse_pavedline.json"
       controller: "stanley"
-
 
   SC_path_planner:
     ros__parameters:

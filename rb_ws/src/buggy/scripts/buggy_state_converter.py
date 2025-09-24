@@ -22,7 +22,7 @@ class BuggyStateConverter(Node):
                 Odometry, "NAND_raw_state", self.convert_NAND_other_state_callback, 10
             )
 
-            self.other_state_publisher = self.create_publisher(Odometry, "other/state", 10)
+            self.other_state_publisher = self.create_publisher(Odometry, "other/stateNoUKF", 10)
 
         elif namespace == "/NAND":
             self.NAND_raw_state_subscriber = self.create_subscription(

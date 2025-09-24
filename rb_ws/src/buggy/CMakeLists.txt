@@ -31,11 +31,14 @@ install(PROGRAMS
   scripts/controller/controller_node.py
   scripts/path_planner/path_planner.py
   scripts/simulator/engine.py
+  scripts/simulator/radio_sim.py
   scripts/watchdog/watchdog_node.py
   scripts/buggy_state_converter.py
   scripts/serial/ros_to_bnyahaj.py
   scripts/telemetry/telematics.py
   scripts/debug/debug_steer.py
+  scripts/debug/set_steer.py
+  scripts/estimation/ukf_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

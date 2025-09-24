@@ -63,7 +63,7 @@ MAX_PAYLOAD_LEN = 100
 MSG_TYPE_NAND_DEBUG = b'ND'
 MSG_TYPE_NAND_UKF = b'NU'
 MSG_TYPE_NAND_GPS = b'NG'
-MSG_TYPE_RADIO = b'RA'
+MSG_TYPE_RADIO = b'SR'
 MSG_TYPE_SC_DEBUG = b'SD'
 MSG_TYPE_SC_SENSORS = b'SS'
 MSG_TYPE_ROUNDTRIP_TIMESTAMP = b'RT'
@@ -154,7 +154,9 @@ class SCSensors:
 
 @dataclass
 class RoundtripTimestamp:
-    returned_time: float # double
+    returned_time: int  # uint64
+    teensy_cycle_time: int # uint64
+    fw_time: int
 
 
 class IncompletePacket(Exception):
@@ -191,8 +193,8 @@ class Comms:
     def send_alarm(self, status: int):
         self.send_packet_raw(MSG_TYPE_ALARM, struct.pack('<B', status))
 
-    def send_timestamp(self, time: float):
-        self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<d', time))
+    def send_timestamp(self, time: int):
+        self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<Q', time))
 
     def read_packet_raw(self):
         self.rx_buffer += self.port.read_all() #type:ignore
@@ -263,7 +265,7 @@ class Comms:
 
         msg_type, payload = packet
         if msg_type == MSG_TYPE_NAND_DEBUG:
-            data = struct.unpack('<ddIfffI????BBxxxx', payload)
+            data = struct.unpack('<ddIfffI????BBxxxxxx', payload)
             return NANDDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_NAND_UKF:
@@ -275,7 +277,7 @@ class Comms:
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            data = struct.unpack('<ffIBxxx', payload)
+            data = struct.unpack('<ddIBxxx', payload)
             return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:
@@ -287,7 +289,7 @@ class Comms:
             return SCSensors(*data)
 
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
-            time = struct.unpack('<d', payload)
+            time = struct.unpack('<QQIxxxx', payload)
             return RoundtripTimestamp(*time)
         else:
             print(f'Unknown packet type {msg_type}')
