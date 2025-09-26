@@ -12,6 +12,7 @@ import numpy as np
 import utm
 from util.constants import Constants
 
+
 class Simulator(Node):
 
     def __init__(self):
@@ -48,6 +49,7 @@ class Simulator(Node):
 
         self.velocity = self.get_parameter("velocity").value
         init_pose_name = self.get_parameter("pose").value
+        self.navsat_noise_std = self.declare_parameter("navsat_noise_std", 1e-6).value
 
         self.init_pose = self.starting_poses[init_pose_name]
 
@@ -167,8 +169,8 @@ class Simulator(Node):
             Constants.UTM_ZONE_LETTER,
         )
 
-        lat_noisy = lat + np.random.normal(0, 1e-6)
-        long_noisy = long + np.random.normal(0, 1e-6)
+        lat_noisy = lat + np.random.normal(0, self.navsat_noise_std)
+        long_noisy = long + np.random.normal(0, self.navsat_noise_std)
 
         nsf_noisy = NavSatFix()
         nsf_noisy.latitude = lat_noisy
