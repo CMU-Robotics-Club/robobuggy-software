@@ -103,6 +103,7 @@ class Simulator(Node):
             self.steering_buffer.append(data.data)
 
     def apply_delayed_steering(self):
+        """Precondition: lock must be held when calling this function"""
         # the delayed steering is at the front of the buffer
         self.current_steering = self.steering_buffer[0]
 
