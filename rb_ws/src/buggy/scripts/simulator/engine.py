@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import threading
 import time
+from collections import deque
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
@@ -10,8 +11,6 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import utm
 from util.constants import Constants
-from collections import deque
-
 
 class Simulator(Node):
 
@@ -61,10 +60,18 @@ class Simulator(Node):
         # Steering delay configuration (each step = 10ms at 100 Hz)
         self.declare_parameter("steering_delay", 0)
         self.steering_delay_steps = self.get_parameter("steering_delay").value
+        self.get_logger().info(
+            f"Steering delay set to {self.steering_delay_steps} steps."
+        )
+
+        # Use deque as a delay line - current steering is at the end, delayed at the front
         self.steering_buffer = deque(maxlen=max(1, self.steering_delay_steps + 1))
         # Initialize buffer with zero steering commands
         for _ in range(self.steering_buffer.maxlen):
             self.steering_buffer.append(0.0)
+
+        # Current steering angle
+        self.current_steering = 0.0
 
         self.lock = threading.Lock()
 
@@ -95,8 +102,11 @@ class Simulator(Node):
         with self.lock:
             # Add new steering command to buffer
             self.steering_buffer.append(data.data)
-            # Use delayed steering command (oldest in buffer)
-            self.steering_angle = self.steering_buffer[0]
+
+    def apply_delayed_steering(self):
+        with self.lock:
+            # The delayed steering is now at the front of the buffer
+            self.current_steering = self.steering_buffer[0]
 
     def update_velocity(self, data: Float64):
         with self.lock:
@@ -112,12 +122,15 @@ class Simulator(Node):
                          0])
 
     def step(self):
+        # Apply delayed steering before dynamics calculation
+        self.apply_delayed_steering()
+
         with self.lock:
             heading = self.heading
             e_utm = self.e_utm
             n_utm = self.n_utm
             velocity = self.velocity
-            steering_angle = self.steering_angle
+            steering_angle = self.current_steering
 
         h = 1/self.rate
         state = np.array([e_utm, n_utm, np.deg2rad(heading), np.deg2rad(steering_angle)])
@@ -188,7 +201,11 @@ class Simulator(Node):
         if self.tick_count % self.interval == 0:
             self.publish()
         self.tick_count += 1
-        self.get_logger().debug("SIMULATED UTM: ({}, {}), HEADING: {}".format(self.e_utm, self.n_utm, self.heading))
+        self.get_logger().debug(
+            "SIMULATED UTM: ({}, {}), HEADING: {}".format(
+                self.e_utm, self.n_utm, self.heading
+            )
+        )
 
 
 def main(args=None):
