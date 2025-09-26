@@ -102,13 +102,12 @@ class Simulator(Node):
 
     def update_steering_angle(self, data: Float64):
         with self.lock:
-            # Add new steering command to buffer
+            # add new steering command to buffer
             self.steering_buffer.append(data.data)
 
     def apply_delayed_steering(self):
-        with self.lock:
-            # The delayed steering is now at the front of the buffer
-            self.current_steering = self.steering_buffer[0]
+        # the delayed steering is at the front of the buffer
+        self.current_steering = self.steering_buffer[0]
 
     def update_velocity(self, data: Float64):
         with self.lock:
@@ -124,14 +123,14 @@ class Simulator(Node):
                          0])
 
     def step(self):
-        # Apply delayed steering before dynamics calculation
-        self.apply_delayed_steering()
 
         with self.lock:
             heading = self.heading
             e_utm = self.e_utm
             n_utm = self.n_utm
             velocity = self.velocity
+
+            self.apply_delayed_steering()
             steering_angle = self.current_steering
 
         h = 1/self.rate
