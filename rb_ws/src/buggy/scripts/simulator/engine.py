@@ -54,7 +54,7 @@ class Simulator(Node):
         self.init_pose = self.starting_poses[init_pose_name]
 
         self.e_utm, self.n_utm, self.heading = self.init_pose
-        self.steering_angle = 0  # degrees
+        self.current_steering = 0.0  # degrees
         self.rate = 100  # Hz
         self.tick_count = 0
         self.interval = 2  # how frequently to publish
@@ -71,9 +71,6 @@ class Simulator(Node):
         # Initialize buffer with zero steering commands
         for _ in range(self.steering_buffer.maxlen):
             self.steering_buffer.append(0.0)
-
-        # Current steering angle
-        self.current_steering = 0.0
 
         self.lock = threading.Lock()
 
