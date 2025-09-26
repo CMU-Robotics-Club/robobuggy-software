@@ -9,6 +9,7 @@ from rosidl_runtime_py.utilities import get_message
 def main():
     # Read in bag path from command line
     parser = argparse.ArgumentParser()
+    parser.add_argument("buggy_name", help="ROS Name for buggy")
     parser.add_argument("bag_file", help="Path to bag file")
     parser.add_argument("output_file", help="Path to output file")
     parser.add_argument(
@@ -24,7 +25,7 @@ def main():
 
     # Get topic and message type
     topic_types = {t.name: t.type for t in reader.get_all_topics_and_types()}
-    msg_type = get_message(topic_types["/NAND/self/state_navsatfix"])
+    msg_type = get_message(topic_types[f"/{args.buggy_name}/self/state_navsatfix"])
 
     # Create data structure
     waypoints = []
@@ -34,7 +35,7 @@ def main():
     while reader.has_next():
         topic, data, _ = reader.read_next()
 
-        if topic == "/NAND/self/state_navsatfix":
+        if topic == "/{args.buggy_name}/self/state_navsatfix":
             msg = deserialize_message(data, msg_type)
 
             # Skip waypoints based on subsample rate
