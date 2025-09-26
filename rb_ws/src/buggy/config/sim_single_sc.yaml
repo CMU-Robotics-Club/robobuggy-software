@@ -2,7 +2,7 @@ SC:
    SC_sim_single:
       ros__parameters:
         velocity: 12
-        steering_delay_steps: 5  # 1 step = 0.01s (at 100 hz steering)
+        steering_delay: 5  # 1 step = 0.01s (at 100 hz steering)
         pose: "Hill1_SC"
 
    SC_controller:
