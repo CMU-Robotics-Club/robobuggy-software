@@ -26,11 +26,12 @@ class DebugController(Node):
         self.steer_cmd = 0.0
 
         self.t0 = None
+        self.log_t0 = None
 
         # steering source
         self.steer_fn = self.sin_steer
 
-        # sin_steer params
+        # sin_steer/step_steer params
         self.STEER_FREQ = 2  # Hz
         self.STEER_RANGE = 50
 
@@ -54,14 +55,18 @@ class DebugController(Node):
     def loop(self):
         if self.t0 is None:
             self.t0 = time.time()
+            self.log_t0 = self.t0
 
         t = time.time() - self.t0
 
         self.steer_cmd = self.steer_fn(t)
         msg = Float64()
         msg.data = self.steer_cmd
-        if self.tick_count % 10 == 0:
+
+        if time.time() - self.log_t0 >= 0.1:
+            self.log_t0 = self.t0
             self.get_logger().info(f"STEER: {self.steer_cmd}")
+
         self.steer_publisher.publish(msg)
 
 

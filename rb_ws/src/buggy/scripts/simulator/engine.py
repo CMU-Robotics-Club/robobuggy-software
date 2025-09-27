@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import threading
 import time
+from collections import deque
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
@@ -11,8 +12,8 @@ import numpy as np
 import utm
 from util.constants import Constants
 
-class Simulator(Node):
 
+class Simulator(Node):
 
     def __init__(self):
         super().__init__('engine')
@@ -48,14 +49,28 @@ class Simulator(Node):
 
         self.velocity = self.get_parameter("velocity").value
         init_pose_name = self.get_parameter("pose").value
+        self.navsat_noise_std = self.declare_parameter("navsat_noise_std", 1e-6).value
 
         self.init_pose = self.starting_poses[init_pose_name]
 
         self.e_utm, self.n_utm, self.heading = self.init_pose
-        self.steering_angle = 0  # degrees
+        self.current_steering = 0.0  # degrees
         self.rate = 100  # Hz
         self.tick_count = 0
-        self.interval = 2 # how frequently to publish
+        self.interval = 2  # how frequently to publish
+
+        # Steering delay configuration (each step = 10ms at 100 Hz)
+        self.declare_parameter("steering_delay", 0)
+        self.steering_delay_steps = self.get_parameter("steering_delay").value
+        self.get_logger().info(
+            f"Steering delay set to {self.steering_delay_steps} steps."
+        )
+
+        # Use deque as a delay line - current steering is at the end, delayed at the front
+        self.steering_buffer = deque(maxlen=max(1, self.steering_delay_steps + 1))
+        # Initialize buffer with zero steering commands
+        for _ in range(self.steering_buffer.maxlen):
+            self.steering_buffer.append(0.0)
 
         self.lock = threading.Lock()
 
@@ -84,7 +99,13 @@ class Simulator(Node):
 
     def update_steering_angle(self, data: Float64):
         with self.lock:
-            self.steering_angle = data.data
+            # add new steering command to buffer
+            self.steering_buffer.append(data.data)
+
+    def apply_delayed_steering(self):
+        """Precondition: lock must be held when calling this function"""
+        # the delayed steering is at the front of the buffer
+        self.current_steering = self.steering_buffer[0]
 
     def update_velocity(self, data: Float64):
         with self.lock:
@@ -100,12 +121,15 @@ class Simulator(Node):
                          0])
 
     def step(self):
+
         with self.lock:
             heading = self.heading
             e_utm = self.e_utm
             n_utm = self.n_utm
             velocity = self.velocity
-            steering_angle = self.steering_angle
+
+            self.apply_delayed_steering()
+            steering_angle = self.current_steering
 
         h = 1/self.rate
         state = np.array([e_utm, n_utm, np.deg2rad(heading), np.deg2rad(steering_angle)])
@@ -142,8 +166,8 @@ class Simulator(Node):
             Constants.UTM_ZONE_LETTER,
         )
 
-        lat_noisy = lat + np.random.normal(0, 1e-6)
-        long_noisy = long + np.random.normal(0, 1e-6)
+        lat_noisy = lat + np.random.normal(0, self.navsat_noise_std)
+        long_noisy = long + np.random.normal(0, self.navsat_noise_std)
 
         nsf_noisy = NavSatFix()
         nsf_noisy.latitude = lat_noisy
@@ -176,7 +200,11 @@ class Simulator(Node):
         if self.tick_count % self.interval == 0:
             self.publish()
         self.tick_count += 1
-        self.get_logger().debug("SIMULATED UTM: ({}, {}), HEADING: {}".format(self.e_utm, self.n_utm, self.heading))
+        self.get_logger().debug(
+            "SIMULATED UTM: ({}, {}), HEADING: {}".format(
+                self.e_utm, self.n_utm, self.heading
+            )
+        )
 
 
 def main(args=None):
@@ -186,12 +214,12 @@ def main(args=None):
         time.sleep(0.01)
         sim.publish()
 
-
     sim.get_logger().info("STARTED PUBLISHING")
     rclpy.spin(sim)
 
     sim.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()

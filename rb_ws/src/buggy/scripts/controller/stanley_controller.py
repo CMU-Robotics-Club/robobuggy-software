@@ -19,10 +19,6 @@ class StanleyController(Controller):
     Referenced from this paper: https://ai.stanford.edu/~gabeh/papers/hoffmann_stanley_control07.pdf
     """
 
-    LOOK_AHEAD_DIST_CONST = 0.05 # s
-    MIN_LOOK_AHEAD_DIST = 0.1 #m
-    MAX_LOOK_AHEAD_DIST = 2.0 #m
-
     CROSS_TRACK_GAIN = 1.3
     K_SOFT = 1.0 # m/s
     K_D_YAW = 0.012 # rad / (rad/s)
@@ -79,16 +75,8 @@ class StanleyController(Controller):
         )
         self.current_traj_index = max(traj_index, self.current_traj_index)
 
-
-        lookahead_dist = np.clip(
-            self.LOOK_AHEAD_DIST_CONST * current_speed,
-            self.MIN_LOOK_AHEAD_DIST,
-            self.MAX_LOOK_AHEAD_DIST)
-
-        traj_dist = trajectory.get_distance_from_index(self.current_traj_index) + lookahead_dist
-
-        ref_heading = trajectory.get_heading_by_index(
-            trajectory.get_index_from_distance(traj_dist))
+        # Use heading at the closest index
+        ref_heading = trajectory.get_heading_by_index(self.current_traj_index)
 
         error_heading = ref_heading - heading
         error_heading = np.arctan2(np.sin(error_heading), np.cos(error_heading)) #Bounds error_heading
@@ -107,12 +95,12 @@ class StanleyController(Controller):
             (y2 - y1) ** 2 + (x2 - x1) ** 2
         )
 
-
         cross_track_component = -np.arctan2(
             StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
         )
 
-        accel_x, accel_y = trajectory.get_acceleration_by_index(trajectory.get_index_from_distance(traj_dist))
+        # Use acceleration at the closest index
+        accel_x, accel_y = trajectory.get_acceleration_by_index(self.current_traj_index)
         # this works because tan(heading) = dydt/dxdt (do the math)
         dxdt, dydt = np.cos(ref_heading), np.sin(ref_heading)
 
@@ -124,7 +112,7 @@ class StanleyController(Controller):
         r_meas = yaw_rate
 
         yaw = float(StanleyController.K_D_YAW * (r_traj - r_meas))
-         #Determine steering_command
+        # Determine steering_command
         steering_cmd = error_heading + cross_track_component
         if self.usingHeadingRateError:
             steering_cmd += yaw
@@ -133,10 +121,10 @@ class StanleyController(Controller):
         self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
         self.debug_yaw_rate_publisher.publish(Float64(data=yaw))
 
-        #Calculate error, where x is in orientation of buggy, y is cross track error
+        # Calculate error, where x is in orientation of buggy, y is cross track error
         current_pose = Pose(current_rospose.position.x, current_rospose.position.y, heading)
         reference_error = current_pose.convert_point_from_global_to_local_frame(closest_position)
-        reference_error -= np.array([StanleyController.WHEELBASE, 0]) #Translae back to back wheel to get accurate error
+        reference_error -= np.array([StanleyController.WHEELBASE, 0]) # Translate back to back wheel to get accurate error
 
         error_pose = ROSPose()
         error_pose.position.x = reference_error[0]
@@ -152,18 +140,8 @@ class StanleyController(Controller):
             self.debug_reference_pos_publisher.publish(reference_navsat)
         except Exception as e:
             self.node.get_logger().warn(
-                "[Stanley] Unable to convert closest track position lat lon; Error: " + str(e)
+                "[Stanley] Unable to convert closest track position lat lon; Error: "
+                + str(e)
             )
 
         return steering_cmd
-
-
-
-
-
-
-
-
-
-
-

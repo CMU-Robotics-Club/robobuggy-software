@@ -1,0 +1,16 @@
+[Unit]
+Description=RoboBuggy ROS2 Service
+After=network.target
+
+[Service]
+Type=oneshot
+User=nand
+WorkingDirectory=/home/nand/robobuggy-software/
+Environment='BAG_DIR=/home/nand/bags/' 'BUGGY=nand'
+ExecStart=/home/nand/start_buggy.sh
+ExecStop=/home/nand/stop_buggy.sh
+RemainAfterExit=yes
+KillMode=none
+
+[Install]
+WantedBy=multi-user.target

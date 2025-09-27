@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_sc.json"
+      traj_name: "buggycourse_pavedline.json"
 
 NAND:
   NAND_sim_single:
@@ -15,7 +15,7 @@ NAND:
       steeringTopic: "input/steering"
       useHeadingRate: true
       controllerName: "controller"
-      traj_name: "buggycourse_nand.json"
+      traj_name: "buggycourse_pavedline.json"
       controller: "stanley"
 
 
@@ -44,7 +44,7 @@ SC:
       steeringTopic: "other/steering"
       useHeadingRate: true
       controllerName: "NAND_controller"
-      traj_name: "buggycourse_nand.json"
+      traj_name: "buggycourse_pavedline.json"
       controller: "stanley"
 
 
