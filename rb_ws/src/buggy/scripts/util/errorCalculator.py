@@ -4,7 +4,6 @@ import rosbag2_py
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 import numpy as np
-import matplotlib.pyplot as plt
 
 def main():
     # Read in bag path from command line
