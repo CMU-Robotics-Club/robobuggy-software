@@ -113,4 +113,4 @@ def ukf_update(x_hat, Sigma, y, R):
     x_hat_next = x_hat + K @ (y - z_hat)
     Sigma_next = Sigma - K @ S @ np.transpose(K)
 
-    return x_hat_next, Sigma_next
+    return x_hat_next, Sigma_next, S

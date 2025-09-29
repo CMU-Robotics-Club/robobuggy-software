@@ -4,7 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Float64MultiArray
 from nav_msgs.msg import Odometry
 
 
@@ -21,6 +21,8 @@ class UKF(Node):
         self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) #state covariance
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
+        self.S = None
+
 
         self.create_subscription(Odometry, "other/stateNoUKF", self.update, 1)
         self.create_subscription(Float64, "other/steering", self.updateSteering, 1)
@@ -39,7 +41,7 @@ class UKF(Node):
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-        self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R)
+        self.x_hat, self.Sigma, self.S = ukf_update(self.x_hat, self.Sigma, y, self.R)
 
     def loop(self):
         if not self.start:
@@ -51,8 +53,13 @@ class UKF(Node):
         newMsg.pose.pose.position.y = self.x_hat[1]
         newMsg.pose.pose.orientation.z = self.x_hat[2]
         newMsg.twist.twist.linear.x = self.x_hat[3]
-        self.nand_publisher.publish(newMsg)
 
+        # y is 2 elements long
+        # S is a 2x2 matrix
+        cov = Float64MultiArray()
+        cov.data = list(self.S)
+        newMsg.pose.covariance = cov
+        self.nand_publisher.publish(newMsg)
 
 
     def accuracy_to_mat(self, accuracy):
