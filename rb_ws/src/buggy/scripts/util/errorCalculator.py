@@ -67,7 +67,7 @@ def main():
 
         if topic == error_topic:
             msg = deserialize_message(data, error_type)
-            if (cur_velocity > 0.1 and in_auton and 
+            if (cur_velocity > 0.1 and in_auton and
                 cur_time_delta > args.start_time):
                 errors.append(abs(msg.position.y))
         elif topic == state_topic:
