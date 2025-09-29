@@ -13,6 +13,7 @@
 
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
+  <depend>std_msgs</depend>
 
 
   <exec_depend>ros2launch</exec_depend>

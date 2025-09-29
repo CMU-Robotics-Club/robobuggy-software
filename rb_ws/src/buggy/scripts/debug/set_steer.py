@@ -2,8 +2,8 @@
 
 import threading
 import rclpy
+from buggy.msg import StampedFloat64Msg
 from rclpy.node import Node
-from std_msgs.msg import Float64
 
 
 class SetSteer(Node):
@@ -17,7 +17,7 @@ class SetSteer(Node):
 
     def __init__(self) -> None:
         super().__init__("set_steer")
-        self.steer_publisher = self.create_publisher(Float64, "input/steering", 10)
+        self.steer_publisher = self.create_publisher(StampedFloat64Msg, "input/steering", 10)
         self.running = True
         self.tty_in = None
         self.tty_out = None
@@ -73,7 +73,7 @@ class SetSteer(Node):
                     continue
 
                 # Publish the steering command
-                msg = Float64()
+                msg = StampedFloat64Msg()
                 msg.data = angle
                 self.steer_publisher.publish(msg)
                 # Write confirmation to terminal instead of using logger to avoid interference
