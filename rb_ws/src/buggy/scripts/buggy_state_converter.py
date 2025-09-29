@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -65,6 +66,16 @@ class BuggyStateConverter(Node):
 
         converted_msg = Odometry()
         converted_msg.header = msg.header
+
+        # Header timestamps/frame_id are overwritten to track control stack latency
+        ns = time.time_ns()
+
+        # "default" firmware timestamp is 0
+        converted_msg.header.frame_id = "0"
+
+        # same as ros2bnyahaj header setup with nand ukf
+        converted_msg.header.stamp.sec = (ns // int(1e9)) & 0xFFFFFFFF
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Convert ECEF Position to UTM Coordinates ----
         ecef_x = msg.pose.pose.position.x

@@ -2,6 +2,7 @@
 import threading
 import time
 import rclpy
+from buggy.msg import StampedFloat64Msg
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
 from std_msgs.msg import Float64
@@ -63,7 +64,7 @@ class Simulator(Node):
         self.timer = self.create_timer(timer_period, self.loop)
 
         self.steering_subscriber = self.create_subscription(
-            Float64, "input/steering", self.update_steering_angle, 1
+            StampedFloat64Msg, "input/steering", self.update_steering_angle, 1
         )
 
         # To read from velocity
@@ -82,7 +83,7 @@ class Simulator(Node):
                 NavSatFix, "self/pose_navsat_noisy", 1
         )
 
-    def update_steering_angle(self, data: Float64):
+    def update_steering_angle(self, data: StampedFloat64Msg):
         with self.lock:
             self.steering_angle = data.data
 

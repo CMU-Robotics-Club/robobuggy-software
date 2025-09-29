@@ -187,7 +187,8 @@ class Comms:
         write_and_checksum(payload)
         self.port.write(checksum.accum.to_bytes(2, 'little'))
 
-    def send_steering(self, angle: float):
+    def send_steering(self, angle: float, fw_timestamp: int):
+        # TODO send fw_timestamp too
         self.send_packet_raw(MSG_TYPE_STEERING, struct.pack('<d', angle))
 
     def send_alarm(self, status: int):

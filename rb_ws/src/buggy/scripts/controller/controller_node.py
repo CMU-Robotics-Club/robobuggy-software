@@ -6,9 +6,9 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float32, Float64, Bool
+from std_msgs.msg import Float32, Bool
 from nav_msgs.msg import Odometry
-from buggy.msg import TrajectoryMsg
+from buggy.msg import TrajectoryMsg, StampedFloat64Msg
 
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
@@ -63,7 +63,7 @@ class Controller(Node):
             "debug/init_safety_check", 1
         )
         self.steer_publisher = self.create_publisher(
-            Float64, self.get_parameter("steeringTopic").value, 1
+            StampedFloat64Msg, self.get_parameter("steeringTopic").value, 1
         )
         self.heading_publisher = self.create_publisher(
             Float32, "debug/heading", 1
@@ -144,10 +144,13 @@ class Controller(Node):
             else:
                 return
 
-        self.heading_publisher.publish(Float32(data=np.rad2deg(self.odom.pose.pose.orientation.z)))
-        steering_angle = self.controller.compute_control(self.odom, self.cur_traj)
+        with self.lock:
+            odom = self.odom
+
+        self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
+        steering_angle = self.controller.compute_control(odom, self.cur_traj)
         steering_angle_deg = np.rad2deg(steering_angle)
-        self.steer_publisher.publish(Float64(data=float(steering_angle_deg.item())))
+        self.steer_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_deg.item())))
 
 
 
