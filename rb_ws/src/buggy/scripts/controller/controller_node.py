@@ -49,7 +49,7 @@ class Controller(Node):
         self.declare_parameter("useHeadingRate", True)
 
         controller_name = self.get_parameter("controller").value
-        print(controller_name.lower)
+        print(controller_name.lower())
         if (controller_name.lower() == "stanley"):
             self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(),
                                                 node=self, usingHeadingRateError=self.get_parameter("useHeadingRate").value,
