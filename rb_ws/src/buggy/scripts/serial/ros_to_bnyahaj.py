@@ -43,7 +43,7 @@ class Translator(Node):
 
         self.steer_angle = 0
         self.steer_fw_timestamp = 0
-        self.steer_sw_timestamp = None
+        self.steer_sw_timestamp = 0
 
         self.alarm = 0
         self.fresh_steer = False
@@ -225,10 +225,8 @@ class Translator(Node):
         if self.fresh_steer:
             with self.lock:
                 self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
-
-                if self.steer_sw_timestamp is not None:
-                    sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
-                    self.control_latency_publisher.publish(Float64(data=sw_dt))
+                sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
+                self.control_latency_publisher.publish(Float64(data=sw_dt))
 
                 self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
                 self.fresh_steer = False
