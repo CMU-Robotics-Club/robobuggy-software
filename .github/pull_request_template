@@ -37,11 +37,12 @@ also be included here. If there are larger changes that need to be made, this sh
 are finished.
 
 If there is an open 2PR from rolls -> main, there must be a task to close it and merge main into this branch.
+
+Edit below tasks as needed.
 -->
-- [ ] Task
-- [ ] Task
-- [ ] Test during mock rolls (if needed)
-- [ ] Close #(CURRENT 2PR HERE) and merge main into this branch (if needed)
+- [ ] Test in sim
+- [ ] Test during mock rolls
+- [ ] Close #(CURRENT 2PR HERE) and merge main into this branch
 
 ### Testing
 <!--
@@ -62,14 +63,20 @@ closed and add them to the sidebar after the PR is created.
 END -- Documentation PR
 
 BEGIN -- 2PR
+<!--
+2PRs are for merging changes from the `rolls` branch into the `main` branch. These should be created after rolls every
+week, and summarize the changes that were made that week. This should be reviewed live during weekly software standup
+meetings to ensure that everything is captured accurately.
+-->
 ### Summary of changes
 <!--
-List PRs that were merged into rolls here.
+Link PRs that were merged into rolls here, and any additional changes that were committed directly to rolls.
 -->
 - #(PR number)
+- Other minor change
 
 ### Rolls Results
 <!--
-Describe what happened and/or outcomes of the rolls. If there were any issues, describe them here.
+Describe what happened and/or outcomes of the rolls. If there was anything that didn't work, also describe them here.
 -->
 END -- 2PR
