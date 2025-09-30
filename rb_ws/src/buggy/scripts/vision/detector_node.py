@@ -2,10 +2,11 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose
+
 # from zed_msgs import Object
 import pyzed.sl as sl
 from ultralytics import YOLO
@@ -45,11 +46,8 @@ class Detector(Node):
         self.observed_NAND_odom_publisher = self.create_publisher(
             Odometry, "vision/other/state", 1
         )
-        self.raw_camera_frame_publisher = self.create_publisher(
-                    Image, "debug/raw_camera_frame", 1
-                )
         self.annotated_camera_frame_publisher = self.create_publisher(
-                    Image, "debug/annotated_camera_frame", 1
+                    CompressedImage, "debug/annotated_camera_frame", 1
                 )
         self.num_detections_publisher = self.create_publisher(
                     Int32, "debug/num_detections", 1
@@ -195,9 +193,6 @@ class Detector(Node):
             )  # what is the [0] indexing into, does this pull out the first detection?
             custom_boxes = self.detections_to_custom_box(detection_boxes, image_net)
 
-            # publish annotated frame
-            annotated_frame_publish = self.bridge.cv2_to_imgmsg(detections[0].plot(), encoding="rgb8")
-
             # pass into 2D to 3D to get approximate depth
             self.cam.ingest_custom_box_objects(custom_boxes)
             self.cam.retrieve_objects(self.objects, self.object_det_params)
@@ -216,10 +211,15 @@ class Detector(Node):
                 NAND_pose.pose.pose.position.y = NAND_utm[1]
                 NAND_pose.pose.pose.position.z = NAND_utm[2]
 
-            # self.raw_camera_frame_publisher.publish(raw_frame_publish)
             self.num_detections_publisher.publish(Int32(data=num_detections))
-            if annotated_frame_publish is not None:  # should always be true
-                self.annotated_camera_frame_publisher.publish(annotated_frame_publish)
+
+            # Compress Image
+            annotated_compressed_frame_msg = CompressedImage()
+            annotated_compressed_frame_msg.format = "jpeg"
+            image_np = detections[0].plot() if detections else raw_image_np
+            annotated_compressed_frame_msg.data = np.array(cv2.imencode('.jpg', image_np)[1]).tobytes()
+            self.annotated_camera_frame_publisher.publish(annotated_compressed_frame_msg)
+            
             if NAND_pose is not None:
                 self.observed_NAND_odom_publisher.publish(NAND_pose)
 
