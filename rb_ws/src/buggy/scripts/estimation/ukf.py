@@ -108,6 +108,12 @@ def ukf_update(x_hat, Sigma, y, R):
         Cxz += W[k] * (sigma[:, k] - x_hat)[:, np.newaxis] @ np.transpose((z[:, k] - z_hat)[:, np.newaxis])
 
     S += R
+
+    add_term = 1e-9
+    while (abs(np.linalg.det(S)) <= 1e-9):
+        S += np.eye(Ny) * add_term
+        add_term *= 2
+
     K = Cxz @ np.linalg.inv(S)
 
     x_hat_next = x_hat + K @ (y - z_hat)
