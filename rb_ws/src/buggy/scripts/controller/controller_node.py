@@ -107,17 +107,19 @@ class Controller(Node):
         Returns:
            A boolean describing the status of the buggy (safe for auton or unsafe for auton)
         """
-        if (self.odom == None):
+        with self.lock:
+            odom = self.odom
+
+        if odom is None:
             self.get_logger().warn("WARNING: no available position estimate")
             return False
 
-        elif (self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 > 1):
-            self.get_logger().warn("checking position estimate certainty | current covariance: " + str(self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 ))
+        elif odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 > 1:
+            self.get_logger().warn("checking position estimate certainty | current covariance: " + str(odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 ))
             return False
 
-        #Originally under a lock, doesn't seem necessary?
-        current_heading = self.odom.pose.pose.orientation.z % (2 * np.pi)
-        closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))) % (2 * np.pi)
+        current_heading = odom.pose.pose.orientation.z % (2 * np.pi)
+        closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(odom.pose.pose.position.x, odom.pose.pose.position.y))) % (2 * np.pi)
 
         self.get_logger().info("current heading: " + str(np.rad2deg(current_heading)))
         msg = Float32()
@@ -127,7 +129,7 @@ class Controller(Node):
         # https://math.stackexchange.com/questions/1649841/signed-angle-difference-without-conditions
         delta = (current_heading - closest_heading + 3 * np.pi) % (2 * np.pi) - np.pi
 
-        if (abs(delta) >= np.pi/2):
+        if abs(delta) >= np.pi/2:
             self.get_logger().error("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
             return False
 
