@@ -154,14 +154,7 @@ class Translator(Node):
                 odom.twist.twist.linear.x = np.mean(self.nandCircArray)
                 odom.twist.twist.angular.z = packet.heading_rate
 
-                ns = time.time_ns()
-
                 odom.header.frame_id = str(packet.timestamp)
-
-                # Avoid y2k38 (robobuggy WILL exist in 2038)
-                # this actually throws an error if we try to assign something outside a 32 bit range
-                odom.header.stamp.sec = (ns // int(1e9)) & 0xFFFFFFFF
-                odom.header.stamp.nanosec = ns % int(1e9)
 
                 self.nand_ukf_odom_publisher.publish(odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')

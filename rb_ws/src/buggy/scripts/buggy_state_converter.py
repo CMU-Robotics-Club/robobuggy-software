@@ -120,6 +120,16 @@ class BuggyStateConverter(Node):
         converted_msg = Odometry()
         converted_msg.header = msg.header
 
+        # Add software timestamp to header to track control stack latency
+        ns = time.time_ns()
+
+        # frame_id is already set in ros2bnyahaj to firmware timestamp
+
+        # Avoid y2k38 (robobuggy WILL exist in 2038)
+        # this actually throws an error if we try to assign something outside a 32 bit range
+        converted_msg.header.stamp.sec = (ns // int(1e9)) & 0xFFFFFFFF
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
+
         # ---- 1. Directly use UTM Coordinates ----
         converted_msg.pose.pose.position.x = msg.pose.pose.position.x   # UTM Easting
         converted_msg.pose.pose.position.y = msg.pose.pose.position.y   # UTM Northing
