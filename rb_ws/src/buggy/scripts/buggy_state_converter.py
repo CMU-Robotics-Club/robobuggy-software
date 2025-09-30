@@ -127,7 +127,7 @@ class BuggyStateConverter(Node):
 
         # Avoid y2k38 (robobuggy WILL exist in 2038)
         # this actually throws an error if we try to assign something outside a 32 bit range
-        converted_msg.header.stamp.sec = (ns // int(1e9)) & 0xFFFFFFFF
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
         converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Directly use UTM Coordinates ----
