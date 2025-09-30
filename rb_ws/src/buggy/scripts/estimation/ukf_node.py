@@ -4,7 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float64, Float64MultiArray
+from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
 
 
@@ -56,9 +56,9 @@ class UKF(Node):
 
         # y is 2 elements long
         # S is a 2x2 matrix
-        cov = Float64MultiArray()
-        cov.data = list(self.S)
-        newMsg.pose.covariance = cov
+        # must be of length 36 to match Odometry specs
+        data = np.pad(self.S.flatten(), (0, 32)).tolist()
+        newMsg.pose.covariance = data
         self.nand_publisher.publish(newMsg)
 
 
