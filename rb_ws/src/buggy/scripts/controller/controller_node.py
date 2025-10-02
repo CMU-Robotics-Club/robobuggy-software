@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import threading
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -73,8 +72,6 @@ class Controller(Node):
         self.odom_subscriber = self.create_subscription(Odometry, self.get_parameter("stateTopic").value, self.odom_listener, 1)
         self.traj_subscriber = self.create_subscription(TrajectoryMsg, self.get_parameter("trajectoryTopic").value, self.traj_listener, 1)
 
-        self.lock = threading.Lock()
-
         self.odom = None
         self.passed_init = False
 
@@ -86,15 +83,13 @@ class Controller(Node):
         This is the subscriber that updates the buggies state for navigation
         msg, should be a CLEAN state as defined in the wiki
         '''
-        with self.lock:
-            self.odom = msg
+        self.odom = msg
 
     def traj_listener(self, msg):
         '''
         This is the subscriber that updates the buggies trajectory for navigation
         '''
-        with self.lock:
-            self.cur_traj, self.controller.current_traj_index = Trajectory.unpack(msg)
+        self.cur_traj, self.controller.current_traj_index = Trajectory.unpack(msg)
 
     def init_check(self):
         """
@@ -107,8 +102,7 @@ class Controller(Node):
         Returns:
            A boolean describing the status of the buggy (safe for auton or unsafe for auton)
         """
-        with self.lock:
-            odom = self.odom
+        odom = self.odom
 
         if odom is None:
             self.get_logger().warn("WARNING: no available position estimate")
@@ -146,8 +140,7 @@ class Controller(Node):
             else:
                 return
 
-        with self.lock:
-            odom = self.odom
+        odom = self.odom
 
         self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
         steering_angle = self.controller.compute_control(odom, self.cur_traj)

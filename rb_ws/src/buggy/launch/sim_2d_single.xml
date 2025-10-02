@@ -3,7 +3,7 @@
     <arg name="config_file" default="src/buggy/config/sim_single_sc.yaml"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
-    
+
     <node pkg="buggy" exec="engine.py" name="SC_sim_single" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
@@ -11,6 +11,20 @@
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
+
+    <!-- # This is the new velocity-updated code (commented out for now in case it broke something)
+
+    <node pkg="buggy" exec="hello_world" name="hello_world" namespace="SC" />
+    <node pkg="buggy" exec="sim_single" name="SC_sim_single" namespace="SC">
+        <param name="velocity" value="12"/>
+        <param name="pose" value="Hill1_SC"/>
+    </node>
+    <node pkg="buggy" exec="sim_single" name="NAND_sim_single" namespace="NAND">
+        <param name="velocity" value="12"/>
+        <param name="pose" value="Hill1_NAND"/>
+    </node> -->
+
+
 
     <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
 </launch>

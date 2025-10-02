@@ -1,0 +1,21 @@
+<launch>
+
+    <arg name="config_file" default="src/buggy/config/sim_single_velocity.yaml"/>
+
+    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
+    
+    <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" output = "screen" namespace="SC"/>
+    <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="engine.py" name="SC_sim_single" output = "screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="velocity_updater.py" name="SC_velocity_updater" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+
+</launch>

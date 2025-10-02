@@ -66,6 +66,7 @@ This is so you can edit our codebase locally, and sync your changes with the res
 ### Open Docker
 - Use `$ cd` to change the working directory to be `robobuggy-software`
 - (If you are on Windows, you need to run the rest of this guide within a linux shell. Type `$ bash` in the terminal to open the Ubuntu shell.)
+- Update `./setup_dev.sh` to be executable by running `chmod +x ./setup_dev.sh`
 - Then do `./setup_dev.sh` in the `robobuggy-software` directory to launch the docker container.
 - Then you can execute and enter the docker container using `$ docker exec -it robobuggy-software-main-1 bash`.
 - When you are done, click Ctrl+C and use Ctrl+D or `$ exit` to exit.
