@@ -178,6 +178,7 @@ class Detector(Node):
 
         # Loop for the code that operates every 10ms
         # get a new frame from camera and get objects in that frame
+        # NOTE: This is a blocking function: see https://www.stereolabs.com/developers/release/3.0/migration-guide
         if self.cam.grab(self.runtime_params) == sl.ERROR_CODE.SUCCESS:
             self.cam.retrieve_image(self.raw_image, sl.VIEW.LEFT)
             image_net = self.raw_image.get_data()
