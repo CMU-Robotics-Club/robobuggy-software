@@ -27,6 +27,7 @@ class UKF(Node):
         self.create_subscription(Odometry, "other/stateNoUKF", self.update, 1)
         self.create_subscription(Float64, "other/steering", self.updateSteering, 1)
         self.nand_publisher = self.create_publisher(Odometry, "other/state", 10)
+        self.singular_flag_publisher = self.create_publisher(Float64, "debug/NANDSingularFlag", 10)
 
         self.steering = 0
 
@@ -41,25 +42,32 @@ class UKF(Node):
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-        self.x_hat, self.Sigma, self.S = ukf_update(self.x_hat, self.Sigma, y, self.R)
+        self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
 
     def loop(self):
         if not self.start:
             return
         self.x_hat, self.Sigma = ukf_predict(self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
 
-        newMsg = Odometry()
-        newMsg.pose.pose.position.x = self.x_hat[0]
-        newMsg.pose.pose.position.y = self.x_hat[1]
-        newMsg.pose.pose.orientation.z = self.x_hat[2]
-        newMsg.twist.twist.linear.x = self.x_hat[3]
+        nand_ukf_msg = Odometry()
+        nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
+        nand_ukf_msg.pose.pose.position.y = self.x_hat[1]
+        nand_ukf_msg.pose.pose.orientation.z = self.x_hat[2]
+        nand_ukf_msg.twist.twist.linear.x = self.x_hat[3]
 
         # y is 2 elements long
         # S is a 2x2 matrix
-        # must be of length 36 to match Odometry specs
-        data = np.pad(self.S.flatten(), (0, 32)).tolist()
-        newMsg.pose.covariance = data
-        self.nand_publisher.publish(newMsg)
+        # must be of length 36 to match Odometry specs\
+        S = self.debug["S"]
+        singular_flag = self.debug["singular_flag"]
+        data = np.pad(S.flatten(), (0, 32)).tolist()
+        nand_ukf_msg.pose.covariance = data
+
+        singular_flag_msg = Float64()
+        singular_flag_msg.data = singular_flag
+        self.nand_publisher.publish(nand_ukf_msg)
+        self.singular_flag_publisher.publish(singular_flag_msg)
+
 
 
     def accuracy_to_mat(self, accuracy):
