@@ -33,3 +33,7 @@ SC:
     ros__parameters:
       # traj_name: "buggycourse_safe.json"
       curb_name: "buggycourse_curb.json"
+
+  SC_vision:
+    ros__parameters:
+      model_name: "01-15-25_no_pushbar_yolov11n.pt"

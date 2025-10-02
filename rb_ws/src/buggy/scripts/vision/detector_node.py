@@ -6,6 +6,8 @@ from sensor_msgs.msg import Image, CompressedImage
 from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose
+import os
+
 
 # from zed_msgs import Object
 import pyzed.sl as sl
@@ -24,19 +26,20 @@ class Detector(Node):
         super().__init__('detector')
         self.get_logger().info("INITIALIZED.")
 
-        self.SC_pose = (
-            Pose()
-        )  # will hold msg.pose.pose of SC/self/state; 0,0,0 if not received yet
+        self.SC_pose = None
 
+        # Parameters
+        self.delcare_parameter("model_name", "01-15-25_no_pushbar_yolov11n.pt")
+        model_name = self.get_parameter("model_name").value
+        self.model = YOLO(f"{os.environ["RBROOT"]}/src/buggy/scripts/vision/{model_name}")
+
+        # Camera Init
         self.cam = sl.Camera()
         self.initialize_camera()
         self.raw_image = sl.Mat()
         self.objects = sl.Objects()
-        self.model = YOLO("src/buggy/scripts/vision/01-15-25_no_pushbar_yolov11n.pt")
-
         self.runtime_params = sl.RuntimeParameters()
         self.object_det_params = sl.ObjectDetectionRuntimeParameters()
-
         self.bridge = CvBridge()
 
         # Subscribers
@@ -132,7 +135,6 @@ class Detector(Node):
         return output
 
     def objects_to_utm(self):
-
         buggy_position = self.SC_pose.position
         buggy_orientation = self.SC_pose.orientation
 
@@ -194,7 +196,7 @@ class Detector(Node):
 
             num_detections = len(self.objects.object_list)
             NAND_pose = None
-            if num_detections > 0:
+            if num_detections > 0 and self.SC_pose is not None:
                 utms = self.objects_to_utm()
                 # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
                 NAND_pose = Odometry()
