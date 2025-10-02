@@ -96,7 +96,7 @@ def ukf_update(x_hat, Sigma, y, R):
     # 1e-9 is a hardcoded threshhold, based on the fact that values around 1e-5 work
     add_term = 1e-9
     while (abs(np.linalg.det(Sigma)) <= 1e-9):
-        Sigma += np.eye(Ny) * add_term
+        Sigma += np.eye(Sigma.shape[0]) * add_term
         add_term *= 2
         singular_flag = True
 

@@ -4,7 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Bool
 from nav_msgs.msg import Odometry
 
 
@@ -27,7 +27,7 @@ class UKF(Node):
         self.create_subscription(Odometry, "other/stateNoUKF", self.update, 1)
         self.create_subscription(Float64, "other/steering", self.updateSteering, 1)
         self.nand_publisher = self.create_publisher(Odometry, "other/state", 10)
-        self.singular_flag_publisher = self.create_publisher(Float64, "debug/NANDSingularFlag", 10)
+        self.singular_flag_publisher = self.create_publisher(Bool, "debug/NANDSingularFlag", 10)
 
         self.steering = 0
 
@@ -63,7 +63,7 @@ class UKF(Node):
         data = np.pad(S.flatten(), (0, 32)).tolist()
         nand_ukf_msg.pose.covariance = data
 
-        singular_flag_msg = Float64()
+        singular_flag_msg = Bool()
         singular_flag_msg.data = singular_flag
         self.nand_publisher.publish(nand_ukf_msg)
         self.singular_flag_publisher.publish(singular_flag_msg)
