@@ -7,7 +7,7 @@ from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose
 import os
-
+from datetime import datetime
 
 # from zed_msgs import Object
 import pyzed.sl as sl
@@ -32,6 +32,11 @@ class Detector(Node):
         self.delcare_parameter("model_name", "01-15-25_no_pushbar_yolov11n.pt")
         model_name = self.get_parameter("model_name").value
         self.model = YOLO(f"{os.environ["RBROOT"]}/src/buggy/scripts/vision/{model_name}")
+
+        # Determine path to SVO
+        formatted_date = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        self.svo_file_path = f"{os.environ["RBROOT"]}/svo_files/{formatted_date}.svo"
+
 
         # Camera Init
         self.cam = sl.Camera()
@@ -72,6 +77,7 @@ class Detector(Node):
         init_params = sl.InitParameters(svo_real_time_mode=True)
         positional_tracking_params = sl.PositionalTrackingParameters()
         obj_params = sl.ObjectDetectionParameters()
+        recording_params = sl.RecordingParameters(self.svo_file_path, sl.SVO_COMPRESSION_MODE.H264)
 
         init_params.coordinate_units = sl.UNIT.METER
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
@@ -93,6 +99,7 @@ class Detector(Node):
 
         self.cam.enable_positional_tracking(positional_tracking_params)
         self.cam.enable_object_detection(obj_params)
+        err = self.cam.enable_recording(recording_params)
 
     def detections_to_custom_box(self, detections, im0):
         def xywh2abcd(xywh, im_shape):
@@ -181,7 +188,7 @@ class Detector(Node):
             # raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
 
             # pass frame into YOLO model (get 2D)
-            detections = self.model.predict(raw_image_np, save=False)
+            detections = self.model.predict(raw_image_np, save=False, verbose=False)
             detection_boxes = (
                 detections[0].cpu().numpy().boxes
             )  # what is the [0] indexing into, does this pull out the first detection?
