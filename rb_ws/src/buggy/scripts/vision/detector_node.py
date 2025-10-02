@@ -185,13 +185,12 @@ class Detector(Node):
 
             # get raw frame
             raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_BGRA2RGB)
-            # raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
 
             # pass frame into YOLO model (get 2D)
             detections = self.model.predict(raw_image_np, save=False, verbose=False)
             detection_boxes = (
                 detections[0].cpu().numpy().boxes
-            )  # what is the [0] indexing into, does this pull out the first detection?
+            )
             custom_boxes = self.detections_to_custom_box(detection_boxes, image_net)
 
             # pass into 2D to 3D to get approximate depth
