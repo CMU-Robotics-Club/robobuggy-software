@@ -29,9 +29,9 @@ class Detector(Node):
         self.SC_pose = None
 
         # Parameters
-        self.delcare_parameter("model_name", "01-15-25_no_pushbar_yolov11n.pt")
+        self.declare_parameter("model_name", "01-15-25_no_pushbar_yolov11n.pt")
         model_name = self.get_parameter("model_name").value
-        self.model = YOLO(f"{os.environ['RBROOT']}/src/buggy/scripts/vision/{model_name}")
+        self.model = YOLO(f"{os.environ['RBROOT']}/src/buggy/models/{model_name}")
 
         # Determine path to SVO
         formatted_date = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
