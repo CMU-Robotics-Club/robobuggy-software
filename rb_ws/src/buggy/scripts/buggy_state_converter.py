@@ -73,7 +73,6 @@ class BuggyStateConverter(Node):
         # Arbitrary frame_id firmware timestamp for INS sourced data
         converted_msg.header.frame_id = "0"
 
-        # same as ros2bnyahaj header setup with nand ukf
         converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
         converted_msg.header.stamp.nanosec = ns % int(1e9)
 
