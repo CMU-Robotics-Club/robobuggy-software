@@ -70,11 +70,11 @@ class BuggyStateConverter(Node):
         # Header timestamps/frame_id are overwritten to track control stack latency
         ns = time.time_ns()
 
-        # "default" firmware timestamp is 0
+        # Arbitrary frame_id firmware timestamp for INS sourced data
         converted_msg.header.frame_id = "0"
 
         # same as ros2bnyahaj header setup with nand ukf
-        converted_msg.header.stamp.sec = (ns // int(1e9)) & 0xFFFFFFFF
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
         converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Convert ECEF Position to UTM Coordinates ----
