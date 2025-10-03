@@ -100,11 +100,11 @@ def ukf_update(x_hat, Sigma, y, R):
         add_term *= 2
         singular_flag = True
 
-    sigma, W = generate_sigma_points(x_hat, Sigma)
+    sigma_points, W = generate_sigma_points(x_hat, Sigma)
     z = np.zeros((Ny, 2 * Nx + 1))
 
     for k in range(2 * Nx + 1):
-        z[:, k] = measurement(sigma[:, k])
+        z[:, k] = measurement(sigma_points[:, k])
 
     z_hat = np.zeros((Ny))
     S = np.zeros((Ny, Ny))
@@ -115,11 +115,9 @@ def ukf_update(x_hat, Sigma, y, R):
 
     for k in range(2 * Nx + 1):
         S += W[k] * (z[:, k] - z_hat)[:, np.newaxis] @ np.transpose((z[:, k] - z_hat)[:, np.newaxis])
-        Cxz += W[k] * (sigma[:, k] - x_hat)[:, np.newaxis] @ np.transpose((z[:, k] - z_hat)[:, np.newaxis])
+        Cxz += W[k] * (sigma_points[:, k] - x_hat)[:, np.newaxis] @ np.transpose((z[:, k] - z_hat)[:, np.newaxis])
 
     S += R
-
-
     K = Cxz @ np.linalg.inv(S)
 
     x_hat_next = x_hat + K @ (y - z_hat)
