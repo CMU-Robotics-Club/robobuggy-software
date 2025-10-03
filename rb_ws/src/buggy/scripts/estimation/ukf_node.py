@@ -40,7 +40,7 @@ class UKF(Node):
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-        self.x_hat, self.Sigma, debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
+        self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
 
     def loop(self):
         if not self.start:
