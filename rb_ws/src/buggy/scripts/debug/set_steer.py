@@ -17,7 +17,7 @@ class SetSteer(Node):
 
     def __init__(self) -> None:
         super().__init__("set_steer")
-        self.steer_publisher = self.create_publisher(StampedFloat64Msg, "input/steering", 10)
+        self.steer_publisher = self.create_publisher(StampedFloat64Msg, "input/steering", 1)
         self.running = True
         self.tty_in = None
         self.tty_out = None
