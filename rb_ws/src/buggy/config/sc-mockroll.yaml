@@ -31,3 +31,7 @@ SC:
   SC_path_planner:
     ros__parameters:
       curb_name: ''
+
+  SC_vision:
+    ros__parameters:
+      model_name: "01-15-25_no_pushbar_yolov11n.pt"

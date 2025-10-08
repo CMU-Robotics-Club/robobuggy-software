@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import os
-import threading
 import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float32, Float64, Bool
+from std_msgs.msg import Float32, Bool
 from nav_msgs.msg import Odometry
-from buggy.msg import TrajectoryMsg
+from buggy.msg import TrajectoryMsg, StampedFloat64Msg
 
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
@@ -49,7 +48,7 @@ class Controller(Node):
         self.declare_parameter("useHeadingRate", True)
 
         controller_name = self.get_parameter("controller").value
-        print(controller_name.lower)
+        print(controller_name.lower())
         if (controller_name.lower() == "stanley"):
             self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(),
                                                 node=self, usingHeadingRateError=self.get_parameter("useHeadingRate").value,
@@ -63,7 +62,7 @@ class Controller(Node):
             "debug/init_safety_check", 1
         )
         self.steer_publisher = self.create_publisher(
-            Float64, self.get_parameter("steeringTopic").value, 1
+            StampedFloat64Msg, self.get_parameter("steeringTopic").value, 1
         )
         self.heading_publisher = self.create_publisher(
             Float32, "debug/heading", 1
@@ -72,8 +71,6 @@ class Controller(Node):
         # Subscribers
         self.odom_subscriber = self.create_subscription(Odometry, self.get_parameter("stateTopic").value, self.odom_listener, 1)
         self.traj_subscriber = self.create_subscription(TrajectoryMsg, self.get_parameter("trajectoryTopic").value, self.traj_listener, 1)
-
-        self.lock = threading.Lock()
 
         self.odom = None
         self.passed_init = False
@@ -86,15 +83,13 @@ class Controller(Node):
         This is the subscriber that updates the buggies state for navigation
         msg, should be a CLEAN state as defined in the wiki
         '''
-        with self.lock:
-            self.odom = msg
+        self.odom = msg
 
     def traj_listener(self, msg):
         '''
         This is the subscriber that updates the buggies trajectory for navigation
         '''
-        with self.lock:
-            self.cur_traj, self.controller.current_traj_index = Trajectory.unpack(msg)
+        self.cur_traj, self.controller.current_traj_index = Trajectory.unpack(msg)
 
     def init_check(self):
         """
@@ -107,17 +102,18 @@ class Controller(Node):
         Returns:
            A boolean describing the status of the buggy (safe for auton or unsafe for auton)
         """
-        if (self.odom == None):
+        odom = self.odom
+
+        if odom is None:
             self.get_logger().warn("WARNING: no available position estimate")
             return False
 
-        elif (self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 > 1):
-            self.get_logger().warn("checking position estimate certainty | current covariance: " + str(self.odom.pose.covariance[0] ** 2 + self.odom.pose.covariance[7] ** 2 ))
+        elif odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 > 1:
+            self.get_logger().warn("checking position estimate certainty | current covariance: " + str(odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 ))
             return False
 
-        #Originally under a lock, doesn't seem necessary?
-        current_heading = self.odom.pose.pose.orientation.z % (2 * np.pi)
-        closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(self.odom.pose.pose.position.x, self.odom.pose.pose.position.y))) % (2 * np.pi)
+        current_heading = odom.pose.pose.orientation.z % (2 * np.pi)
+        closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(odom.pose.pose.position.x, odom.pose.pose.position.y))) % (2 * np.pi)
 
         self.get_logger().info("current heading: " + str(np.rad2deg(current_heading)))
         msg = Float32()
@@ -127,7 +123,7 @@ class Controller(Node):
         # https://math.stackexchange.com/questions/1649841/signed-angle-difference-without-conditions
         delta = (current_heading - closest_heading + 3 * np.pi) % (2 * np.pi) - np.pi
 
-        if (abs(delta) >= np.pi/2):
+        if abs(delta) >= np.pi/2:
             self.get_logger().error("WARNING: INCORRECT HEADING! restart stack. Current heading [-180, 180]: " + str(np.rad2deg(current_heading)))
             return False
 
@@ -144,10 +140,12 @@ class Controller(Node):
             else:
                 return
 
-        self.heading_publisher.publish(Float32(data=np.rad2deg(self.odom.pose.pose.orientation.z)))
-        steering_angle = self.controller.compute_control(self.odom, self.cur_traj)
+        odom = self.odom
+
+        self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
+        steering_angle = self.controller.compute_control(odom, self.cur_traj)
         steering_angle_deg = np.rad2deg(steering_angle)
-        self.steer_publisher.publish(Float64(data=float(steering_angle_deg.item())))
+        self.steer_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_deg.item())))
 
 
 
