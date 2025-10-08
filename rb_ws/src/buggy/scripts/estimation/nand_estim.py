@@ -9,9 +9,55 @@ from nav_msgs.msg import Odometry
 from buggy.msg import StampedFloat64Msg
 
 
-from ukf import *
+from ukf_utils import *
 
-class UKF(Node):
+"""
+Variable Legend:
+x: State Vector, Shape (N,)
+Sigma: State Covariance, Shape (N, N)
+Q: Process Covariance, Shape (N, N)
+^ timestep size dependent
+
+u: Control Vector: (steering), shape (1,)
+
+y: Measurement Vector, Shape (M, )
+R: Sensor Covariances Shape: (M, M) 
+
+x_hat: estimation of state
+v: velocity
+l: length
+theta: heading
+delta: steering
+delta_0: steering offset
+
+_dot suggests a single order derivative
+"""
+
+class NAND_Estim(Node):
+
+    # Kinematic bicyle over back wheel
+    @classmethod
+    def dynamics(cls, x, u, params):
+        l = params[0]
+        _, _, theta, v = x
+        delta = u[0]
+        x_dot = np.array(
+            [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta) / l, 0.0]
+        )
+        return x_dot
+    
+
+    # Approximately integrate dynamics over a timestep dt to get a discrete update function
+    @classmethod
+    def rk4_dynamics(cls, x_curr, u_curr, params, dt):
+        k1 = cls.dynamics(x_curr, u_curr, params)
+        k2 = cls.dynamics(x_curr + k1 * dt / 2, u_curr, params)
+        k3 = cls.dynamics(x_curr + k2 * dt / 2, u_curr, params)
+        k4 = cls.dynamics(x_curr + k3 * dt, u_curr, params)
+
+        x_next = x_curr + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
+        return x_next
+
     def __init__(self):
         super().__init__("NAND_state_estimator")
         self.get_logger().info('Initialized')
@@ -23,19 +69,20 @@ class UKF(Node):
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
-        self.create_subscription(Odometry, "other/stateNoUKF", self.update, 1)
-        self.create_subscription(StampedFloat64Msg, "other/steering", self.updateSteering, 1)
+        self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
+        self.create_subscription(StampedFloat64Msg, "other/steering", self.update_steering, 1)
         self.nand_publisher = self.create_publisher(Odometry, "other/state", 1)
         self.singular_flag_publisher = self.create_publisher(Bool, "debug/NANDSingularFlag", 1)
 
         self.steering = 0
 
         self.timer = self.create_timer(0.01, self.loop)
+    
 
-    def updateSteering(self, msg):
+    def update_steering(self, msg):
         self.steering = np.deg2rad(msg.data)
 
-    def update(self, msg):
+    def update_measurement(self, msg):
         if not self.start:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
@@ -46,7 +93,7 @@ class UKF(Node):
     def loop(self):
         if not self.start:
             return
-        self.x_hat, self.Sigma = ukf_predict(self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
+        self.x_hat, self.Sigma = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
 
         nand_ukf_msg = Odometry()
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
@@ -68,7 +115,6 @@ class UKF(Node):
         self.singular_flag_publisher.publish(singular_flag_msg)
 
 
-
     def accuracy_to_mat(self, accuracy):
         accuracy /= 1000.0
         sigma = (accuracy / (0.848867684498)) * (accuracy / (0.848867684498))
@@ -78,7 +124,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     # Create the BuggyStateConverter node and spin it
-    ukf = UKF()
+    ukf = NAND_Estim()
     rclpy.spin(ukf)
 
     # Shutdown when done

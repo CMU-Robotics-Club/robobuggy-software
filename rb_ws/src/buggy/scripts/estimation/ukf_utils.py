@@ -7,27 +7,6 @@ import scipy.linalg
 # Q = diagm([1e-4; 1e-4; 1e-2; 1e-2; 2.5e-1]) # Process covariances (m^2/s, m^2/s, rad^2/s, rad^2/s, (m/s)^2/s)
 #                               # ^ the process covariances are timestep size dependent
 
-# f, Kinematic bicycle
-def dynamics(x, u, params):
-    l = params[0]
-    _, _, theta, v = x
-    delta = u[0]
-    x_dot = np.array(
-        [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta) / l, 0.0]
-    )
-    return x_dot
-
-
-# Approximately integrate dynamics over a timestep dt to get a discrete update function
-def rk4(x_curr, u_curr, params, dt):
-    k1 = dynamics(x_curr, u_curr, params)
-    k2 = dynamics(x_curr + k1 * dt / 2, u_curr, params)
-    k3 = dynamics(x_curr + k2 * dt / 2, u_curr, params)
-    k4 = dynamics(x_curr + k3 * dt, u_curr, params)
-
-    x_next = x_curr + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
-    return x_next
-
 
 # Given a mean and covariance in N-dimensional space, generate 2N+1 weighted points
 # with the given weighted mean and weighted covariance
@@ -60,12 +39,12 @@ def measurement(x):
 
 # Given a state estimate and covariance, apply nonlinear dynamics over dt to sigma points
 # and calculate a new state estimate and covariance
-def ukf_predict(x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
+def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
     Nx = len(x_hat_curr)
     sigma, W = generate_sigma_points(x_hat_curr, Sigma_curr)
 
     for k in range(2 * Nx + 1):
-        sigma[:, k] = rk4(sigma[:, k], u_curr, params, dt)
+        sigma[:, k] = dynamics(sigma[:, k], u_curr, params, dt)
 
     x_hat_next = np.zeros((Nx,))
     Sigma_next = np.zeros((Nx, Nx))
@@ -91,7 +70,6 @@ def ukf_predict(x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
 def ukf_update(x_hat, Sigma, y, R):
     Nx = len(x_hat)
     Ny = len(y)
-
     singular_flag = False
     # 1e-9 is a hardcoded threshhold, based on the fact that values around 1e-5 work
     add_term = 1e-9
@@ -101,6 +79,7 @@ def ukf_update(x_hat, Sigma, y, R):
         singular_flag = True
 
     sigma_points, W = generate_sigma_points(x_hat, Sigma)
+
     z = np.zeros((Ny, 2 * Nx + 1))
 
     for k in range(2 * Nx + 1):
