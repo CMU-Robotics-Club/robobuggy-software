@@ -45,7 +45,7 @@ This is so you can edit our codebase locally, and sync your changes with the res
 - Foxglove is used to visualize both the simulator and the actual buggy's movements.
 - First, you need to import the layout definition into Foxglove. On the top bar, click Layout, then "Import from file".
 - ![image](https://github.com/CMU-Robotics-Club/RoboBuggy2/assets/116482510/2aa04083-46b3-42a5-bcc1-99cf7ccdb3d2)
-- Go to repository and choose the file [telematics layout](telematics_layout.json)
+- Go to repository and choose the file [telematics layout](sc_telematics_layout.json) for the correct buggy
 - To visualize the simulator, launch the simulator and then launch Foxglove and select "Open Connection" on startup.
 - Use this address `ws://localhost:8765` for Foxglove Websocket
 - Open Foxglove, choose the third option "start link".
