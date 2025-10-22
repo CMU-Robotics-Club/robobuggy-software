@@ -10,6 +10,7 @@ from buggy.msg import StampedFloat64Msg
 
 
 from ukf_utils import *
+import time
 
 """
 Variable Legend:
@@ -25,7 +26,7 @@ R: Sensor Covariances Shape: (M, M)
 
 x_hat: estimation of state
 v: velocity
-l: length
+l: length of buggy
 theta: heading
 delta: steering
 delta_0: steering offset
@@ -34,7 +35,7 @@ _dot suggests a single order derivative
 """
 
 class Offset_Estim(Node):
-
+    # STATE: northing, easting, heading, velocity, steer_offset
     # Kinematic bicyle over back wheel
     @classmethod
     def dynamics(cls, x, u, params):
@@ -42,7 +43,7 @@ class Offset_Estim(Node):
         _, _, theta, v, delta_0 = x
         delta = u[0]
         x_dot = np.array(
-            [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta) / l, 0.0, 0.0]
+            [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta + delta_0) / l, 0.0, 0.0]
         )
         return x_dot
     
@@ -59,24 +60,25 @@ class Offset_Estim(Node):
         return x_next
 
     def __init__(self):
-        super().__init__("NAND_state_estimator")
+        super().__init__("Offset_state_estimator")
         self.get_logger().info('Initialized')
 
         self.start = False
 
         self.x_hat = None
-        self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.69]) #state covariance
-        self.R = self.accuracy_to_mat(50)
-        self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1, 2e-1])
+        self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) #state covariance #TODO: x, y var may be too low, heading may be too high, 
+        self.R = self.accuracy_to_mat(50) # TODO: From NAND, devise SC sensor covariance
+        self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1, 1e-6])
 
-        self.create_subscription(Odometry, "self/state", self.update_measurement, 1)
+        self.create_subscription(Odometry, "/SC/self/state", self.update_measurement, 1) # change to gps subscriber
         self.create_subscription(StampedFloat64Msg, "input/steering", self.updateSteering, 1)
-        self.offset_publisher = self.create_publisher(Odometry, "self/steer_offset", 10)
-        self.singular_flag_publisher = self.create_publisher(Bool, "debug/NANDSingularFlag", 10)
+        self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 10)
 
         self.steering = 0
 
         self.timer = self.create_timer(0.01, self.loop)
+
+        self.last_time = None
     
 
     def updateSteering(self, msg):
@@ -84,17 +86,22 @@ class Offset_Estim(Node):
 
     def update_measurement(self, msg):
         if not self.start:
+            self.get_logger().info("STARTED")
             self.start = True
             velocity = np.linalg.norm([msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z])
-            self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.orientation.z, velocity , 0])
+            self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
 
     def loop(self):
+        # self.get_logger().info("about to PUBLISHED")
         if not self.start:
             return
-        self.x_hat, self.Sigma = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
+        
+        time_delta = 0.01 if not self.last_time else time.time() - self.last_time
+        self.x_hat, self.Sigma = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [1.3])
+        self.last_time = time.time()
 
         nand_ukf_msg = Odometry()
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
@@ -112,8 +119,7 @@ class Offset_Estim(Node):
 
         singular_flag_msg = Bool()
         singular_flag_msg.data = singular_flag
-        self.nand_publisher.publish(nand_ukf_msg)
-        self.singular_flag_publisher.publish(singular_flag_msg)
+        self.offset_publisher.publish(Float64(data=self.x_hat[4] * 180 / np.pi))
 
 
     def accuracy_to_mat(self, accuracy):

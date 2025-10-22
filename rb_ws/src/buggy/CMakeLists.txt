@@ -39,12 +39,9 @@ install(PROGRAMS
   scripts/telemetry/telematics.py
   scripts/debug/debug_steer.py
   scripts/debug/set_steer.py
-<<<<<<< Updated upstream
-  scripts/estimation/ukf_node.py
-  scripts/vision/detector_node.py
-=======
   scripts/estimation/nand_estim.py
->>>>>>> Stashed changes
+  scripts/estimation/offset_estim.py
+  scripts/vision/detector_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
