@@ -50,7 +50,7 @@ class Simulator(Node):
 
         self.velocity = self.get_parameter("velocity").value
         init_pose_name = self.get_parameter("pose").value
-        self.navsat_noise_std = self.declare_parameter("navsat_noise_std", 1e-6).value
+        self.step_noise_std = self.declare_parameter("step_noise_std", 1e-6).value
 
         self.init_pose = self.starting_poses[init_pose_name]
 
@@ -140,6 +140,8 @@ class Simulator(Node):
         k4 = self.dynamics(state + h/2 * k3, velocity)
 
         final_state = state + h/6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        final_state[0] += np.random.normal(0, self.step_noise_std)
+        final_state[1] += np.random.normal(0, self.step_noise_std)
 
         e_utm_new, n_utm_new, heading_new, _ = final_state
         heading_new = np.rad2deg(heading_new)
@@ -167,12 +169,9 @@ class Simulator(Node):
             Constants.UTM_ZONE_LETTER,
         )
 
-        lat_noisy = lat + np.random.normal(0, self.navsat_noise_std)
-        long_noisy = long + np.random.normal(0, self.navsat_noise_std)
-
         nsf_noisy = NavSatFix()
-        nsf_noisy.latitude = lat_noisy
-        nsf_noisy.longitude = long_noisy
+        nsf_noisy.latitude = lat
+        nsf_noisy.longitude = long
         nsf_noisy.header.stamp = time_stamp
         self.navsatfix_noisy_publisher.publish(nsf_noisy)
 
@@ -180,7 +179,7 @@ class Simulator(Node):
         odom.header.stamp = time_stamp
 
         odom_pose = Pose()
-        east, north, _, _ = utm.from_latlon(lat_noisy, long_noisy)
+        east, north, _, _ = utm.from_latlon(lat, long)
         odom_pose.position.x = float(east)
         odom_pose.position.y = float(north)
         odom_pose.position.z = float(260)
