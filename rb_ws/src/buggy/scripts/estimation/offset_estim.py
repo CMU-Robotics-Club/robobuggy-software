@@ -4,7 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float64, Bool
+from std_msgs.msg import Float64, Bool, Float64MultiArray
 from nav_msgs.msg import Odometry
 from buggy.msg import StampedFloat64Msg
 
@@ -72,7 +72,8 @@ class Offset_Estim(Node):
 
         self.create_subscription(Odometry, "/SC/self/state", self.update_measurement, 1) # change to gps subscriber
         self.create_subscription(StampedFloat64Msg, "input/steering", self.updateSteering, 1)
-        self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 10)
+        self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 1)
+        self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_state", 1)
 
         self.steering = 0
 
@@ -119,6 +120,13 @@ class Offset_Estim(Node):
 
         singular_flag_msg = Bool()
         singular_flag_msg.data = singular_flag
+        
+
+        state_msg = Float64MultiArray()
+        state_msg.data = self.x_hat.tolist()
+        state_msg.data[2] *= (180 / np.pi) # heading
+        state_msg.data[4] *= (180 / np.pi) # steer offset
+        self.state_publisher.publish(state_msg)
         self.offset_publisher.publish(Float64(data=self.x_hat[4] * 180 / np.pi))
 
 
