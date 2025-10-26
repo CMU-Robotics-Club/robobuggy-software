@@ -184,7 +184,7 @@ class Detector(Node):
             image_net = self.raw_image.get_data()
 
             # get raw frame
-            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_BGRA2RGB)
+            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
 
             # pass frame into YOLO model (get 2D)
             detections = self.model.predict(raw_image_np, save=False, verbose=False)
