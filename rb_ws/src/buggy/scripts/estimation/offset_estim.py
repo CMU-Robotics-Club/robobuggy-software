@@ -68,11 +68,11 @@ class Offset_Estim(Node):
         self.x_hat = None
         self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) #state covariance #TODO: x, y var may be too low, heading may be too high, 
         self.R = self.accuracy_to_mat(50) # TODO: From NAND, devise SC sensor covariance
-        self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1, 1e-6])
+        self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6])
 
         self.create_subscription(Odometry, "/SC/self/state", self.update_measurement, 1) # change to gps subscriber
         self.create_subscription(StampedFloat64Msg, "input/steering", self.updateSteering, 1)
-        self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 1)
+        self.offset_publisher = self.create_publisher(Float64, "self/true_steer", 1)
         self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_state", 1)
 
         self.steering = 0
@@ -127,7 +127,7 @@ class Offset_Estim(Node):
         state_msg.data[2] *= (180 / np.pi) # heading
         state_msg.data[4] *= (180 / np.pi) # steer offset
         self.state_publisher.publish(state_msg)
-        self.offset_publisher.publish(Float64(data=self.x_hat[4] * 180 / np.pi))
+        self.offset_publisher.publish(Float64(data=((self.x_hat[4] * 180 / np.pi) + np.rad2deg(self.steering))))
 
 
     def accuracy_to_mat(self, accuracy):
