@@ -4,7 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float64, Bool
+from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry
 from buggy.msg import StampedFloat64Msg
 
