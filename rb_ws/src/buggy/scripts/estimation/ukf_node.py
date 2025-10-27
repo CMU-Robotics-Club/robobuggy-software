@@ -24,7 +24,7 @@ class UKF(Node):
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
         self.create_subscription(Odometry, "other/stateNoUKF", self.update, 1)
-        self.create_subscription(StampedFloat64, "other/steering", self.updateSteering, 1)
+        self.create_subscription(StampedFloat64Msg, "other/steering", self.updateSteering, 1)
         self.nand_publisher = self.create_publisher(Odometry, "other/state", 10)
         self.singular_flag_publisher = self.create_publisher(Bool, "debug/NANDSingularFlag", 10)
 
