@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -66,6 +67,15 @@ class BuggyStateConverter(Node):
         converted_msg = Odometry()
         converted_msg.header = msg.header
 
+        # Header timestamps/frame_id are overwritten to track control stack latency
+        ns = time.time_ns()
+
+        # Arbitrary frame_id firmware timestamp for INS sourced data
+        converted_msg.header.frame_id = "0"
+
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
+
         # ---- 1. Convert ECEF Position to UTM Coordinates ----
         ecef_x = msg.pose.pose.position.x
         ecef_y = msg.pose.pose.position.y
@@ -108,6 +118,16 @@ class BuggyStateConverter(Node):
 
         converted_msg = Odometry()
         converted_msg.header = msg.header
+
+        # Add software timestamp to header to track control stack latency
+        ns = time.time_ns()
+
+        # frame_id is already set in ros2bnyahaj to firmware timestamp
+
+        # Avoid y2k38 (robobuggy WILL exist in 2038)
+        # this actually throws an error if we try to assign something outside a 32 bit range
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Directly use UTM Coordinates ----
         converted_msg.pose.pose.position.x = msg.pose.pose.position.x   # UTM Easting

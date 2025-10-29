@@ -125,6 +125,7 @@ class Radio:
     nand_north_gps: float
     gps_seqnum: int
     nand_gps_fix: int # uint8
+    nand_auton: bool
 
 @dataclass
 class SCDebugInfo:
@@ -187,8 +188,8 @@ class Comms:
         write_and_checksum(payload)
         self.port.write(checksum.accum.to_bytes(2, 'little'))
 
-    def send_steering(self, angle: float):
-        self.send_packet_raw(MSG_TYPE_STEERING, struct.pack('<d', angle))
+    def send_steering(self, angle: float, fw_timestamp: int):
+        self.send_packet_raw(MSG_TYPE_STEERING, struct.pack('<dIxxxx', angle, fw_timestamp))
 
     def send_alarm(self, status: int):
         self.send_packet_raw(MSG_TYPE_ALARM, struct.pack('<B', status))
@@ -277,7 +278,7 @@ class Comms:
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            data = struct.unpack('<ddIBxxx', payload)
+            data = struct.unpack('<ddIB?xx', payload)
             return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:

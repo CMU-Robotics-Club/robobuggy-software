@@ -10,6 +10,8 @@ from std_msgs.msg import Float64, Int8
 from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
+
+
 class Translator(Node):
     """
     Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
@@ -40,12 +42,15 @@ class Translator(Node):
         self.get_logger().info("BUGGY" + self.self_name)
 
         self.steer_angle = 0
+        self.steer_fw_timestamp = 0
+        self.steer_sw_timestamp = 0
+
         self.alarm = 0
         self.fresh_steer = False
         self.lock = Lock()
 
         self.create_subscription(
-            Float64, "input/steering", self.set_steering, 1
+            StampedFloat64Msg, "input/steering", self.set_steering, 1
         )
         self.create_subscription(Int8, "input/sanity_warning", self.set_alarm, 1)
 
@@ -79,6 +84,9 @@ class Translator(Node):
         self.teensycycle_time_publisher = self.create_publisher(
             Float64, "debug/teensycycle_time", 1
         )
+        self.control_latency_publisher = self.create_publisher(
+            Float64, "debug/control_latency", 1
+        )
 
     def set_alarm(self, msg):
         """
@@ -88,13 +96,24 @@ class Translator(Node):
             self.get_logger().debug(f"Reading alarm of {msg.data}")
             self.alarm = msg.data
 
-    def set_steering(self, msg):
+    def set_steering(self, msg: StampedFloat64Msg):
         """
-        Steering Angle Updater, updates the steering angle locally if updated on ros stopic
+        Steering Angle Updater, updates the steering angle and software/firmware timestamps locally
+        if updated on rostopic
         """
         self.get_logger().debug(f"Read steering angle of: {msg.data}")
+
+        try:
+            fw_stamp = int(msg.header.frame_id)
+        except ValueError:
+            fw_stamp = 0
+
+        sw_stamp = msg.header.stamp.sec * int(1e9) + msg.header.stamp.nanosec
+
         with self.lock:
             self.steer_angle = msg.data
+            self.steer_fw_timestamp = fw_stamp
+            self.steer_sw_timestamp = sw_stamp
             self.fresh_steer = True
 
     def loop(self):
@@ -134,6 +153,8 @@ class Translator(Node):
                 self.nandIndex = (self.nandIndex + 1) % self.CIRCLEN
                 odom.twist.twist.linear.x = np.mean(self.nandCircArray)
                 odom.twist.twist.angular.z = packet.heading_rate
+
+                odom.header.frame_id = str(packet.timestamp)
 
                 self.nand_ukf_odom_publisher.publish(odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
@@ -196,7 +217,10 @@ class Translator(Node):
 
         if self.fresh_steer:
             with self.lock:
-                self.comms.send_steering(self.steer_angle)
+                self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
+                sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
+                self.control_latency_publisher.publish(Float64(data=sw_dt))
+
                 self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
                 self.fresh_steer = False
 
