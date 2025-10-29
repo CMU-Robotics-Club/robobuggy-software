@@ -61,19 +61,20 @@ class Offset_Estim(Node):
 
     def __init__(self):
         super().__init__("Offset_state_estimator")
-        self.get_logger().info('Initialized')
+        self.get_logger().info('INITIALIZED')
 
         self.start = False
 
-        self.x_hat = None
-        self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) #state covariance #TODO: x, y var may be too low, heading may be too high, 
+        self.x_hat : np.ndarray = None
+        self.Sigma : np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) #state covariance
         self.R = self.accuracy_to_mat(50) # TODO: From NAND, devise SC sensor covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6])
 
-        self.create_subscription(Odometry, "/SC/self/state", self.update_measurement, 1) # change to gps subscriber
+        self.create_subscription(Odometry, "/SC/self/state", self.update_measurement, 1) # Using EKF output for simplicity
         self.create_subscription(StampedFloat64Msg, "input/steering", self.updateSteering, 1)
-        self.offset_publisher = self.create_publisher(Float64, "self/true_steer", 1)
-        self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_state", 1)
+        self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 1)
+        self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/state", 1)
+        self.state_covar_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/covar", 1)
 
         self.steering = 0
 
@@ -89,7 +90,6 @@ class Offset_Estim(Node):
         if not self.start:
             self.get_logger().info("STARTED")
             self.start = True
-            velocity = np.linalg.norm([msg.twist.twist.linear.x, msg.twist.twist.linear.y, msg.twist.twist.linear.z])
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
@@ -103,29 +103,19 @@ class Offset_Estim(Node):
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
         self.x_hat, self.Sigma = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [1.3])
         self.last_time = time.time()
-
-        nand_ukf_msg = Odometry()
-        nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
-        nand_ukf_msg.pose.pose.position.y = self.x_hat[1]
-        nand_ukf_msg.pose.pose.orientation.z = self.x_hat[2]
-        nand_ukf_msg.twist.twist.linear.x = self.x_hat[3]
-
-        # y is 2 elements long
-        # S is a 2x2 matrix
-        # must be of length 36 to match Odometry specs\
-        S = self.debug["S"]
-        singular_flag = self.debug["singular_flag"]
-        data = np.pad(S.flatten(), (0, 32)).tolist()
-        nand_ukf_msg.pose.covariance = data
-
-        singular_flag_msg = Bool()
-        singular_flag_msg.data = singular_flag
         
+
+        self.offset_publisher.publish(Float64(data=self.x_hat[64]))
 
         state_msg = Float64MultiArray()
         state_msg.data = self.x_hat.tolist()
         state_msg.data[2] *= (180 / np.pi) # heading
         state_msg.data[4] *= (180 / np.pi) # steer offset
+
+        covar_msg = Float64MultiArray()
+        covar_msg.data = self.Sigma.flatten().tolist()
+        self.state_covar_publisher.publish(covar_msg)
+
         self.state_publisher.publish(state_msg)
         self.offset_publisher.publish(Float64(data=((self.x_hat[4] * 180 / np.pi) + np.rad2deg(self.steering))))
 
