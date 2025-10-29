@@ -40,7 +40,7 @@ class StanleyController(Controller):
 
         self.usingHeadingRateError = usingHeadingRateError
 
-    def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
+    def compute_control(self, state_msg : Odometry, trajectory : Trajectory, steer_offset : float):
         """Computes the steering angle determined by Stanley controller.
         Does this by looking at the crosstrack error + heading error
 
@@ -113,9 +113,10 @@ class StanleyController(Controller):
 
         yaw = float(StanleyController.K_D_YAW * (r_traj - r_meas))
         # Determine steering_command
-        steering_cmd = error_heading + cross_track_component
+        steering_cmd = error_heading + cross_track_component 
         if self.usingHeadingRateError:
             steering_cmd += yaw
+        steering_cmd -= steer_offset
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
         self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
