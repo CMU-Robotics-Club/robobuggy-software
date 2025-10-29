@@ -134,7 +134,7 @@ echo "Restart with 'sudo systemctl restart buggy'"
 echo "Stop it with 'sudo systemctl stop buggy'"
 echo -e "${NC}"
 
-alias startbag='ros2 bag record -a -s mcap -o $(date +%Y-%m-%d_%H:%M:%S)'
+alias startbag='ros2 bag record -a -d 5 -s mcap -o $(date +%Y-%m-%d_%H:%M:%S)'
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
