@@ -15,7 +15,7 @@ class Translator(Node):
     Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
     Performs reading (from Bnya Serial) and writing (from Ros Topics) on different python threads, so
     be careful of multithreading synchronizaiton issues.
-    """ #Byna Serial is bridge between Software and Firmware so it's translating for both sides 
+    """ #Byna Serial is bridge between Software and Firmware so it's translating for both sides
 
     def __init__(self):
         """
@@ -30,7 +30,7 @@ class Translator(Node):
         #Parameters
         self.declare_parameter("teensy_name", "ttyUSB0") #Default is SC's port
         teensy_name = self.get_parameter("teensy_name").value
-        
+
         #assigning the communication message to a specific buggy
         self.comms = Comms("/dev/" + teensy_name)
         namespace = self.get_namespace()
@@ -210,7 +210,7 @@ class Translator(Node):
                 self.get_logger().debug(f'SC Sensors Timestamp: {packet.timestamp}')
 
 
-            elif isinstance(packet, RoundtripTimestamp): #If the packet is from the roundtriptimestamp then it sends a 64 float point to the 
+            elif isinstance(packet, RoundtripTimestamp): #If the packet is from the roundtriptimestamp then it sends a 64 float point
                 rtt = (time.time_ns() - packet.returned_time) * 1e-9
                 self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, RTT: {rtt}')
                 self.roundtrip_time_publisher.publish(Float64(data=rtt))
