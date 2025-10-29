@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_pavedline.json"
+      traj_name: "buggycourse_sc.json"
 
 SC:
   bnyahaj:
@@ -17,7 +17,7 @@ SC:
       controllerName: "controller"
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
-  
+
   SC_NAND_controller:
     ros__parameters:
       dist: 0.0
