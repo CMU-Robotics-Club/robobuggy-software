@@ -31,13 +31,14 @@ class Simulator(Node):
             "TRACK_EAST_END": (589953, 4477465, 90),
             "TRACK_RESNICK": (589906, 4477437, -20),
             "GARAGE": (589846, 4477580, 180),
-            "PASS_PT": (589491, 4477003, -160),
             "FREW_ST": (589646, 4477359, -20),
             "FREW_ST_PASS": (589644, 4477368, -20),
             "RACELINE_PASS": (589468.02, 4476993.07, -160),
         }
 
         self.declare_parameter('velocity', 12)
+        self.declare_parameter('steering_offset', 0)
+
         if (self.get_namespace() == "/SC"):
             self.buggy_name = "SC"
             self.declare_parameter('pose', "Hill1_SC")
@@ -49,8 +50,9 @@ class Simulator(Node):
             self.wheelbase = Constants.WHEELBASE_NAND
 
         self.velocity = self.get_parameter("velocity").value
+        self.steering_offset = self.get_parameter("steering_offset").value
         init_pose_name = self.get_parameter("pose").value
-        self.step_noise_std = self.declare_parameter("step_noise_std", 1e-6).value
+        self.step_noise_std = self.declare_parameter("step_noise_std", 1e-2).value
 
         self.init_pose = self.starting_poses[init_pose_name]
 
@@ -114,12 +116,12 @@ class Simulator(Node):
 
     def dynamics(self, state, v):
         l = self.wheelbase
-        _, _, theta, delta = state
+        _, _, theta, delta, delta0 = state
 
         return np.array([v * np.cos(theta),
                          v * np.sin(theta),
-                         v / l * np.tan(delta),
-                         0])
+                         v / l * np.tan(delta + delta0),
+                         0, 0])
 
     def step(self):
 
@@ -128,12 +130,13 @@ class Simulator(Node):
             e_utm = self.e_utm
             n_utm = self.n_utm
             velocity = self.velocity
+            steering_offset = self.steering_offset
 
             self.apply_delayed_steering()
             steering_angle = self.current_steering
 
         h = 1/self.rate
-        state = np.array([e_utm, n_utm, np.deg2rad(heading), np.deg2rad(steering_angle)])
+        state = np.array([e_utm, n_utm, np.deg2rad(heading), np.deg2rad(steering_angle), np.deg2rad(self.steering_offset)])
         k1 = self.dynamics(state, velocity)
         k2 = self.dynamics(state + h/2 * k1, velocity)
         k3 = self.dynamics(state + h/2 * k2, velocity)
@@ -143,7 +146,7 @@ class Simulator(Node):
         final_state[0] += np.random.normal(0, self.step_noise_std)
         final_state[1] += np.random.normal(0, self.step_noise_std)
 
-        e_utm_new, n_utm_new, heading_new, _ = final_state
+        e_utm_new, n_utm_new, heading_new, _, _ = final_state
         heading_new = np.rad2deg(heading_new)
 
         with self.lock:
