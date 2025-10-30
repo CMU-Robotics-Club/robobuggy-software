@@ -67,7 +67,7 @@ class Offset_Estim(Node):
 
         self.x_hat : np.ndarray = None
         self.Sigma : np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) #state covariance
-        self.R = self.accuracy_to_mat(50) # TODO: From NAND, devise SC sensor covariance
+        self.R = np.diag([1e-4, 1e-4]) # TODO: From NAND, devise SC sensor covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6])
 
         self.create_subscription(Odometry, "/SC/self/state", self.update_measurement, 1) # Using EKF output for simplicity
@@ -91,6 +91,7 @@ class Offset_Estim(Node):
             self.get_logger().info("STARTED")
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0, 0])
+            self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
@@ -105,7 +106,7 @@ class Offset_Estim(Node):
         self.last_time = time.time()
         
 
-        self.offset_publisher.publish(Float64(data=self.x_hat[64]))
+        self.offset_publisher.publish(Float64(data=self.x_hat[4]))
 
         state_msg = Float64MultiArray()
         state_msg.data = self.x_hat.tolist()
