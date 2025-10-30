@@ -24,7 +24,7 @@
         <param name="pose" value="Hill1_NAND"/>
     </node> -->
 
-    <node pkg="buggy" exec="offset_estim.py" name="SC_offset" namespace="SC"/>
+    <node pkg="buggy" exec="offset_estimator.py" name="SC_offset" namespace="SC"/>
 
     <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
 </launch>
