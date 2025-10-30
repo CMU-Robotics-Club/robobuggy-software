@@ -11,5 +11,5 @@
         <param from="$(var config_file)"/>
     </node>
 
-    <node name="estimator" pkg="buggy" exec="ukf_node.py" output="screen" namespace="SC"/>
+    <node name="NAND_estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
 </launch>
