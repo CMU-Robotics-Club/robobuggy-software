@@ -12,7 +12,7 @@
       "diffMethod": "custom",
       "diffTopicPath": "",
       "showFullMessageForDiff": false,
-      "topicPath": "/NAND/controller/debug/stanley_error.position.y",
+      "topicPath": "/NAND/controller/debug/heading",
       "fontSize": 12
     },
     "StateTransitions!xm9dog": {
