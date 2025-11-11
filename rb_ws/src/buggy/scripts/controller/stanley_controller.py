@@ -47,9 +47,11 @@ class StanleyController(Controller):
         Args:
             state_msg: ros Odometry message
             trajectory (Trajectory): reference trajectory
+            steer_offset (float): steering offset estimate, in radians
 
         Returns:
-            float (desired steering angle)
+            steering_cmd (float): desired steering angle, in radians
+            steering_cmd_raw (float): desired steering angle before offset adjustment, in radians
         """
         if self.current_traj_index >= trajectory.get_num_points() - 1:
             self.node.get_logger().error("[Stanley]: Ran out of path to follow!")
@@ -116,6 +118,7 @@ class StanleyController(Controller):
         steering_cmd = error_heading + cross_track_component 
         if self.usingHeadingRateError:
             steering_cmd += yaw
+        steering_cmd_raw = steering_cmd
         steering_cmd -= steer_offset
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
@@ -145,4 +148,4 @@ class StanleyController(Controller):
                 + str(e)
             )
 
-        return steering_cmd
+        return steering_cmd, steering_cmd_raw

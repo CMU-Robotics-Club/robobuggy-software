@@ -19,6 +19,7 @@ def generate_sigma_points(x_hat, Sigma):
 
     sigma[:, 0] = x_hat
 
+    # TODO: terms in A could be complex due to non-SPD Sigma, could handle that by symmetrizing R and using Choleskty
     for j in range(Nx):
         sigma[:, 1 + j] = x_hat + np.sqrt(Nx / (1 - W[0])) * A[:, j]
 
