@@ -36,24 +36,45 @@ class Simulator(Node):
             "RACELINE_PASS": (589468.02, 4476993.07, -160),
         }
 
-        self.declare_parameter('velocity', 12)
-        self.declare_parameter('steering_offset', 0)
-
         if (self.get_namespace() == "/SC"):
             self.buggy_name = "SC"
             self.declare_parameter('pose', "Hill1_SC")
             self.wheelbase = Constants.WHEELBASE_SC
 
-        if (self.get_namespace() == "/NAND"):
+        elif (self.get_namespace() == "/NAND"):
             self.buggy_name = "NAND"
             self.declare_parameter('pose', "Hill1_NAND")
             self.wheelbase = Constants.WHEELBASE_NAND
 
+        self.declare_parameter('velocity', 12.0)
         self.velocity = self.get_parameter("velocity").value
-        self.steering_offset = self.get_parameter("steering_offset").value
-        init_pose_name = self.get_parameter("pose").value
-        self.step_noise_std = self.declare_parameter("step_noise_std", 1e-2).value
 
+        self.declare_parameter('steering_offset', 0.0)
+        self.declare_parameter('steering_offset_func', 'constant')
+        self.declare_parameter('steering_offset_period', 10.0)
+
+        self.steering_offset = self.get_parameter("steering_offset").value
+        self.steering_offset_func = str(self.get_parameter("steering_offset_func").value).lower()
+        self.steering_offset_period = self.get_parameter("steering_offset_period").value
+
+        if self.steering_offset_func not in {"constant", "sin"}:
+            self.get_logger().warning(
+                f"Unknown steering_offset_func '{self.steering_offset_func}'. Falling back to 'constant'."
+            )
+            self.steering_offset_func = "constant"
+
+        if self.steering_offset_func == "sin" and self.steering_offset_period <= 0:
+            self.get_logger().warning(
+                "steering_offset_period must be positive. Using default of 10s."
+            )
+            self.steering_offset_period = 10.0
+
+        self.sim_time = 0.0
+
+        self.declare_parameter("step_noise_std", 1e-2)
+        self.step_noise_std = self.get_parameter("step_noise_std").value
+
+        init_pose_name = self.get_parameter("pose").value
         self.init_pose = self.starting_poses[init_pose_name]
 
         self.e_utm, self.n_utm, self.heading = self.init_pose
@@ -110,6 +131,12 @@ class Simulator(Node):
         # the delayed steering is at the front of the buffer
         self.current_steering = self.steering_buffer[0]
 
+    def steering_offset_value(self, sim_time: float) -> float:
+        if self.steering_offset_func == "sin":
+            phase = 2 * np.pi * sim_time / self.steering_offset_period
+            return self.steering_offset * np.sin(phase)
+        return self.steering_offset
+
     def update_velocity(self, data: Float64):
         with self.lock:
             self.velocity = data.data
@@ -130,13 +157,20 @@ class Simulator(Node):
             e_utm = self.e_utm
             n_utm = self.n_utm
             velocity = self.velocity
-            steering_offset = self.steering_offset
 
             self.apply_delayed_steering()
             steering_angle = self.current_steering
+            sim_time = self.sim_time
+            steering_offset_deg = self.steering_offset_value(sim_time)
 
         h = 1/self.rate
-        state = np.array([e_utm, n_utm, np.deg2rad(heading), np.deg2rad(steering_angle), np.deg2rad(self.steering_offset)])
+        state = np.array([
+            e_utm,
+            n_utm,
+            np.deg2rad(heading),
+            np.deg2rad(steering_angle),
+            np.deg2rad(steering_offset_deg),
+        ])
         k1 = self.dynamics(state, velocity)
         k2 = self.dynamics(state + h/2 * k1, velocity)
         k3 = self.dynamics(state + h/2 * k2, velocity)
@@ -153,6 +187,7 @@ class Simulator(Node):
             self.e_utm = e_utm_new
             self.n_utm = n_utm_new
             self.heading = heading_new
+            self.sim_time = sim_time + h
 
     def publish(self):
         p = Pose()

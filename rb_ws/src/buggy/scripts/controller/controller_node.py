@@ -38,6 +38,7 @@ class Controller(Node):
 
         self.declare_parameter("stateTopic", "self/state")
         self.declare_parameter("steeringTopic", "input/steering")
+        self.declare_parameter("rawSteeringTopic", "input/steering_raw")
         self.declare_parameter("trajectoryTopic", "self/cur_traj")
         self.declare_parameter("offsetTopic", "self/steer_offset")
 
@@ -64,6 +65,9 @@ class Controller(Node):
         )
         self.steer_publisher = self.create_publisher(
             StampedFloat64Msg, self.get_parameter("steeringTopic").value, 1
+        )
+        self.steer_raw_publisher = self.create_publisher(
+            StampedFloat64Msg, self.get_parameter("rawSteeringTopic").value, 1
         )
         self.heading_publisher = self.create_publisher(
             Float32, "debug/heading", 1
@@ -98,7 +102,7 @@ class Controller(Node):
         '''
         This is the subscriber that updates the steer offset, from offset_estimator.py
         '''
-        self.steer_offset = msg.data
+        self.steer_offset = np.deg2rad(msg.data)
 
     def init_check(self):
         """
@@ -152,9 +156,11 @@ class Controller(Node):
         odom = self.odom
 
         self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
-        steering_angle = self.controller.compute_control(odom, self.cur_traj, self.steer_offset)
+        steering_angle, steering_angle_raw = self.controller.compute_control(odom, self.cur_traj, self.steer_offset)
         steering_angle_deg = np.rad2deg(steering_angle)
+        steering_angle_raw_deg = np.rad2deg(steering_angle_raw)
         self.steer_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_deg.item())))
+        self.steer_raw_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_raw_deg.item())))
 
 
 
