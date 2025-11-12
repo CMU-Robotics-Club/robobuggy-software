@@ -120,6 +120,9 @@ class Simulator(Node):
         self.navsatfix_noisy_publisher = self.create_publisher(
                 NavSatFix, "self/pose_navsat_noisy", 1
         )
+        self.offset_publisher = self.create_publisher(
+                Float64, "sim/true_offset", 1
+        )
 
     def update_steering_angle(self, data: StampedFloat64Msg):
         with self.lock:
@@ -162,6 +165,7 @@ class Simulator(Node):
             steering_angle = self.current_steering
             sim_time = self.sim_time
             steering_offset_deg = self.steering_offset_value(sim_time)
+            self.offset_publisher.publish(Float64(data=steering_offset_deg))
 
         h = 1/self.rate
         state = np.array([
