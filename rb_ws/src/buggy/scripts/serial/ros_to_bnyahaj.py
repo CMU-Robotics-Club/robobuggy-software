@@ -192,7 +192,7 @@ class Translator(Node):
                 rospacket.true_steering_angle = packet.true_steering_angle
                 rospacket.operator_ready = packet.operator_ready
                 rospacket.brake_status = packet.brake_status
-                rospacket.use_auton_steer = packet.auton_steer
+                rospacket.auton_steer = packet.auton_steer
                 rospacket.tx12_state = packet.tx12_state
                 rospacket.stepper_alarm = packet.stepper_alarm
                 rospacket.rc_uplink_qual = packet.rc_uplink_quality
