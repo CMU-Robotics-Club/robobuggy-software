@@ -79,7 +79,7 @@ def main():
             cur_time_delta = time - init_time
         elif topic == auton_topic:
             msg = deserialize_message(data, auton_type)
-            in_auton = msg.use_auton_steer
+            in_auton = msg.auton_steer
 
     errors = np.array(errors)
     print(errors.shape)

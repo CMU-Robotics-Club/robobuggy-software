@@ -10,7 +10,7 @@ from nav_msgs.msg import Odometry
 from buggy.msg import StampedFloat64Msg, SCDebugInfoMsg, NANDDebugInfoMsg
 
 
-from ukf_utils import *
+from estimation import ukf_utils
 from util.constants import Constants
 
 """
@@ -98,7 +98,7 @@ class OffsetEstim(Node):
     def reset_filter(self):
         """Reset the UKF so next measurement initializes state."""
         self.start = False
-        self.x_hat: np.ndarray = None
+        self.x_hat: np.ndarray = np.zeros((5,))  # state vector
         self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) # state covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6])  # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
@@ -115,7 +115,7 @@ class OffsetEstim(Node):
             self.enabled = auton
             if not auton:
                 self.get_logger().info("Auton initially disabled: estimator paused")
-                self._reset_filter()
+                self.reset_filter()
             return
 
         # Rising edge False -> True
@@ -160,7 +160,7 @@ class OffsetEstim(Node):
         # measurement vector
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         # perform measurement update
-        self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
+        self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_update(self.x_hat, self.Sigma, y, self.R)
 
         self.x_hat[2] = self.wrap_angle(self.x_hat[2])  # wrap heading (TODO: do we need this?)
         self.x_hat[4] = self.wrap_angle(self.x_hat[4])  # wrap steer offset
@@ -177,7 +177,7 @@ class OffsetEstim(Node):
             return
         
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
-        self.x_hat, self.Sigma = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [self.wheelbase])
+        self.x_hat, self.Sigma = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [self.wheelbase])
         self.x_hat[2] = self.wrap_angle(self.x_hat[2])  # wrap heading (TODO: do we need this?)
         self.x_hat[4] = self.wrap_angle(self.x_hat[4])  # wrap steer offset
         self.last_time = time.time()
