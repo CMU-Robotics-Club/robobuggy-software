@@ -118,7 +118,7 @@ class StanleyController(Controller):
         steering_cmd = error_heading + cross_track_component 
         if self.usingHeadingRateError:
             steering_cmd += yaw
-        steering_cmd_raw = steering_cmd
+        steering_cmd_raw = np.copy(steering_cmd)
         steering_cmd -= steer_offset
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
 
