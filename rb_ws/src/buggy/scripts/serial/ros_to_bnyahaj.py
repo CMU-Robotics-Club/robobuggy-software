@@ -33,7 +33,6 @@ class Translator(Node):
         self.declare_parameter("teensy_name", "ttyUSB0") #Default is SC's port
         teensy_name = self.get_parameter("teensy_name").value
 
-        self.declare_parameter("steeringTopic", "input/steering")
 
         self.comms = Comms("/dev/" + teensy_name)
         namespace = self.get_namespace()
@@ -52,7 +51,7 @@ class Translator(Node):
         self.lock = Lock()
 
         self.create_subscription(
-            StampedFloat64Msg, self.get_parameter("steeringTopic").value, self.set_steering, 1
+            StampedFloat64Msg, "input/steering", self.set_steering, 1
         )
         self.create_subscription(Int8, "input/sanity_warning", self.set_alarm, 1)
 
