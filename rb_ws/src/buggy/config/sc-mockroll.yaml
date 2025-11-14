@@ -25,6 +25,7 @@ SC:
       steeringTopic: 'other/steering'
       useHeadingRate: false
       controllerName: 'NAND_controller'
+      useSteerOffset: false
       traj_name: 'cut_square.json'
       controller: 'stanley'
 

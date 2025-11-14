@@ -14,4 +14,4 @@ SC:
       dist: 0.0
       traj_name: 'buggycourse_safe.json'
       controller: 'stanley'
-      useOffset: false 
+      useSteerOffset: false 

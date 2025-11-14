@@ -15,5 +15,6 @@ NAND:
       steeringTopic: "input/steering"
       useHeadingRate: true
       controllerName: "controller"
+      useSteerOffset: false
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
