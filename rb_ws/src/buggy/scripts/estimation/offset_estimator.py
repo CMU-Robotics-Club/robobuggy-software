@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import numpy as np
 import time
+import numpy as np
 
 import rclpy
 from rclpy.node import Node
@@ -23,7 +23,7 @@ Q: Process Covariance, Shape (N, N)
 u: Control Vector: (steering), shape (1,)
 
 y: Measurement Vector, Shape (M, )
-R: Sensor Covariances, Shape: (M, M) 
+R: Sensor Covariances, Shape: (M, M)
 
 x_hat: estimation of state
 v: velocity
@@ -50,7 +50,7 @@ class OffsetEstim(Node):
             [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta + delta_0) / l, 0.0, 0.0]
         )
         return x_dot
-    
+
 
     # Approximately integrate dynamics over a timestep dt to get a discrete update function
     @classmethod
@@ -106,7 +106,7 @@ class OffsetEstim(Node):
 
     def firmware_debug_callback(self, msg):
         """Handle debug/firmware messages to enable/disable and re-init the estimator on auton edges."""
-        
+
         auton = bool(msg.auton_steer)
 
         if self.auton_enabled_prev is None:
@@ -149,9 +149,9 @@ class OffsetEstim(Node):
             self.start = True
             # initialize state estimate
             self.x_hat = np.array([
-                msg.pose.pose.position.x, 
-                msg.pose.pose.position.y, 
-                msg.pose.pose.orientation.z, 
+                msg.pose.pose.position.x,
+                msg.pose.pose.position.y,
+                msg.pose.pose.orientation.z,
                 msg.twist.twist.linear.x,
                 0])
             # extract 2x2 position covariance from the 6x6 pose covariance
@@ -175,7 +175,7 @@ class OffsetEstim(Node):
         # self.get_logger().info("about to PUBLISHED")
         if (not self.enabled) or (not self.start):
             return
-        
+
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
         self.x_hat, self.Sigma = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [self.wheelbase])
         self.x_hat[2] = self.wrap_angle(self.x_hat[2])  # wrap heading (TODO: do we need this?)

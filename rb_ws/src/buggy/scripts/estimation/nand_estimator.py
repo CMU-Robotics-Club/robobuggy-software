@@ -45,7 +45,7 @@ class NAND_Estim(Node):
             [v * np.cos(theta), v * np.sin(theta), v * np.tan(delta) / l, 0.0]
         )
         return x_dot
-    
+
 
     # Approximately integrate dynamics over a timestep dt to get a discrete update function
     @classmethod
@@ -77,7 +77,7 @@ class NAND_Estim(Node):
         self.steering = 0
 
         self.timer = self.create_timer(0.01, self.loop)
-    
+
 
     def update_steering(self, msg):
         self.steering = np.deg2rad(msg.data)
