@@ -6,7 +6,7 @@ SC:
       steering_offset_func: 'sin' # 'constant' or 'sin'
       steering_offset_period: 10.0 # seconds, only used when steering_offset_func is 'sin'
       steering_delay: 0 # 1 step = 0.01s (at 100 hz steering)
-      step_noise_std: 0.0 # standard deviation of simulated GPS noise (in meters) 
+      step_noise_std: 0.05 # standard deviation of simulated GPS noise (in meters) 
       pose: 'Hill1_SC'
 
   SC_controller:

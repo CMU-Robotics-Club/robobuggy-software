@@ -31,7 +31,7 @@ class Controller(ABC):
 
     @abstractmethod
     def compute_control(
-        self, state_msg: Odometry, trajectory: Trajectory, steer_offset: float,
+        self, state_msg: Odometry, trajectory: Trajectory,
     ) -> float:
         """
         Computes the desired control output given the current state and reference trajectory

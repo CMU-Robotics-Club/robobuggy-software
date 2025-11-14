@@ -15,6 +15,7 @@ SC:
       steeringTopic: "input/steering"
       useHeadingRate: true
       controllerName: "controller"
+      useOffset: false 
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
   
