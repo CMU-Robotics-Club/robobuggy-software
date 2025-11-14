@@ -41,6 +41,8 @@ class Controller(Node):
         self.declare_parameter("rawSteeringTopic", "input/steering_raw")
         self.declare_parameter("trajectoryTopic", "self/cur_traj")
         self.declare_parameter("offsetTopic", "self/steer_offset")
+        self.declare_parameter("useOffset", False)
+        self.use_offset = self.get_parameter("useOffset").value
 
         start_index = self.cur_traj.get_index_from_distance(start_dist)
 
@@ -156,11 +158,15 @@ class Controller(Node):
         odom = self.odom
 
         self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
-        steering_angle, steering_angle_raw = self.controller.compute_control(odom, self.cur_traj, self.steer_offset)
-        steering_angle_deg = np.rad2deg(steering_angle)
-        steering_angle_raw_deg = np.rad2deg(steering_angle_raw)
-        self.steer_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_deg.item())))
+        steering_angle = self.controller.compute_control(odom, self.cur_traj)
+        steering_angle_raw_deg = np.rad2deg(steering_angle)
         self.steer_raw_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_raw_deg.item())))
+        
+        if self.use_offset:
+            steering_angle -= self.steer_offset
+
+        steering_angle_deg = np.rad2deg(steering_angle)
+        self.steer_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_deg.item())))
 
 
 
