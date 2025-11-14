@@ -113,7 +113,7 @@ class StanleyController(Controller):
 
         yaw = float(StanleyController.K_D_YAW * (r_traj - r_meas))
         # Determine steering_command
-        steering_cmd = error_heading + cross_track_component 
+        steering_cmd = error_heading + cross_track_component
         if self.usingHeadingRateError:
             steering_cmd += yaw
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
