@@ -27,7 +27,7 @@ SC:
       steeringTopic: "other/steering"
       useHeadingRate: false
       controllerName: "NAND_controller"
-      traj_name: "buggycourse_pavedline.json"
+      traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
   SC_path_planner:

@@ -12,6 +12,6 @@ SC:
   SC_controller:
     ros__parameters:
       dist: 0.0
-      traj_name: 'buggycourse_safe.json'
+      traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
       useSteerOffset: false 
