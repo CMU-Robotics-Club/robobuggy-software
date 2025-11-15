@@ -54,9 +54,9 @@ class Telematics(Node):
             #     f"Converted other buggy estimate position to lat long for navsat: {lat}, {long}"
             # )
 
-        except Exception as e:
+        except (ValueError, utm.error.OutOfRangeError) as e:
             self.get_logger().debug(
-                "Unable to convert buggy position to lon lat" + str(e)
+                "Unable to convert buggy position to lat lon; Error: " + str(e)
             )
 
 

@@ -138,7 +138,7 @@ class StanleyController(Controller):
             reference_navsat.latitude = lat
             reference_navsat.longitude = lon
             self.debug_reference_pos_publisher.publish(reference_navsat)
-        except Exception as e:
+        except (ValueError, utm.error.OutOfRangeError) as e:
             self.node.get_logger().warn(
                 "[Stanley] Unable to convert closest track position lat lon; Error: "
                 + str(e)

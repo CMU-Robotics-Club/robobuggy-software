@@ -3,12 +3,12 @@
 disable=all
 
 enable=
-    ; whitespace / style
+    # whitespace / style
     bad-indentation,
     trailing-whitespace,
     wrong-import-order,
 
-    ; unused / redefined / scope issues
+    # unused / redefined / scope issues
     unused-variable,
     unused-import,
     unused-argument,
@@ -19,9 +19,9 @@ enable=
     global-variable-not-assigned,
     global-variable-undefined,
     used-before-assignment,
-    ; undefined-variable,
+    # undefined-variable,
 
-    ; correctness / safety
+    # correctness / safety
     dangerous-default-value,
     pointless-statement,
     expression-not-assigned,
@@ -39,14 +39,14 @@ enable=
     not-an-iterable,
     not-context-manager,
 
-    ; suspicious / clarity
-    ; simplifiable-if-statement,
-    ; chained-comparison,
-    ; unnecessary-lambda,
-    ; consider-using-in,
-    ; consider-using-enumerate,
-    ; consider-using-with,
-    ; consider-using-join,
-    ; consider-using-dict-comprehension,
-    ; consider-using-set-comprehension,
+    # suspicious / clarity
+    # simplifiable-if-statement,
+    # chained-comparison,
+    # unnecessary-lambda,
+    # consider-using-in,
+    # consider-using-enumerate,
+    # consider-using-with,
+    # consider-using-join,
+    # consider-using-dict-comprehension,
+    # consider-using-set-comprehension,
     literal-comparison

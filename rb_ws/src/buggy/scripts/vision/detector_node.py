@@ -102,7 +102,7 @@ class Detector(Node):
         self.cam.enable_recording(recording_params)
 
     def detections_to_custom_box(self, detections, im0):
-        def xywh2abcd(xywh, im_shape):
+        def xywh2abcd(xywh, _im_shape):
             output = np.zeros((4, 2))
 
             # Center / Width / Height -> BBox corners coordinates
