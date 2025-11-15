@@ -13,36 +13,53 @@ from buggy.msg import StampedFloat64Msg, SCDebugInfoMsg, NANDDebugInfoMsg
 from estimation import ukf_utils
 from util.constants import Constants
 
-"""
-Variable Legend:
-x: State Vector, Shape (N,)
-Sigma: State Covariance, Shape (N, N)
-Q: Process Covariance, Shape (N, N)
-^ timestep size dependent
-
-u: Control Vector: (steering), shape (1,)
-
-y: Measurement Vector, Shape (M, )
-R: Sensor Covariances, Shape: (M, M)
-
-x_hat: estimation of state
-v: velocity
-l: length of buggy
-theta: heading
-delta: steering
-delta_0: steering offset
-
-_dot suggests a single order derivative
-"""
-
 class SteerOffsetEstimator(Node):
     """
-    STATE: northing, easting, heading, velocity, steer_offset
-    Kinematic bicyle over back wheel
+    UKF-based estimator for steering offset using a kinematic bicycle model.
+
+    Model:
+    - Kinematic bicycle over the back wheel.
+    - Continuous-time dynamics discretized using RK4.
+    - Used to estimate a (possibly varying) steering offset term.
+
+    State vector (x):
+    - x[0]: northing (m)
+    - x[1]: easting (m)
+    - x[2]: heading theta (rad)
+    - x[3]: velocity v (m/s)
+    - x[4]: steering offset delta_0 (rad)
+
+    Covariances:
+    - Sigma: state covariance, shape (N, N)
+    - Q: process covariance, shape (N, N)
+    - R: sensor covariance, shape (M, M)
+
+    Inputs and measurements:
+    - u: control vector (steering), shape (1,)
+    - y: measurement vector, shape (M,)
+
+    Notation:
+    - x_hat: state estimate
+    - v: velocity
+    - l: wheelbase length of buggy
+    - delta: commanded steering
+    - delta_0: steering offset
+    - _dot indicates a first-order time derivative.
     """
 
     @classmethod
     def dynamics(cls, x, u, params):
+        """
+        Continuous-time bicycle dynamics for the state derivative.
+
+        Args:
+            x: State vector [x, y, heading, velocity, steer_offset].
+            u: Control input, steering angle (rad).
+            params: Model parameters; params[0] is the wheelbase.
+
+        Returns:
+            State time derivative dx/dt as a NumPy array.
+        """
         l = params[0]
         _, _, theta, v, delta_0 = x
         delta = u[0]
@@ -51,10 +68,10 @@ class SteerOffsetEstimator(Node):
         )
         return x_dot
 
-
-    # Approximately integrate dynamics over a timestep dt to get a discrete update function
+    # 
     @classmethod
     def rk4_dynamics(cls, x_curr, u_curr, params, dt):
+        """Approximately integrate dynamics over a timestep dt using RK4 to get a discrete update function."""
         k1 = cls.dynamics(x_curr, u_curr, params)
         k2 = cls.dynamics(x_curr + k1 * dt / 2, u_curr, params)
         k3 = cls.dynamics(x_curr + k2 * dt / 2, u_curr, params)
@@ -64,10 +81,18 @@ class SteerOffsetEstimator(Node):
         return x_next
 
     def __init__(self):
+        """
+        Initialize the steering offset estimator node.
+
+        - Sets up UKF state, covariance, and noise matrices.
+        - Configures wheelbase based on ROS namespace (SC/NAND).
+        - Subscribes to firmware debug, self/state, and input/steering topics.
+        - Publishes steer offset estimate, UKF state, and covariance.
+        """
         super().__init__("offset_estimator")
         self.get_logger().info('INITIALIZED')
 
-        self.enabled = True  # estimator currently enabled (auton active)
+        self.enabled = True  # estimator enabled
         self.auton_enabled_prev = None  # previous auton flag for edge detection
 
         # moved to reset_filter()
@@ -86,7 +111,7 @@ class SteerOffsetEstimator(Node):
             self.wheelbase = Constants.WHEELBASE_NAND
             self.create_subscription(NANDDebugInfoMsg, "debug/firmware", self.firmware_debug_callback, 1)
         self.create_subscription(Odometry, "self/state", self.update_measurement, 1) # Using EKF output for simplicity
-        self.create_subscription(StampedFloat64Msg, "input/steering", self.updateSteering, 1)
+        self.create_subscription(StampedFloat64Msg, "input/steering", self.update_steering, 1)
         self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 1)
         self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/state", 1)
         self.state_covar_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/covariance", 1)
@@ -105,49 +130,50 @@ class SteerOffsetEstimator(Node):
         self.last_time = None
 
     def firmware_debug_callback(self, msg):
-        """Handle debug/firmware messages to enable/disable and re-init the estimator on auton edges."""
-
+        """
+        Handle debug/firmware messages to enable/disable and re-init the estimator.
+        Uses auton steer flag edges to reset or pause the UKF.
+        """
         auton = bool(msg.auton_steer)
 
         if self.auton_enabled_prev is None:
             # first message: align state
-            self.auton_enabled_prev = auton
             self.enabled = auton
             if not auton:
                 self.get_logger().info("Auton initially disabled: estimator paused")
                 self.reset_filter()
-            return
 
         # Rising edge False -> True
-        if not self.auton_enabled_prev and auton:
+        elif not self.auton_enabled_prev and auton:
             self.get_logger().info("Auton enabled: re-initializing offset UKF")
             self.enabled = True
             self.reset_filter()
 
         # Falling edge True -> False
-        if self.auton_enabled_prev and not auton:
+        elif self.auton_enabled_prev and not auton:
             self.get_logger().info("Auton disabled: pausing offset estimator")
             self.enabled = False
             self.reset_filter()
 
         self.auton_enabled_prev = auton
 
-    # Wrap angle to (-limit, limit]
     @classmethod
     def wrap_angle(cls, angle, limit=np.pi):
+        """Wrap an angle to the interval (-limit, limit]."""
         return (angle + limit) % (2 * limit) - limit
 
-    def updateSteering(self, msg):
+    def update_steering(self, msg):
         self.steering = np.deg2rad(msg.data)
 
     def update_measurement(self, msg):
+        """Perform UKF measurement update using pose from self/state."""
         if not self.enabled:
             return
 
+        # initialize state on first measurement
         if not self.start:
             self.get_logger().info("STARTED")
             self.start = True
-            # initialize state estimate
             self.x_hat = np.array([
                 msg.pose.pose.position.x,
                 msg.pose.pose.position.y,
@@ -168,10 +194,16 @@ class SteerOffsetEstimator(Node):
         # if offset drifted to wrong branch (near ±pi), pull it back by subtracting pi -- not needed with pi/2 wrap above
         # if abs(self.x_hat[4]) > np.pi/2:
         #     self.x_hat[4] = self.wrap_angle(self.x_hat[4] - np.sign(self.x_hat[4]) * np.pi)
-        #     self.get_logger().warning("Corrected offset estimate branch to " + str(np.rad2deg(self.x_hat[4])) + " degrees") # TODO: can be info
-
+        #     self.get_logger().info("Corrected offset estimate branch to " + str(np.rad2deg(self.x_hat[4])) + " degrees")
 
     def loop(self):
+        """
+        Main UKF loop callback.
+
+        - Runs the predict step using the RK4-discretized dynamics.
+        - Wraps heading and steering offset to keep them in valid ranges.
+        - Publishes steer offset, full state, and covariance at 100 Hz.
+        """
         if (not self.enabled) or (not self.start):
             return
 
