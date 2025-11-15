@@ -27,9 +27,21 @@ jobs:
         if [ -z "$(echo "$tmp_files" | grep "\.py")" ]; then exit 0; else echo "Python files are found"; fi
         tmp_pfiles=$(echo "$tmp_files" | grep "\.py")
         echo "Python files are $tmp_pfiles"
-        if [[ -z "$tmp_pfiles" ]]; then
+
+        existing_pfiles=""
+        for f in $tmp_pfiles; do
+          if [ -f "$f" ]; then
+            existing_pfiles="$existing_pfiles $f"
+          else
+            echo "Skipping deleted file $f"
+          fi
+        done
+        existing_pfiles=$(echo "$existing_pfiles" | xargs || true)
+        echo "Existing Python files are: $existing_pfiles"
+
+        if [[ -z "$existing_pfiles" ]]; then
           echo "No files to lint"
         else
           echo "Running Linter!"
-          pylint --rc-file=/home/runner/work/robobuggy-software/robobuggy-software/.github/workflows/.pylintrc $tmp_pfiles
+          pylint --rc-file=/home/runner/work/robobuggy-software/robobuggy-software/.github/workflows/.pylintrc $existing_pfiles
         fi
