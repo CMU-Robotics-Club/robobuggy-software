@@ -178,7 +178,7 @@ class Simulator(Node):
         k1 = self.dynamics(state, velocity)
         k2 = self.dynamics(state + h/2 * k1, velocity)
         k3 = self.dynamics(state + h/2 * k2, velocity)
-        k4 = self.dynamics(state + h/2 * k3, velocity)
+        k4 = self.dynamics(state + h * k3, velocity)
 
         final_state = state + h/6 * (k1 + 2 * k2 + 2 * k3 + k4)
         final_state[0] += np.random.normal(0, self.step_noise_std)
