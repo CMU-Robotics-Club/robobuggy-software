@@ -199,9 +199,7 @@ class Simulator(Node):
             p.position.x = self.e_utm
             p.position.y = self.n_utm
             velocity = self.velocity
-
-        self.plot_publisher.publish(p)
-
+            
         p.position.x += np.random.normal(0, self.measure_noise_std)
         p.position.y += np.random.normal(0, self.measure_noise_std)
 
@@ -231,9 +229,9 @@ class Simulator(Node):
 
         # variance on x and y from step_noise_std
         odom_pose_covariance = [0.0] * 36
-        step_noise_var = self.step_noise_std ** 2
-        odom_pose_covariance[0] = step_noise_var   # x
-        odom_pose_covariance[7] = step_noise_var   # y
+        measure_noise_var = self.measure_noise_std ** 2
+        odom_pose_covariance[0] = measure_noise_var   # x
+        odom_pose_covariance[7] = measure_noise_var   # y
 
         # NOTE: autonsystem only cares about magnitude of velocity, so we don't need to split into components
         odom_twist = Twist()
