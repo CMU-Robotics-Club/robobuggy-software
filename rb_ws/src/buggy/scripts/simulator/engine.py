@@ -193,19 +193,19 @@ class Simulator(Node):
             self.sim_time = sim_time + h
 
     def publish(self):
-        p = Pose()
+        odom_pose = Pose()
         time_stamp = self.get_clock().now().to_msg()
         with self.lock:
-            p.position.x = self.e_utm
-            p.position.y = self.n_utm
+            odom_pose.position.x = self.e_utm
+            odom_pose.position.y = self.n_utm
             velocity = self.velocity
-            
-        p.position.x += np.random.normal(0, self.measure_noise_std)
-        p.position.y += np.random.normal(0, self.measure_noise_std)
+
+        odom_pose.position.x += np.random.normal(0, self.measure_noise_std)
+        odom_pose.position.y += np.random.normal(0, self.measure_noise_std)
 
         (lat, long) = utm.to_latlon(
-            p.position.x,
-            p.position.y,
+            odom_pose.position.x,
+            odom_pose.position.y,
             Constants.UTM_ZONE_NUM,
             Constants.UTM_ZONE_LETTER,
         )
@@ -219,15 +219,10 @@ class Simulator(Node):
         odom = Odometry()
         odom.header.stamp = time_stamp
 
-        odom_pose = Pose()
-        east, north, _, _ = utm.from_latlon(lat, long)
-        odom_pose.position.x = float(east)
-        odom_pose.position.y = float(north)
         odom_pose.position.z = float(260)
-
         odom_pose.orientation.z = np.deg2rad(self.heading)
 
-        # variance on x and y from step_noise_std
+        # variance on x and y from measure_noise_std
         odom_pose_covariance = [0.0] * 36
         measure_noise_var = self.measure_noise_std ** 2
         odom_pose_covariance[0] = measure_noise_var   # x
