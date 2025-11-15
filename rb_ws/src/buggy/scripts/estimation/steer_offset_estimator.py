@@ -35,7 +35,7 @@ delta_0: steering offset
 _dot suggests a single order derivative
 """
 
-class OffsetEstim(Node):
+class SteerOffsetEstimator(Node):
     """
     STATE: northing, easting, heading, velocity, steer_offset
     Kinematic bicyle over back wheel
@@ -206,8 +206,8 @@ class OffsetEstim(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    # Create the OffsetEstim node and spin it
-    ukf = OffsetEstim()
+    # Create the SteerOffsetEstimator node and spin it
+    ukf = SteerOffsetEstimator()
     rclpy.spin(ukf)
 
     # Shutdown when done

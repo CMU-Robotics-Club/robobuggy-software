@@ -156,9 +156,10 @@ class Controller(Node):
                 return
 
         odom = self.odom
-
         self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
+
         steering_angle = self.controller.compute_control(odom, self.cur_traj)
+
         steering_angle_raw_deg = np.rad2deg(steering_angle)
         self.steer_raw_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_raw_deg.item())))
 

@@ -33,7 +33,7 @@ delta_0: steering offset
 _dot suggests a single order derivative
 """
 
-class NAND_Estim(Node):
+class NANDStateEstimator(Node):
 
     # Kinematic bicyle over back wheel
     @classmethod
@@ -123,8 +123,8 @@ class NAND_Estim(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    # Create the BuggyStateConverter node and spin it
-    ukf = NAND_Estim()
+    # Create the NANDStateEstimator node and spin it
+    ukf = NANDStateEstimator()
     rclpy.spin(ukf)
 
     # Shutdown when done
