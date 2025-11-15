@@ -71,8 +71,10 @@ class Simulator(Node):
 
         self.sim_time = 0.0
 
-        self.declare_parameter("step_noise_std", 1e-2)
-        self.step_noise_std = self.get_parameter("step_noise_std").value
+        self.declare_parameter("process_noise_std", 1e-3)
+        self.process_noise_std = self.get_parameter("process_noise_std").value
+        self.declare_parameter("measure_noise_std", 2e-2)
+        self.measure_noise_std = self.get_parameter("measure_noise_std").value
 
         init_pose_name = self.get_parameter("pose").value
         self.init_pose = self.starting_poses[init_pose_name]
@@ -109,9 +111,6 @@ class Simulator(Node):
         self.velocity_subscriber = self.create_subscription(
             Float64, "sim/velocity", self.update_velocity, 1
         )
-
-        # for X11 matplotlib (direction included)
-        self.plot_publisher = self.create_publisher(Pose, "sim_2d/utm", 1)
 
         # simulate the INS's outputs (noise included)
         # this is published as a BuggyState (UTM and radians)
@@ -181,8 +180,8 @@ class Simulator(Node):
         k4 = self.dynamics(state + h * k3, velocity)
 
         final_state = state + h/6 * (k1 + 2 * k2 + 2 * k3 + k4)
-        final_state[0] += np.random.normal(0, self.step_noise_std)
-        final_state[1] += np.random.normal(0, self.step_noise_std)
+        final_state[0] += np.random.normal(0, self.process_noise_std)
+        final_state[1] += np.random.normal(0, self.process_noise_std)
 
         e_utm_new, n_utm_new, heading_new, _, _ = final_state
         heading_new = np.rad2deg(heading_new)
@@ -199,10 +198,12 @@ class Simulator(Node):
         with self.lock:
             p.position.x = self.e_utm
             p.position.y = self.n_utm
-            p.position.z = float(self.heading)
             velocity = self.velocity
 
         self.plot_publisher.publish(p)
+
+        p.position.x += np.random.normal(0, self.measure_noise_std)
+        p.position.y += np.random.normal(0, self.measure_noise_std)
 
         (lat, long) = utm.to_latlon(
             p.position.x,
