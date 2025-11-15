@@ -191,11 +191,6 @@ class SteerOffsetEstimator(Node):
         self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
         self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
 
-        # if offset drifted to wrong branch (near ±pi), pull it back by subtracting pi -- not needed with pi/2 wrap above
-        # if abs(self.x_hat[4]) > np.pi/2:
-        #     self.x_hat[4] = self.wrap_angle(self.x_hat[4] - np.sign(self.x_hat[4]) * np.pi)
-        #     self.get_logger().info("Corrected offset estimate branch to " + str(np.rad2deg(self.x_hat[4])) + " degrees")
-
     def loop(self):
         """
         Predict loop callback, runs at 100 Hz.
