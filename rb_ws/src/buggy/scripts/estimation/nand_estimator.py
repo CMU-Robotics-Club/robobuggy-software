@@ -11,33 +11,52 @@ from buggy.msg import StampedFloat64Msg
 
 from ukf_utils import *
 
-"""
-Variable Legend:
-x: State Vector, Shape (N,)
-Sigma: State Covariance, Shape (N, N)
-Q: Process Covariance, Shape (N, N)
-^ timestep size dependent
-
-u: Control Vector: (steering), shape (1,)
-
-y: Measurement Vector, Shape (M, )
-R: Sensor Covariances Shape: (M, M) 
-
-x_hat: estimation of state
-v: velocity
-l: length
-theta: heading
-delta: steering
-delta_0: steering offset
-
-_dot suggests a single order derivative
-"""
-
 class NANDStateEstimator(Node):
+    """
+    UKF-based state estimator for NAND using a kinematic bicycle model.
 
-    # Kinematic bicyle over back wheel
+    Model:
+    - Kinematic bicycle over the back wheel.
+    - Continuous-time dynamics discretized using RK4.
+    - Estimates planar pose and forward velocity.
+
+    State vector (x):
+    - x[0]: northing (m)
+    - x[1]: easting (m)
+    - x[2]: heading theta (rad)
+    - x[3]: velocity v (m/s)
+
+    Covariances:
+    - Sigma: state covariance, shape (N, N)
+    - Q: process covariance, shape (N, N), timestep-size dependent
+    - R: sensor covariance, shape (M, M)
+
+    Inputs and measurements:
+    - u: control vector (steering), shape (1,)
+    - y: measurement vector, shape (M,)
+
+    Notation:
+    - x_hat: state estimate
+    - v: velocity
+    - l: wheelbase length
+    - theta: heading
+    - delta: commanded steering
+    - _dot indicates a first-order time derivative.
+    """
+
     @classmethod
     def dynamics(cls, x, u, params):
+        """
+        Continuous-time bicycle dynamics for the state derivative.
+
+        Args:
+            x: State vector [x, y, heading, velocity].
+            u: Control input, steering angle (rad).
+            params: Model parameters; params[0] is the wheelbase.
+
+        Returns:
+            State time derivative dx/dt as a NumPy array.
+        """
         l = params[0]
         _, _, theta, v = x
         delta = u[0]
@@ -46,10 +65,9 @@ class NANDStateEstimator(Node):
         )
         return x_dot
 
-
-    # Approximately integrate dynamics over a timestep dt to get a discrete update function
     @classmethod
     def rk4_dynamics(cls, x_curr, u_curr, params, dt):
+        """Approximately integrate dynamics over a timestep dt using RK4 to get a discrete update function."""
         k1 = cls.dynamics(x_curr, u_curr, params)
         k2 = cls.dynamics(x_curr + k1 * dt / 2, u_curr, params)
         k3 = cls.dynamics(x_curr + k2 * dt / 2, u_curr, params)
@@ -59,6 +77,13 @@ class NANDStateEstimator(Node):
         return x_next
 
     def __init__(self):
+        """
+        Initialize the NAND state estimator node.
+
+        - Sets up UKF state, covariance, and noise matrices.
+        - Subscribes to noUKF state (other/stateNoUKF) and steering topics.
+        - Publishes filtered state and a singularity flag.
+        """
         super().__init__("NAND_state_estimator")
         self.get_logger().info('Initialized')
 
@@ -78,11 +103,11 @@ class NANDStateEstimator(Node):
 
         self.timer = self.create_timer(0.01, self.loop)
 
-
     def update_steering(self, msg):
         self.steering = np.deg2rad(msg.data)
 
     def update_measurement(self, msg):
+        """Perform UKF measurement update using pose from other/stateNoUKF."""
         if not self.start:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
@@ -91,6 +116,13 @@ class NANDStateEstimator(Node):
         self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
 
     def loop(self):
+        """
+        Predict loop callback, runs at 100 Hz.
+
+
+        - Runs the predict step using the RK4-discretized dynamics.
+        - Publishes filtered NAND state and singularity flag at 100 Hz.
+        """
         if not self.start:
             return
         self.x_hat, self.Sigma = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
@@ -114,8 +146,16 @@ class NANDStateEstimator(Node):
         self.nand_publisher.publish(nand_ukf_msg)
         self.singular_flag_publisher.publish(singular_flag_msg)
 
-
     def accuracy_to_mat(self, accuracy):
+        """
+        Convert a scalar accuracy to a 2x2 position covariance matrix.
+
+        Args:
+            accuracy: Position accuracy.
+
+        Returns:
+            2x2 diagonal covariance matrix for x/y position.
+        """
         accuracy /= 1000.0
         sigma = (accuracy / (0.848867684498)) * (accuracy / (0.848867684498))
         return np.diag([sigma, sigma])

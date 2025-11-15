@@ -42,6 +42,7 @@ class SteerOffsetEstimator(Node):
     - x_hat: state estimate
     - v: velocity
     - l: wheelbase length of buggy
+    - theta: heading
     - delta: commanded steering
     - delta_0: steering offset
     - _dot indicates a first-order time derivative.
@@ -197,7 +198,7 @@ class SteerOffsetEstimator(Node):
 
     def loop(self):
         """
-        Main UKF loop callback.
+        Predict loop callback, runs at 100 Hz.
 
         - Runs the predict step using the RK4-discretized dynamics.
         - Wraps heading and steering offset to keep them in valid ranges.
