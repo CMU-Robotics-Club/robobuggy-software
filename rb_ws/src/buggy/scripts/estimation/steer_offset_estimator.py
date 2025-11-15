@@ -68,7 +68,6 @@ class SteerOffsetEstimator(Node):
         )
         return x_dot
 
-    # 
     @classmethod
     def rk4_dynamics(cls, x_curr, u_curr, params, dt):
         """Approximately integrate dynamics over a timestep dt using RK4 to get a discrete update function."""
