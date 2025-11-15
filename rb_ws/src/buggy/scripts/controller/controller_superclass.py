@@ -24,7 +24,7 @@ class Controller(ABC):
             Controller.WHEELBASE = Constants.WHEELBASE_NAND
         else:
             Controller.WHEELBASE = Constants.WHEELBASE_SC
-            self.get_logger().error("WARNING: NAMESPACE NOT RECOGNIZED: " + namespace + ". DEFAULTING TO SC WHEELBASE")
+            node.get_logger().error("WARNING: NAMESPACE NOT RECOGNIZED: " + namespace + ". DEFAULTING TO SC WHEELBASE")
 
         self.current_traj_index = start_index
         self.node = node
