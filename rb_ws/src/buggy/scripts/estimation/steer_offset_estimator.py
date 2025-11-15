@@ -132,10 +132,10 @@ class SteerOffsetEstimator(Node):
 
         self.auton_enabled_prev = auton
 
-    # Wrap angle (in rad) to (-pi, pi]
+    # Wrap angle to (-limit, limit]
     @classmethod
-    def wrap_angle(cls, angle):
-        return (angle + np.pi) % (2 * np.pi) - np.pi
+    def wrap_angle(cls, angle, limit=np.pi):
+        return (angle + limit) % (2 * limit) - limit
 
     def updateSteering(self, msg):
         self.steering = np.deg2rad(msg.data)
@@ -162,28 +162,27 @@ class SteerOffsetEstimator(Node):
         # perform measurement update
         self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_update(self.x_hat, self.Sigma, y, self.R)
 
-        self.x_hat[2] = self.wrap_angle(self.x_hat[2])  # wrap heading (TODO: do we need this?)
-        self.x_hat[4] = self.wrap_angle(self.x_hat[4])  # wrap steer offset
+        self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
+        self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
 
-        # if offset drifted to wrong branch (near ±pi), pull it back by subtracting pi
-        if abs(self.x_hat[4]) > np.pi/2:
-            self.x_hat[4] = self.wrap_angle(self.x_hat[4] - np.sign(self.x_hat[4]) * np.pi)
-            self.get_logger().warning("Corrected offset estimate branch to " + str(np.rad2deg(self.x_hat[4])) + " degrees") # TODO: can be info
+        # if offset drifted to wrong branch (near ±pi), pull it back by subtracting pi -- not needed with pi/2 wrap above
+        # if abs(self.x_hat[4]) > np.pi/2:
+        #     self.x_hat[4] = self.wrap_angle(self.x_hat[4] - np.sign(self.x_hat[4]) * np.pi)
+        #     self.get_logger().warning("Corrected offset estimate branch to " + str(np.rad2deg(self.x_hat[4])) + " degrees") # TODO: can be info
 
 
     def loop(self):
-        # self.get_logger().info("about to PUBLISHED")
         if (not self.enabled) or (not self.start):
             return
 
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
         self.x_hat, self.Sigma = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [self.wheelbase])
-        self.x_hat[2] = self.wrap_angle(self.x_hat[2])  # wrap heading (TODO: do we need this?)
-        self.x_hat[4] = self.wrap_angle(self.x_hat[4])  # wrap steer offset
+        self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
+        self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
         self.last_time = time.time()
 
-        # wrap the steering offset to (-pi, pi]
-        steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4]))  # wrap to (-pi, pi]
+        # wrap the steering offset to (-pi/2, pi/2]
+        steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
         self.offset_publisher.publish(Float64(data=steer_offset))
 
         state_msg = Float64MultiArray()
@@ -197,11 +196,6 @@ class SteerOffsetEstimator(Node):
         covar_msg.data = self.Sigma.flatten().tolist()
         self.state_covar_publisher.publish(covar_msg)
 
-
-    def accuracy_to_mat(self, accuracy):
-        accuracy /= 1000.0
-        sigma = (accuracy / (0.848867684498)) * (accuracy / (0.848867684498))
-        return np.diag([sigma, sigma])
 
 def main(args=None):
     rclpy.init(args=args)
