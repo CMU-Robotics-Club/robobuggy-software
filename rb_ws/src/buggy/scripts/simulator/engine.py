@@ -228,11 +228,17 @@ class Simulator(Node):
 
         odom_pose.orientation.z = np.deg2rad(self.heading)
 
+        # variance on x and y from step_noise_std
+        odom_pose_covariance = [0.0] * 36
+        step_noise_var = self.step_noise_std ** 2
+        odom_pose_covariance[0] = step_noise_var   # x
+        odom_pose_covariance[7] = step_noise_var   # y
+
         # NOTE: autonsystem only cares about magnitude of velocity, so we don't need to split into components
         odom_twist = Twist()
         odom_twist.linear.x = float(velocity)
 
-        odom.pose = PoseWithCovariance(pose=odom_pose)
+        odom.pose = PoseWithCovariance(pose=odom_pose, covariance=odom_pose_covariance)
         odom.twist = TwistWithCovariance(twist=odom_twist)
 
         self.pose_publisher.publish(odom)
