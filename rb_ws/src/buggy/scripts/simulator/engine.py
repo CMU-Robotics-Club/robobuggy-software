@@ -71,10 +71,10 @@ class Simulator(Node):
 
         self.sim_time = 0.0
 
-        self.declare_parameter("process_noise_std", 1e-3)
+        self.declare_parameter("process_noise_std", 0)
         self.process_noise_std = self.get_parameter("process_noise_std").value
-        self.declare_parameter("measure_noise_std", 2e-2)
-        self.measure_noise_std = self.get_parameter("measure_noise_std").value
+        self.declare_parameter("measurement_noise_std", 1e-2)
+        self.measurement_noise_std = self.get_parameter("measurement_noise_std").value
 
         init_pose_name = self.get_parameter("pose").value
         self.init_pose = self.starting_poses[init_pose_name]
@@ -200,8 +200,8 @@ class Simulator(Node):
             odom_pose.position.y = self.n_utm
             velocity = self.velocity
 
-        odom_pose.position.x += np.random.normal(0, self.measure_noise_std)
-        odom_pose.position.y += np.random.normal(0, self.measure_noise_std)
+        odom_pose.position.x += np.random.normal(0, self.measurement_noise_std)
+        odom_pose.position.y += np.random.normal(0, self.measurement_noise_std)
 
         (lat, long) = utm.to_latlon(
             odom_pose.position.x,
@@ -222,9 +222,9 @@ class Simulator(Node):
         odom_pose.position.z = float(260)
         odom_pose.orientation.z = np.deg2rad(self.heading)
 
-        # variance on x and y from measure_noise_std
+        # variance on x and y from measurement_noise_std
         odom_pose_covariance = [0.0] * 36
-        measure_noise_var = self.measure_noise_std ** 2
+        measure_noise_var = self.measurement_noise_std ** 2
         odom_pose_covariance[0] = measure_noise_var   # x
         odom_pose_covariance[7] = measure_noise_var   # y
 
