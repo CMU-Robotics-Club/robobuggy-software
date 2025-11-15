@@ -36,14 +36,13 @@ jobs:
           tmp_files=$(git diff --name-only origin/main ${GITHUB_SHA})
         fi
 
-        echo "Changed files are $tmp_files"
-        if [ -z "$(echo "$tmp_files" | grep '\.py')" ]; then
+        echo -e "Changed files are: \n$tmp_files\n"
+
+        tmp_pfiles=$(echo "$tmp_files" | grep '\.py$' || true)
+        if [ -z "$tmp_pfiles" ]; then
           echo "No Python files changed"
           exit 0
         fi
-
-        tmp_pfiles=$(echo "$tmp_files" | grep '\.py')
-        echo "Python files are $tmp_pfiles"
 
         existing_pfiles=""
         for f in $tmp_pfiles; do
@@ -54,7 +53,7 @@ jobs:
           fi
         done
         existing_pfiles=$(echo "$existing_pfiles" | xargs || true)
-        echo "Existing Python files are: $existing_pfiles"
+        echo -e "Existing Python files are: \n$existing_pfiles\n"
 
         if [[ -z "$existing_pfiles" ]]; then
           echo "No files to lint"
