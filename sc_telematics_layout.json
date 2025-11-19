@@ -30,7 +30,30 @@
       "timeWindowMode": "automatic",
       "playbackBarPosition": "right"
     },
-    "SourceInfo!2q1rbop": {},
+    "Plot!2w30urw": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/SC/input/steering.data",
+          "enabled": true,
+          "color": "#4e98e2"
+        }
+      ],
+      "minYValue": -20,
+      "maxYValue": 20,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "minXValue": 0,
+      "maxXValue": 240,
+      "timeWindowMode": "automatic",
+      "playbackBarPosition": "right"
+    },
     "Indicator!49awv5m": {
       "path": "/SC/buggy/debug/steering_alarm",
       "style": "bulb",
@@ -83,7 +106,7 @@
       "minYValue": 0,
       "showXAxisLabels": true,
       "showYAxisLabels": true,
-      "showLegend": true,
+      "showLegend": false,
       "legendDisplay": "floating",
       "showPlotValuesInLegend": false,
       "isSynced": true,
@@ -93,29 +116,49 @@
       "maxXValue": 240,
       "timeWindowMode": "automatic"
     },
-    "Plot!2w30urw": {
-      "paths": [
-        {
-          "timestampMethod": "receiveTime",
-          "value": "/SC/input/steering.data",
-          "enabled": true,
-          "color": "#4e98e2"
-        }
-      ],
-      "minYValue": -20,
-      "maxYValue": 20,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
-      "showLegend": true,
-      "legendDisplay": "floating",
-      "showPlotValuesInLegend": false,
-      "isSynced": true,
-      "xAxisVal": "timestamp",
-      "sidebarDimension": 240,
-      "minXValue": 0,
-      "maxXValue": 240,
-      "timeWindowMode": "automatic",
-      "playbackBarPosition": "right"
+    "Image!31wkpsr": {
+      "cameraState": {
+        "distance": 20,
+        "perspective": true,
+        "phi": 60,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 45,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {},
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {
+        "imageTopic": "/SC/debug/annotated_camera_frame"
+      }
     },
     "map!1dymz4q": {
       "center": {
@@ -235,50 +278,6 @@
         }
       },
       "followFrame": ""
-    },
-    "Image!31wkpsr": {
-      "cameraState": {
-        "distance": 20,
-        "perspective": true,
-        "phi": 60,
-        "target": [
-          0,
-          0,
-          0
-        ],
-        "targetOffset": [
-          0,
-          0,
-          0
-        ],
-        "targetOrientation": [
-          0,
-          0,
-          0,
-          1
-        ],
-        "thetaOffset": 45,
-        "fovy": 45,
-        "near": 0.5,
-        "far": 5000
-      },
-      "followMode": "follow-pose",
-      "scene": {},
-      "transforms": {},
-      "topics": {},
-      "layers": {},
-      "publish": {
-        "type": "point",
-        "poseTopic": "/move_base_simple/goal",
-        "pointTopic": "/clicked_point",
-        "poseEstimateTopic": "/initialpose",
-        "poseEstimateXDeviation": 0.5,
-        "poseEstimateYDeviation": 0.5,
-        "poseEstimateThetaDeviation": 0.26179939
-      },
-      "imageMode": {
-        "imageTopic": "/SC/debug/annotated_camera_frame"
-      }
     }
   },
   "globalVariables": {},
@@ -295,16 +294,16 @@
           "first": "RawMessages!abitpr",
           "second": {
             "first": "StateTransitions!xm9dog",
-            "second": "SourceInfo!2q1rbop",
+            "second": "Plot!2gbqffk",
             "direction": "column",
-            "splitPercentage": 28.970291439020553
+            "splitPercentage": 31.77758874601293
           },
           "direction": "column",
           "splitPercentage": 15.07668715911595
         },
         "second": "Indicator!49awv5m",
         "direction": "column",
-        "splitPercentage": 83.87622149837132
+        "splitPercentage": 87.51065068094516
       },
       "direction": "column",
       "splitPercentage": 18.47599164926931
@@ -313,21 +312,16 @@
       "first": {
         "first": "RawMessages!3619ukw",
         "second": {
-          "first": "Plot!2gbqffk",
-          "second": "Plot!2w30urw",
+          "first": "Plot!2w30urw",
+          "second": "Image!31wkpsr",
           "direction": "column"
         },
-        "direction": "row",
-        "splitPercentage": 42.09960221451803
-      },
-      "second": {
-        "first": "map!1dymz4q",
-        "second": "Image!31wkpsr",
         "direction": "row"
       },
+      "second": "map!1dymz4q",
       "direction": "column",
-      "splitPercentage": 49.390919158361015
+      "splitPercentage": 58.18181818181818
     },
-    "splitPercentage": 27.017543859649123
+    "splitPercentage": 33.53846153846154
   }
 }

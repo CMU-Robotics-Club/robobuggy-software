@@ -30,7 +30,6 @@
       "timeWindowMode": "automatic",
       "playbackBarPosition": "right"
     },
-    "SourceInfo!2q1rbop": {},
     "Indicator!49awv5m": {
       "path": "/SC/buggy/debug/steering_alarm",
       "style": "bulb",
@@ -213,9 +212,8 @@
           "first": "RawMessages!abitpr",
           "second": {
             "first": "StateTransitions!xm9dog",
-            "second": "SourceInfo!2q1rbop",
-            "direction": "column",
-            "splitPercentage": 28.970291439020553
+            "second": "Plot!2w30urw",
+            "direction": "column"
           },
           "direction": "column",
           "splitPercentage": 15.07668715911595
@@ -230,11 +228,7 @@
     "second": {
       "first": {
         "first": "RawMessages!3619ukw",
-        "second": {
-          "first": "Plot!2gbqffk",
-          "second": "Plot!2w30urw",
-          "direction": "column"
-        },
+        "second": "Plot!2gbqffk",
         "direction": "row",
         "splitPercentage": 42.09960221451803
       },
