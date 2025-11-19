@@ -125,7 +125,7 @@ class SteerOffsetEstimator(Node):
         self.start = False
         self.x_hat: np.ndarray = np.zeros((5,))  # state vector
         self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) # state covariance
-        self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) * 0.0 # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
+        self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
         self.last_time = None
 

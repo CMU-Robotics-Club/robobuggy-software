@@ -6,8 +6,8 @@ SC:
       steering_offset_func: 'constant' # 'constant' or 'sin'
       steering_offset_period: 10.0 # seconds, only used when steering_offset_func is 'sin'
       steering_delay: 0 # 1 step = 0.01s (at 100 hz steering)
-      process_noise_std: 0.000 # standard deviation of process GPS noise (in meters) 
-      measurement_noise_std: 0.001 # standard deviation of measured GPS noise (in meters) 
+      process_noise_std: 0.001 # standard deviation of process GPS noise (in meters) 
+      measurement_noise_std: 0.02 # standard deviation of measured GPS noise (in meters) 
       pose: 'Hill1_SC'
 
   SC_controller:
@@ -15,4 +15,4 @@ SC:
       dist: 0.0
       traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
-      useSteerOffset: false 
+      useSteerOffset: true
