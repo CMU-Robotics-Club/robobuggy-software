@@ -14,6 +14,7 @@ SC:
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
       useHeadingRate: true
+      steerOffsetEffectiveCycles: 100
       controllerName: "controller"
       useSteerOffset: false 
       # traj_name: "buggycourse_safe.json"
