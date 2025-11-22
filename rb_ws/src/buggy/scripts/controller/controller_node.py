@@ -10,6 +10,7 @@ from nav_msgs.msg import Odometry
 from buggy.msg import TrajectoryMsg, StampedFloat64Msg
 
 from util.trajectory import Trajectory
+from util.LowPassFilter import LowPassFilter
 from controller.stanley_controller import StanleyController
 
 class Controller(Node):
@@ -167,12 +168,12 @@ class Controller(Node):
         steering_angle_raw_deg = np.rad2deg(steering_angle)
         self.steer_raw_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_raw_deg.item())))
 
+        self.steer_offset = self.lowPassFilter.update(self.steer_offset) 
         if self.use_steer_offset:
             steering_angle -= self.steer_offset
 
         steering_angle_deg = np.rad2deg(steering_angle)
         self.steer_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_deg.item())))
-        self.steer_offset = self.lowPassFilter.update(self.steer_offset) 
 
 
 def main(args=None):

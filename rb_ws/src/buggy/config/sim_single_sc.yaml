@@ -15,4 +15,5 @@ SC:
       dist: 0.0
       traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
+      steerOffsetEffectiveCycles: 100
       useSteerOffset: true

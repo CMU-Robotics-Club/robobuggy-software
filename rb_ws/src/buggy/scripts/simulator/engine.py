@@ -71,7 +71,7 @@ class Simulator(Node):
 
         self.sim_time = 0.0
 
-        self.declare_parameter("process_noise_std", 0)
+        self.declare_parameter("process_noise_std", 0.0)
         self.process_noise_std = self.get_parameter("process_noise_std").value
         self.declare_parameter("measurement_noise_std", 1e-2)
         self.measurement_noise_std = self.get_parameter("measurement_noise_std").value

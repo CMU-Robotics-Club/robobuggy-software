@@ -6,7 +6,7 @@ class LowPassFilter:
     Calling update() repeatedly produces a continuous filtered output.
     """
 
-    def __init__(alpha: float):
+    def __init__(self, alpha: float):
         self.alpha = alpha
         if self.alpha <= 0 or self.alpha > 1:
             raise ValueError("alpha must satisfy 0 < alpha <= 1")
