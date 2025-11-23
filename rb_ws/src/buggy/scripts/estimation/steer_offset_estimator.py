@@ -12,6 +12,7 @@ from buggy.msg import StampedFloat64Msg, SCDebugInfoMsg, NANDDebugInfoMsg
 
 from estimation import ukf_utils
 from util.constants import Constants
+from util.LowPassFilter import LowPassFilter
 
 class SteerOffsetEstimator(Node):
     """
@@ -104,6 +105,13 @@ class SteerOffsetEstimator(Node):
 
         self.reset_filter() # initialize filter state
 
+        self.declare_parameter("steerOffsetFilterTimeConstant", 50)
+        steerOffsetFilterTimeConstant = self.get_parameter("steerOffsetFilterTimeConstant").value
+        self.lowPassFilter = LowPassFilter(alpha = 1.0 / steerOffsetFilterTimeConstant)
+
+        self.declare_parameter("steerOffsetRawTopic", "self/steer_offset/raw")
+        self.declare_parameter("steerOffsetFilteredTopic", "self/steer_offset/filtered")
+
         if (self.get_namespace() == "/SC"):
             self.wheelbase = Constants.WHEELBASE_SC
             self.create_subscription(SCDebugInfoMsg, "debug/firmware", self.firmware_debug_callback, 1)
@@ -112,7 +120,9 @@ class SteerOffsetEstimator(Node):
             self.create_subscription(NANDDebugInfoMsg, "debug/firmware", self.firmware_debug_callback, 1)
         self.create_subscription(Odometry, "self/state", self.update_measurement, 1) # Using EKF output for simplicity
         self.create_subscription(StampedFloat64Msg, "input/steering", self.update_steering, 1)
-        self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 1)
+
+        self.offset_publisher_raw = self.create_publisher(Float64, self.get_parameter("steerOffsetRawTopic").value, 1)
+        self.offset_publisher_filtered = self.create_publisher(Float64, self.get_parameter("steerOffsetFilteredTopic").value, 1)
         self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/state", 1)
         self.state_covar_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/covariance", 1)
 
@@ -197,7 +207,8 @@ class SteerOffsetEstimator(Node):
 
         - Runs the predict step using the RK4-discretized dynamics.
         - Wraps heading and steering offset to keep them in valid ranges.
-        - Publishes steer offset, full state, and covariance at 100 Hz.
+        - Applies a low-pass filter to the steering offset.
+        - Publishes steer offset (raw and filtered), full state, and covariance at 100 Hz.
         """
         if (not self.enabled) or (not self.start):
             return
@@ -210,7 +221,11 @@ class SteerOffsetEstimator(Node):
 
         # wrap the steering offset to (-pi/2, pi/2]
         steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
-        self.offset_publisher.publish(Float64(data=steer_offset))
+        self.offset_publisher_raw.publish(Float64(data=steer_offset))
+
+        # apply low-pass filter to steering offset
+        steer_offset_filtered = self.lowPassFilter.update(steer_offset)
+        self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
 
         state_msg = Float64MultiArray()
         state_msg.data = self.x_hat.tolist()

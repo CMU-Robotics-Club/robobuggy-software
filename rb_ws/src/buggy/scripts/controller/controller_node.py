@@ -10,7 +10,6 @@ from nav_msgs.msg import Odometry
 from buggy.msg import TrajectoryMsg, StampedFloat64Msg
 
 from util.trajectory import Trajectory
-from util.LowPassFilter import LowPassFilter
 from controller.stanley_controller import StanleyController
 
 class Controller(Node):
@@ -26,36 +25,26 @@ class Controller(Node):
         super().__init__('controller')
         self.get_logger().info('INITIALIZED.')
 
-
-        #Parameters
-        self.declare_parameter("dist", 0.0) #Starting Distance along path
+        # Parameters
+        self.declare_parameter("dist", 0.0) # Starting Distance along path
         start_dist = self.get_parameter("dist").value
-
-        self.declare_parameter("controllerName", "controller")
-
-        self.declare_parameter("traj_name", "buggycourse_safe.json")
-        traj_name = self.get_parameter("traj_name").value
-        self.cur_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name)
-
-        self.declare_parameter("steerOffsetFilterTimeConstant", 50)
-        steerOffsetFilterTimeConstant = self.get_parameter("steerOffsetFilterTimeConstant").value
-        self.lowPassFilter = LowPassFilter(alpha = 1.0 / steerOffsetFilterTimeConstant)
 
         self.declare_parameter("stateTopic", "self/state")
         self.declare_parameter("steeringTopic", "input/steering")
         self.declare_parameter("rawSteeringTopic", "input/steering_raw")
         self.declare_parameter("trajectoryTopic", "self/cur_traj")
-        self.declare_parameter("offsetTopic", "self/steer_offset")
+        self.declare_parameter("steerOffsetTopic", "self/steering_offset/filtered")
         self.declare_parameter("useSteerOffset", False)
         self.use_steer_offset = self.get_parameter("useSteerOffset").value
 
+        self.declare_parameter("traj_name", "buggycourse_safe.json")
+        traj_name = self.get_parameter("traj_name").value
+        self.cur_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name)
         start_index = self.cur_traj.get_index_from_distance(start_dist)
-
-        self.declare_parameter("controller", "stanley")
-
-
         self.declare_parameter("useHeadingRate", True)
 
+        self.declare_parameter("controllerName", "controller")
+        self.declare_parameter("controller", "stanley")
         controller_name = self.get_parameter("controller").value
         print(controller_name.lower())
         if (controller_name.lower() == "stanley"):
@@ -83,7 +72,7 @@ class Controller(Node):
         # Subscribers
         self.odom_subscriber = self.create_subscription(Odometry, self.get_parameter("stateTopic").value, self.odom_listener, 1)
         self.traj_subscriber = self.create_subscription(TrajectoryMsg, self.get_parameter("trajectoryTopic").value, self.traj_listener, 1)
-        self.steer_offset_subscriber = self.create_subscription(Float64, self.get_parameter("offsetTopic").value, self.offset_listener, 1)
+        self.steer_offset_subscriber = self.create_subscription(Float64, self.get_parameter("steerOffsetTopic").value, self.offset_listener, 1)
 
         self.odom = None
         self.passed_init = False
@@ -168,7 +157,6 @@ class Controller(Node):
         steering_angle_raw_deg = np.rad2deg(steering_angle)
         self.steer_raw_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_raw_deg.item())))
 
-        self.steer_offset = self.lowPassFilter.update(self.steer_offset) 
         if self.use_steer_offset:
             steering_angle -= self.steer_offset
 

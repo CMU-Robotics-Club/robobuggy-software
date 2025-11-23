@@ -16,4 +16,9 @@ SC:
       traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
       useSteerOffset: true
+
+  SC_offset_estimator:
+    ros__parameters:
+      steerOffsetRawTopic: "self/steering_offset/raw"
+      steerOffsetFilteredTopic: "self/steering_offset/filtered"
       steerOffsetFilterTimeConstant: 50
