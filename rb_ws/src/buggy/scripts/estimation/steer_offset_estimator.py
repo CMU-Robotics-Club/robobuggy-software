@@ -208,6 +208,8 @@ class SteerOffsetEstimator(Node):
         - Runs the predict step using the RK4-discretized dynamics.
         - Wraps heading and steering offset to keep them in valid ranges.
         - Applies a low-pass filter to the steering offset.
+          - A low-pass filter filters out high-frequency noise in the estimate at the cost of responsiveness/increased lag;
+            this is okay since we expect the steering offset to vary slowly over time.
         - Publishes steer offset (raw and filtered), full state, and covariance at 100 Hz.
         """
         if (not self.enabled) or (not self.start):
