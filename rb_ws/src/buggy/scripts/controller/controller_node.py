@@ -37,9 +37,9 @@ class Controller(Node):
         traj_name = self.get_parameter("traj_name").value
         self.cur_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name)
 
-        self.declare_parameter("steerOffsetEffectiveCycles", 100)
-        steerOffsetEffectiveCycles = self.get_parameter("steerOffsetEffectiveCycles").value
-        self.lowPassFilter = LowPassFilter(alpha = 1.0 / steerOffsetEffectiveCycles)
+        self.declare_parameter("steerOffsetFilterTimeConstant", 50)
+        steerOffsetFilterTimeConstant = self.get_parameter("steerOffsetFilterTimeConstant").value
+        self.lowPassFilter = LowPassFilter(alpha = 1.0 / steerOffsetFilterTimeConstant)
 
         self.declare_parameter("stateTopic", "self/state")
         self.declare_parameter("steeringTopic", "input/steering")

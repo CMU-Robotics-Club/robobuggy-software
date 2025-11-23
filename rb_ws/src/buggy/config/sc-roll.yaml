@@ -14,11 +14,11 @@ SC:
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
       useHeadingRate: true
-      steerOffsetEffectiveCycles: 100
       controllerName: "controller"
-      useSteerOffset: false 
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
+      useSteerOffset: false 
+      steerOffsetFilterTimeConstant: 50   # in timesteps; smoothing factor alpha for low pass filter is 1 / steerOffsetFilterTimeConstant
 
   SC_NAND_controller:
     ros__parameters:
