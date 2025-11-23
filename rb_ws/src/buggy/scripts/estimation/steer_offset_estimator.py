@@ -190,11 +190,11 @@ class SteerOffsetEstimator(Node):
                 msg.pose.pose.orientation.z,
                 msg.twist.twist.linear.x,
                 0])
-            # extract 2x2 position covariance from the 6x6 pose covariance
-            self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
 
         # measurement vector
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+        # extract 2x2 position covariance from the 6x6 pose covariance
+        self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
         # perform measurement update
         self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_update(self.x_hat, self.Sigma, y, self.R)
 
