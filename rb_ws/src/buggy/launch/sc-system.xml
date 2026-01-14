@@ -11,6 +11,11 @@
     </node>
     <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen" namespace="SC"/>
      
+    <include file="$(find-pkg-share velodyne)/launch/velodyne-all-nodes-VLP16-launch.py">
+        <arg name="frame_id" value="velodyne"/>
+        <arg name="port" value="2368"/>
+    </include>
+
     <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
     <node name="watchdog" pkg="buggy" exec="watchdog_node.py" namespace="SC" output="screen"/>
 </launch>
