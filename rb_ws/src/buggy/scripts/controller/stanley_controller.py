@@ -81,7 +81,7 @@ class StanleyController(Controller):
         error_heading = ref_heading - heading
         error_heading = np.arctan2(np.sin(error_heading), np.cos(error_heading)) #Bounds error_heading
 
-        # Calculate cross track error by finding the distance from the buggy to the tangent line of
+        # Calculate cross track error by finding the distance from the front axle to the tangent line of
         # the reference trajectory
         closest_position = trajectory.get_position_by_index(self.current_traj_index)
         next_position = trajectory.get_position_by_index(
@@ -91,7 +91,7 @@ class StanleyController(Controller):
         y1 = closest_position[1]
         x2 = next_position[0]
         y2 = next_position[1]
-        error_dist = -((x - x1) * (y2 - y1) - (y - y1) * (x2 - x1)) / np.sqrt(
+        error_dist = -((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) / np.sqrt(
             (y2 - y1) ** 2 + (x2 - x1) ** 2
         )
 
@@ -99,14 +99,10 @@ class StanleyController(Controller):
             StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
         )
 
-        # Use acceleration at the closest index
-        accel_x, accel_y = trajectory.get_acceleration_by_index(self.current_traj_index)
-        # this works because tan(heading) = dydt/dxdt (do the math)
-        dxdt, dydt = np.cos(ref_heading), np.sin(ref_heading)
-
-        # this was dervied by doing the chain rule on the target derivative of theta.
-        # dtheta/dt = d/dt (arctan (dydt/dxdt)) << do math.
-        r_traj = (1/(1 + (dydt/dxdt)**2)) * (accel_y/dxdt - (dydt * accel_x)/(dxdt ** 2))
+        # Compute expected yaw rate from trajectory curvature and current speed
+        # r_traj = curvature * speed (rad/s)
+        curvature = trajectory.get_curvature_by_index(self.current_traj_index)
+        r_traj = curvature * current_speed
 
         # Calculate yaw rate error
         r_meas = yaw_rate

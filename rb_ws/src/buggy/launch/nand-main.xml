@@ -6,4 +6,5 @@
     <node pkg="buggy" exec="steer_offset_estimator.py" name="NAND_offset_estimator" namespace="NAND">
         <param from="$(var config_file)"/>
     </node>
+    <node pkg="buggy" exec="steer_offset_estimator.py" name="NAND_offset_estimator" namespace="NAND"/>
 </launch>
