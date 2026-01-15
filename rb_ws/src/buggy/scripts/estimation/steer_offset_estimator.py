@@ -126,7 +126,6 @@ class SteerOffsetEstimator(Node):
         self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/state", 1)
         self.state_covar_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/covariance", 1)
 
-        self.offset_var_publisher = self.create_publisher(Float64, "self/offset_estimator/offset_var", 1)
 
         self.steering = 0
 
@@ -136,7 +135,9 @@ class SteerOffsetEstimator(Node):
         """Reset the UKF so next measurement initializes state."""
         self.start = False
         self.x_hat: np.ndarray = np.zeros((5,))  # state vector
-        self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 2.5e-2]) # state covariance
+
+        # Offset variance extremely high out of caution and proof of convergence
+        self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-1]) # state covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
         self.last_time = None
@@ -234,16 +235,18 @@ class SteerOffsetEstimator(Node):
         covar_msg.data = self.Sigma.flatten().tolist()
         self.state_covar_publisher.publish(covar_msg)
 
-        offset_var = self.Sigma[-1, -1]
-        self.offset_var_publisher.publish(Float64(data=offset_var))
+        offset_variance = self.Sigma[-1, -1]
 
-        # wrap the steering offset to (-pi/2, pi/2]
-        steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
-        self.offset_publisher_raw.publish(Float64(data=steer_offset))
+        # Checks the offset variance is reasonable, corresponds to 6 deg std deviation.
+        if offset_variance < 0.1:
 
-        # apply low-pass filter to steering offset
-        steer_offset_filtered = self.lowPassFilter.update(steer_offset)
-        self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
+            # wrap the steering offset to (-pi/2, pi/2]
+            steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
+            self.offset_publisher_raw.publish(Float64(data=steer_offset))
+
+            # apply low-pass filter to steering offset
+            steer_offset_filtered = self.lowPassFilter.update(steer_offset)
+            self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
 
 
 
