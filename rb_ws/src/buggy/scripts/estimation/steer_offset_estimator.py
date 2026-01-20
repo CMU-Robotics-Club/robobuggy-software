@@ -137,7 +137,7 @@ class SteerOffsetEstimator(Node):
         self.x_hat: np.ndarray = np.zeros((5,))  # state vector
 
         # Offset variance extremely high out of caution and proof of convergence
-        self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-1]) # state covariance
+        self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-2]) # state covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
         self.last_time = None
@@ -193,11 +193,11 @@ class SteerOffsetEstimator(Node):
                 msg.pose.pose.orientation.z,
                 msg.twist.twist.linear.x,
                 0])
-            # extract 2x2 position covariance from the 6x6 pose covariance
-            self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
 
         # measurement vector
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+        # extract 2x2 position covariance from the 6x6 pose covariance
+        self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
         # perform measurement update
         self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_update(self.x_hat, self.Sigma, y, self.R)
 
