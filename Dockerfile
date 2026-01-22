@@ -9,7 +9,8 @@ RUN apt update
 RUN apt-get install -y -qq \
     python3-pip \
     python3-tk \
-    vim git tmux tree sl htop x11-apps
+    vim git tmux tree sl htop x11-apps \
+    libglfw3-dev libgles2-mesa-dev
 
 RUN apt-get install -y -qq \
     ros-${ROS_DISTRO}-foxglove-bridge \
