@@ -19,3 +19,6 @@ vision/data/
 #VENV
 .sc/
 .nand/
+
+# PYCHARM
+.idea/
