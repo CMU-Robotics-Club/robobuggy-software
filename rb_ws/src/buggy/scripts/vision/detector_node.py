@@ -30,7 +30,8 @@ class Detector(Node):
         self.initialize_camera()
         self.raw_image = sl.Mat()
         self.objects = sl.Objects()
-        self.model = YOLO("src/buggy/scripts/vision/01-15-25_no_pushbar_yolov11n.pt")
+ 
+        self.model = YOLO("src/buggy/scripts/vision/trained-models/01-29-25_freeform_polygon_yolov11.pt")
 
         self.runtime_params = sl.RuntimeParameters()
         self.object_det_params = sl.ObjectDetectionRuntimeParameters()
@@ -183,7 +184,7 @@ class Detector(Node):
             image_net = self.raw_image.get_data()
 
             # get raw frame
-            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_BGRA2RGB)
+            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_BGRA2BGR)
             # raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
 
             # pass frame into YOLO model (get 2D)
