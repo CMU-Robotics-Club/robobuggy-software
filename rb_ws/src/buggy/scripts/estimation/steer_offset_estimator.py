@@ -96,13 +96,6 @@ class SteerOffsetEstimator(Node):
         self.enabled = True  # estimator enabled
         self.auton_enabled_prev = None  # previous auton flag for edge detection
 
-        # moved to reset_filter()
-        # self.x_hat: np.ndarray = None
-        # self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) # state covariance
-        # self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6])  # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
-        # self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
-        # self.last_time = None
-
         self.reset_filter() # initialize filter state
 
         self.declare_parameter("steerOffsetFilterTimeConstant", 50)
