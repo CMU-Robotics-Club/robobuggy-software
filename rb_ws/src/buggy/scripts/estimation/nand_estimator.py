@@ -8,6 +8,7 @@ from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry
 from buggy.msg import StampedFloat64Msg
 
+from util.constants import Constants
 
 from ukf_utils import *
 
@@ -176,7 +177,7 @@ class NANDStateEstimator(Node):
 
         # accuracy is the circular error radius (meters)
         # k is the factor that maps between this radius and the Gaussian σ
-        k = 0.848867684498
+        k = Constants.CEP50_to_STD
         sigma = accuracy / k
 
         # variance in each axis (assuming isotropic uncertainty)

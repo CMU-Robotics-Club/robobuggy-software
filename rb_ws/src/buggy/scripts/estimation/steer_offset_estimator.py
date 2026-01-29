@@ -238,7 +238,7 @@ class SteerOffsetEstimator(Node):
         offset_variance = self.Sigma[-1, -1]
 
         # Checks the offset variance is reasonable, corresponds to 6 deg std deviation.
-        if offset_variance < 0.1:
+        if offset_variance < Constants.OFFSET_THRESHOLD:
 
             # wrap the steering offset to (-pi/2, pi/2]
             steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
