@@ -1,65 +1,82 @@
 <!--
-     For Work In Progress Pull Requests, please use the Draft PR feature,
-     see https://github.blog/2019-02-14-introducing-draft-pull-requests/ for further details.
 
-     For a timely review/response, please avoid force-pushing additional
-     commits if your PR already received reviews or comments.
+This includes templates for different types of PRs (rolls, docs, 2PR). Please delete the templates that are not
+relevant to your PR. Refer to wiki for development workflow practices. Do not include the "BEGIN" and "END" lines.
 
-     Before submitting a Pull Request, please ensure you've done the following:
-     - 📖 Read the Forem Contributing Guide: https://developers.forem.com/contributing-guide/forem#create-a-pull-request
-     - 📖 Read the Forem Code of Conduct: https://github.com/forem/forem/blob/main/CODE_OF_CONDUCT.md
-     - 👷‍♀️ Create small PRs. In most cases this will be possible.
-     - ✅ Provide tests for your changes.
-     - 📝 Use descriptive commit messages.
-     - 📗 Update any related documentation and include any relevant screenshots.
-
-     NOTE: Pull Requests from forked repositories will need to be reviewed by
-     a Forem Team member before any CI builds will run. Once your PR is approved
-     with a `/ci` reply to the PR, it will be allowed to run subsequent builds without
-     manual approval.
 -->
 
-## What type of PR is this? (check all applicable)
-
-- [ ] Refactor
-- [ ] Feature
-- [ ] Bug Fix
-- [ ] Optimization
-- [ ] Documentation Update
-
-## Description
-_Describe the CHANGES, the REASONING, and BENEFITS of this PR._
-
-## Related Tickets & Documents
-
+BEGIN -- Rolls PR
 <!--
-For pull requests that relate or close an issue, please include them
-below.  We like to follow [Github's guidance on linking issues to pull requests](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue).
-
-For example having the text: "closes #1234" would connect the current pull
-request to issue 1234.  And when we merge the pull request, Github will
-automatically close the issue.
+Rolls PRs are for individual features that are being merged into the `rolls` branch. These should be small, focused
+changes.
 -->
 
-- Related Issue #
-- Closes #
+### Overview
+<!--
+Add a brief description of the changes made in this PR in a few sentences at the top. If it is already documented
+enough in issues and/or PR title, this section can be omitted.
+-->
 
-## QA Instructions, Screenshots, Recordings
+### Linked Issues
+<!--
+Link any relevant issues here that should be resolved when this PR is closed. If there are none, this section can be
+omitted.
 
-_Please replace this line with instructions on how to test your changes, a note
-on the devices and browsers this has been tested on, as well as any relevant
-images for UI changes._
+IMPORTANT - make sure to Development -> Cog icon -> Add linked issue(s) in the sidebar, *after* the PR is created so
+that they are automatically closed when this PR is merged.
+-->
+#(issue number)
 
-## Added/updated tests?
-_We encourage you to keep the code coverage percentage at 80% and above._
+### Tasks
+<!--
+List tasks here that must be completed before the PR can be merged.
 
-- [ ] Yes
-- [ ] No, and this is why: _please replace this line with details on why tests
-      have not been included_
-- [ ] I need help with writing tests
+These are intended to be mostly trivial changes and testing tasks (such as mock rolls), where that the code will not
+change significantly after initial review. Changes that require sync with firmware (such as the serial protocol) should
+also be included here. If there are larger changes that need to be made, this should be a draft PR until those changes
+are finished.
 
-## [optional] Are there any post deployment tasks we need to perform?
+If there is an open 2PR from rolls -> main, there must be a task to close it and merge main into this branch.
 
-## [optional] What gif best describes this PR or how it makes you feel?
+Edit below tasks as needed.
+-->
+- [ ] Test in sim
+- [ ] Test during mock rolls
+- [ ] Close #(CURRENT 2PR HERE) and merge main into this branch
 
-![alt_text](gif_link)
+### Testing
+<!--
+For any involved testing tasks above, describe how they will be tested here. Typically this section is omitted as
+testing is usually straightforward ("Make sure this looks correct and doesn't crash").
+-->
+END -- Rolls PR
+
+BEGIN -- Documentation PR
+<!--
+Documentation PRs are for changes to documentation only that are being merged into the `main` branch. These should not
+include any code changes.
+
+Include a brief description of the changes made in this PR in a few sentences at the top if it is not already clear from
+title and linked issues. As with rolls PRs, link any relevant issues here that should be resolved when this PR is
+closed and add them to the sidebar after the PR is created.
+-->
+END -- Documentation PR
+
+BEGIN -- 2PR
+<!--
+2PRs are for merging changes from the `rolls` branch into the `main` branch. These should be created after rolls every
+week, and summarize the changes that were made that week. This should be reviewed live during weekly software standup
+meetings to ensure that everything is captured accurately.
+-->
+### Summary of changes
+<!--
+Link PRs that were merged into rolls here, and any additional changes that were committed directly to rolls.
+-->
+- #(PR number)
+- Other minor change
+
+### Rolls Results
+<!--
+Describe what happened and/or outcomes of the rolls. If there was anything that didn't work, also describe them here.
+-->
+END -- 2PR

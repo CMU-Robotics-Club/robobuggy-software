@@ -1,0 +1,327 @@
+{
+  "configById": {
+    "RosOut!uot7y7": {
+      "searchTerms": [],
+      "minLogLevel": 2,
+      "nameFilter": {},
+      "foxglovePanelTitle": "Log",
+      "topicToRender": "/rosout"
+    },
+    "RawMessages!abitpr": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/SC/controller/debug/heading",
+      "fontSize": 12
+    },
+    "StateTransitions!xm9dog": {
+      "paths": [
+        {
+          "value": "/SC/debug/firmware.use_auton_steer",
+          "timestampMethod": "receiveTime",
+          "customStates": {
+            "type": "discrete",
+            "states": []
+          }
+        }
+      ],
+      "isSynced": true,
+      "timeWindowMode": "automatic",
+      "playbackBarPosition": "right"
+    },
+    "Plot!2w30urw": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/SC/input/steering.data",
+          "enabled": true,
+          "color": "#4e98e2"
+        }
+      ],
+      "minYValue": -20,
+      "maxYValue": 20,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "minXValue": 0,
+      "maxXValue": 240,
+      "timeWindowMode": "automatic",
+      "playbackBarPosition": "right"
+    },
+    "Indicator!49awv5m": {
+      "path": "/SC/buggy/debug/steering_alarm",
+      "style": "bulb",
+      "fontSize": 36,
+      "fallbackColor": "#87ff9a",
+      "fallbackLabel": "Good",
+      "rules": [
+        {
+          "operator": ">=",
+          "rawValue": "2",
+          "color": "#e34b4b",
+          "label": "Error"
+        },
+        {
+          "operator": ">=",
+          "rawValue": "1",
+          "color": "#ffeb00",
+          "label": "Warn"
+        }
+      ]
+    },
+    "RawMessages!3619ukw": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/SC/self/state",
+      "fontSize": 12
+    },
+    "Plot!2gbqffk": {
+      "paths": [
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/SC/debug/teensycycle_time.data",
+          "enabled": true
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/SC/debug/roundtrip_time.data",
+          "enabled": true,
+          "color": "#f5774d"
+        },
+        {
+          "timestampMethod": "receiveTime",
+          "value": "/SC/debug/control_latency.data",
+          "enabled": true,
+          "color": "#f7df71"
+        }
+      ],
+      "minYValue": 0,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": false,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": false,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240,
+      "minXValue": 0,
+      "maxXValue": 240,
+      "timeWindowMode": "automatic"
+    },
+    "Image!31wkpsr": {
+      "cameraState": {
+        "distance": 20,
+        "perspective": true,
+        "phi": 60,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 45,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {},
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {
+        "imageTopic": "/SC/debug/annotated_camera_frame"
+      }
+    },
+    "map!1dymz4q": {
+      "center": {
+        "lat": 40.44067754361654,
+        "lon": -79.94204671743942
+      },
+      "customTileUrl": "http://192.168.1.217:8080/data/v3/{z}/{x}/{y}.png",
+      "disabledTopics": [
+        "/gnss_2/llh_position",
+        "/auton/debug/passing_traj"
+      ],
+      "followTopic": "/SC/controller/debug/reference_navsat",
+      "layer": "map",
+      "topicColors": {
+        "/gnss1/fix": "#e34f4f",
+        "/gnss2/fix": "#4fd5e3",
+        "/ekf/llh_position": "#2984df",
+        "/gnss_1/llh_position": "#f54c4c",
+        "/SC/auton/debug/reference_navsat": "#006a43",
+        "/auton/debug/passing_traj": "#e34fd6",
+        "/NAND/nav/odom_NavSatFix": "#f7df71"
+      },
+      "zoomLevel": 18,
+      "maxNativeZoom": 20,
+      "topicConfig": {
+        "/gnss1/fix": {
+          "color": "#e34f4f",
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/gnss2/fix": {
+          "color": "#4fd5e3",
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/ekf/llh_position": {
+          "color": "#2984df",
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/gnss_1/llh_position": {
+          "color": "#f54c4c",
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/SC/auton/debug/reference_navsat": {
+          "color": "#006a43",
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/auton/debug/passing_traj": {
+          "color": "#e34fd6",
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/NAND/nav/odom_NavSatFix": {
+          "color": "#f7df71",
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/gnss_2/llh_position": {
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/NAND/controller/debug/reference_navsat": {
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/NAND/other/state_navsatfix": {
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/NAND/other/stateNoUKF_navsatfix": {
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/NAND/self/state_navsatfix": {
+          "pointDisplayMode": "dot",
+          "historyMode": "all",
+          "pointSize": 6
+        },
+        "/SC/controller/debug/reference_navsat": {
+          "historyMode": "all",
+          "pointDisplayMode": "dot",
+          "pointSize": 6
+        },
+        "/SC/NAND_controller/debug/reference_navsat": {
+          "historyMode": "all",
+          "pointDisplayMode": "dot",
+          "pointSize": 6
+        },
+        "/SC/other/state_navsatfix": {
+          "historyMode": "all",
+          "pointDisplayMode": "dot",
+          "pointSize": 6
+        },
+        "/SC/other/stateNoUKF_navsatfix": {
+          "historyMode": "all",
+          "pointDisplayMode": "dot",
+          "pointSize": 6
+        },
+        "/SC/self/state_navsatfix": {
+          "historyMode": "all",
+          "pointDisplayMode": "dot",
+          "pointSize": 6
+        }
+      },
+      "followFrame": ""
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "direction": "row",
+    "first": {
+      "first": "RosOut!uot7y7",
+      "second": {
+        "first": {
+          "first": "RawMessages!abitpr",
+          "second": {
+            "first": "StateTransitions!xm9dog",
+            "second": "Plot!2gbqffk",
+            "direction": "column",
+            "splitPercentage": 31.77758874601293
+          },
+          "direction": "column",
+          "splitPercentage": 15.07668715911595
+        },
+        "second": "Indicator!49awv5m",
+        "direction": "column",
+        "splitPercentage": 87.51065068094516
+      },
+      "direction": "column",
+      "splitPercentage": 18.47599164926931
+    },
+    "second": {
+      "first": {
+        "first": "RawMessages!3619ukw",
+        "second": {
+          "first": "Plot!2w30urw",
+          "second": "Image!31wkpsr",
+          "direction": "column"
+        },
+        "direction": "row"
+      },
+      "second": "map!1dymz4q",
+      "direction": "column",
+      "splitPercentage": 58.18181818181818
+    },
+    "splitPercentage": 33.53846153846154
+  }
+}
