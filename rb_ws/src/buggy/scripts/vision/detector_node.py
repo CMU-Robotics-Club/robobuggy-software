@@ -31,7 +31,7 @@ class Detector(Node):
         self.raw_image = sl.Mat()
         self.objects = sl.Objects()
  
-        self.model = YOLO("src/buggy/scripts/vision/trained-models/01-29-25_freeform_polygon_yolov11.pt")
+        self.model = YOLO("src/buggy/scripts/vision/trained-models/01-15-25_no_pushbar_yolov11n.pt")
 
         self.runtime_params = sl.RuntimeParameters()
         self.object_det_params = sl.ObjectDetectionRuntimeParameters()
