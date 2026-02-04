@@ -47,7 +47,7 @@ def main():
             msg = deserialize_message(data, state_type)
             velocity = np.sqrt(msg.twist.twist.linear.x**2 + msg.twist.twist.linear.y**2)
     plt.plot(offsets)  # plotting by columns
-    plt.ylim(ymin=0)
+    plt.ylim(ymin=-20)
     plt.ylim(ymax=20)
     plt.savefig("test.jpg")
 

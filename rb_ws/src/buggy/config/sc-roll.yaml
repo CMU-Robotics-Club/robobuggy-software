@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_pavedline.json"
+      traj_name: "buggycourse_sc.json"
 
 SC:
   bnyahaj:
@@ -15,9 +15,10 @@ SC:
       steeringTopic: "input/steering"
       useHeadingRate: true
       controllerName: "controller"
+      useSteerOffset: false 
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
-  
+
   SC_NAND_controller:
     ros__parameters:
       dist: 0.0
@@ -26,10 +27,14 @@ SC:
       steeringTopic: "other/steering"
       useHeadingRate: false
       controllerName: "NAND_controller"
-      traj_name: "buggycourse_pavedline.json"
+      traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
   SC_path_planner:
     ros__parameters:
       # traj_name: "buggycourse_safe.json"
       curb_name: "buggycourse_curb.json"
+
+  SC_vision:
+    ros__parameters:
+      model_name: "01-15-25_no_pushbar_yolov11n.pt"

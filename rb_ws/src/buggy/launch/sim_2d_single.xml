@@ -11,6 +11,7 @@
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
+    <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC"/>
 
     <!-- # This is the new velocity-updated code (commented out for now in case it broke something)
 
@@ -23,8 +24,6 @@
         <param name="velocity" value="12"/>
         <param name="pose" value="Hill1_NAND"/>
     </node> -->
-
-
 
     <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
 </launch>

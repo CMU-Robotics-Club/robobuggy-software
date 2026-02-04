@@ -40,7 +40,9 @@ install(PROGRAMS
   scripts/debug/debug_steer.py
   scripts/vision/detector_node.py
   scripts/debug/set_steer.py
-  scripts/estimation/ukf_node.py
+  scripts/estimation/nand_estimator.py
+  scripts/estimation/steer_offset_estimator.py
+  scripts/vision/detector_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -49,10 +51,12 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrajectoryMsg.msg"
+  "msg/StampedFloat64Msg.msg"
   "msg/SCDebugInfoMsg.msg"
   "msg/SCSensorMsg.msg"
   "msg/NANDRawGPSMsg.msg"
   "msg/NANDDebugInfoMsg.msg"
+  DEPENDENCIES std_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)
 

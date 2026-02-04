@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import os
+from datetime import datetime
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage
@@ -18,14 +21,25 @@ from scipy.spatial.transform import Rotation
 
 class Detector(Node):
 
+    CAMERA_OFFSET = 0.6  # Distance from INS to camera in meters
+
     def __init__(self):
         super().__init__('detector')
         self.get_logger().info("INITIALIZED.")
 
-        self.SC_pose = (
-            Pose()
-        )  # will hold msg.pose.pose of SC/self/state; 0,0,0 if not received yet
+        self.SC_pose = None
 
+        # Parameters
+        self.declare_parameter("model_name", "01-15-25_no_pushbar_yolov11n.pt")
+        model_name = self.get_parameter("model_name").value
+        self.model = YOLO(f"{os.environ['RBROOT']}/src/buggy/models/{model_name}")
+
+        # Determine path to SVO
+        formatted_date = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        self.svo_file_path = f"{os.environ['RBROOT']}/svo_files/{formatted_date}.svo"
+
+
+        # Camera Init
         self.cam = sl.Camera()
         self.initialize_camera()
         self.raw_image = sl.Mat()
@@ -72,14 +86,14 @@ class Detector(Node):
         init_params = sl.InitParameters(svo_real_time_mode=True)
         positional_tracking_params = sl.PositionalTrackingParameters()
         obj_params = sl.ObjectDetectionParameters()
+        recording_params = sl.RecordingParameters(self.svo_file_path, sl.SVO_COMPRESSION_MODE.H264)
 
         init_params.coordinate_units = sl.UNIT.METER
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
         init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Z_UP_X_FWD
         init_params.depth_maximum_distance = 50
 
-        # testing with a sample SVO file
-        # TODO: comment out when running
+        # To Test from Sample SVO FILE:
         # input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
         # init_params.set_from_svo_file(input_path)
 
@@ -173,12 +187,12 @@ class Detector(Node):
 
     def loop(self):
         # raw_frame_publish = None
-        # annotated_frame_publish = None
         num_detections = 0
         NAND_utm = None
 
         # Loop for the code that operates every 10ms
         # get a new frame from camera and get objects in that frame
+        # NOTE: This is a blocking function: see https://www.stereolabs.com/developers/release/3.0/migration-guide
         if self.cam.grab(self.runtime_params) == sl.ERROR_CODE.SUCCESS:
             self.cam.retrieve_image(self.raw_image, sl.VIEW.LEFT)
             image_net = self.raw_image.get_data()
@@ -203,7 +217,7 @@ class Detector(Node):
 
             num_detections = len(self.objects.object_list)
             NAND_pose = None
-            if num_detections > 0:
+            if num_detections > 0 and self.SC_pose is not None:
                 utms = self.objects_to_utm()
                 # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
                 NAND_pose = Odometry()

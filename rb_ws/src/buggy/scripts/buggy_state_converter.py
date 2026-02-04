@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -15,24 +16,24 @@ class BuggyStateConverter(Node):
         namespace = self.get_namespace()
         if namespace == "/SC":
             self.SC_raw_state_subscriber = self.create_subscription(
-                Odometry, "/ekf/odometry_earth", self.convert_SC_state_callback, 10
+                Odometry, "/ekf/odometry_earth", self.convert_SC_state_callback, 1
             )
 
             self.NAND_other_raw_state_subscriber = self.create_subscription(
-                Odometry, "NAND_raw_state", self.convert_NAND_other_state_callback, 10
+                Odometry, "NAND_raw_state", self.convert_NAND_other_state_callback, 1
             )
 
-            self.other_state_publisher = self.create_publisher(Odometry, "other/stateNoUKF", 10)
+            self.other_state_publisher = self.create_publisher(Odometry, "other/stateNoUKF", 1)
 
         elif namespace == "/NAND":
             self.NAND_raw_state_subscriber = self.create_subscription(
-                Odometry, "raw_state", self.convert_NAND_state_callback, 10
+                Odometry, "raw_state", self.convert_NAND_state_callback, 1
             )
 
         else:
             self.get_logger().warn(f"Namespace not recognized for buggy state conversion: {namespace}")
 
-        self.self_state_publisher = self.create_publisher(Odometry, "self/state", 10)
+        self.self_state_publisher = self.create_publisher(Odometry, "self/state", 1)
 
         # Initialize pyproj Transformer for ECEF -> UTM conversion for /SC
         self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(
@@ -54,7 +55,6 @@ class BuggyStateConverter(Node):
         converted_msg = self.convert_NAND_other_state(msg)
         self.other_state_publisher.publish(converted_msg)
 
-
     def convert_SC_state(self, msg):
         """
         Converts self/raw_state in SC namespace to clean state units and structure
@@ -65,6 +65,15 @@ class BuggyStateConverter(Node):
 
         converted_msg = Odometry()
         converted_msg.header = msg.header
+
+        # Header timestamps/frame_id are overwritten to track control stack latency
+        ns = time.time_ns()
+
+        # Arbitrary frame_id firmware timestamp for INS sourced data
+        converted_msg.header.frame_id = "0"
+
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Convert ECEF Position to UTM Coordinates ----
         ecef_x = msg.pose.pose.position.x
@@ -94,7 +103,6 @@ class BuggyStateConverter(Node):
         converted_msg.pose.covariance = msg.pose.covariance
         converted_msg.twist.covariance = msg.twist.covariance
 
-
         # ---- 4. Copy Linear/Angular Velocities (Unchanged) ----
         converted_msg.twist.twist = msg.twist.twist
 
@@ -108,6 +116,16 @@ class BuggyStateConverter(Node):
 
         converted_msg = Odometry()
         converted_msg.header = msg.header
+
+        # Add software timestamp to header to track control stack latency
+        ns = time.time_ns()
+
+        # frame_id is already set in ros2bnyahaj to firmware timestamp
+
+        # Avoid y2k38 (robobuggy WILL exist in 2038)
+        # this actually throws an error if we try to assign something outside a 32 bit range
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Directly use UTM Coordinates ----
         converted_msg.pose.pose.position.x = msg.pose.pose.position.x   # UTM Easting
@@ -145,7 +163,7 @@ class BuggyStateConverter(Node):
         """ Converts other/raw_state in SC namespace (NAND data) to clean state units and structure """
         converted_msg = Odometry()
 
-        #No actual changes as the other state is just easting northing, everything else is zeroed
+        # No actual changes as the other state is just easting northing, everything else is zeroed
         converted_msg = msg
 
         return converted_msg
