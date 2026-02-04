@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose
@@ -30,7 +30,7 @@ class Detector(Node):
         self.initialize_camera()
         self.raw_image = sl.Mat()
         self.objects = sl.Objects()
- 
+
         self.model = YOLO("src/buggy/scripts/vision/trained-models/01-15-25_no_pushbar_yolov11n.pt")
 
         self.runtime_params = sl.RuntimeParameters()
@@ -126,7 +126,7 @@ class Detector(Node):
             return output
 
         output = []
-        for i, det in enumerate(detections):
+        for _, det in enumerate(detections):
             xywh = det.xywh[0]
 
             # Creating ingestable objects for the ZED SDK
@@ -173,7 +173,7 @@ class Detector(Node):
 
     def loop(self):
         # raw_frame_publish = None
-        annotated_frame_publish = None
+        # annotated_frame_publish = None
         num_detections = 0
         NAND_utm = None
 
@@ -220,7 +220,7 @@ class Detector(Node):
             image_np = detections[0].plot() if detections else raw_image_np
             annotated_compressed_frame_msg.data = np.array(cv2.imencode('.jpg', image_np)[1]).tobytes()
             self.annotated_camera_frame_publisher.publish(annotated_compressed_frame_msg)
-            
+
             if NAND_pose is not None:
                 self.observed_NAND_odom_publisher.publish(NAND_pose)
 
