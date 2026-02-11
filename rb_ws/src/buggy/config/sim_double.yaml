@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_pavedline.json"
+      # traj_name: "buggycourse_.json"
 
 NAND:
   NAND_sim_single:
@@ -15,7 +15,8 @@ NAND:
       steeringTopic: "input/steering"
       useHeadingRate: true
       controllerName: "controller"
-      traj_name: "buggycourse_pavedline.json"
+      useSteerOffset: false
+      traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
 
@@ -33,7 +34,8 @@ SC:
       steeringTopic: "input/steering"
       useHeadingRate: true
       controllerName: "controller"
-      # traj_name: "buggycourse_safe.json"
+      useSteerOffset: false
+      traj_name: "buggycourse_sc.json"
       controller: "stanley"
   
   SC_NAND_controller:
@@ -44,11 +46,11 @@ SC:
       steeringTopic: "other/steering"
       useHeadingRate: true
       controllerName: "NAND_controller"
-      traj_name: "buggycourse_pavedline.json"
+      traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
 
   SC_path_planner:
     ros__parameters:
-      # traj_name: "buggycourse_safe.json"
+      traj_name: "buggycourse_sc.json"
       curb_name: "buggycourse_curb.json"

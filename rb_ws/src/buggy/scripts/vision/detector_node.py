@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import os
+from datetime import datetime
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CompressedImage
@@ -18,19 +21,30 @@ from scipy.spatial.transform import Rotation
 
 class Detector(Node):
 
+    CAMERA_OFFSET = 0.6  # Distance from INS to camera in meters
+
     def __init__(self):
         super().__init__('detector')
         self.get_logger().info("INITIALIZED.")
 
-        self.SC_pose = (
-            Pose()
-        )  # will hold msg.pose.pose of SC/self/state; 0,0,0 if not received yet
+        self.SC_pose = None
 
+        # Parameters
+        self.declare_parameter("model_name", "01-15-25_no_pushbar_yolov11n.pt")
+        model_name = self.get_parameter("model_name").value
+        self.model = YOLO(f"{os.environ['RBROOT']}/src/buggy/models/{model_name}")
+
+        # Determine path to SVO
+        formatted_date = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        self.svo_file_path = f"{os.environ['RBROOT']}/svo_files/{formatted_date}.svo"
+
+
+        # Camera Init
         self.cam = sl.Camera()
         self.initialize_camera()
         self.raw_image = sl.Mat()
         self.objects = sl.Objects()
- 
+
         self.model = YOLO("src/buggy/scripts/vision/trained-models/01-29-25_freeform_polygon_yolov11.pt")
 
         self.runtime_params = sl.RuntimeParameters()
@@ -72,14 +86,14 @@ class Detector(Node):
         init_params = sl.InitParameters(svo_real_time_mode=True)
         positional_tracking_params = sl.PositionalTrackingParameters()
         obj_params = sl.ObjectDetectionParameters()
+        recording_params = sl.RecordingParameters(self.svo_file_path, sl.SVO_COMPRESSION_MODE.H264)
 
         init_params.coordinate_units = sl.UNIT.METER
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
         init_params.coordinate_system = sl.COORDINATE_SYSTEM.RIGHT_HANDED_Z_UP_X_FWD
         init_params.depth_maximum_distance = 50
 
-        # testing with a sample SVO file
-        # TODO: comment out when running
+        # To Test from Sample SVO FILE:
         # input_path = "../vision/workflow-test/sc-purnell-pass-1.svo2"
         # init_params.set_from_svo_file(input_path)
 
@@ -87,19 +101,17 @@ class Detector(Node):
         obj_params.enable_tracking = True
         obj_params.enable_segmentation = False  # designed to give person pixel mask
 
-        # TODO: is exiting a node this way safe? will it interfere with other operation? (might need to test by trying to run node without camera plugged in)
-        # --> changed from exit(1) to destroy_node(), still needs to be tested
         status = self.cam.open(init_params)
         if status != sl.ERROR_CODE.SUCCESS:
-            self.get_logger().error("Camera Open", status, "Exiting program.")
-            self.destroy_node()
-            rclpy.shutdown()
+            self.get_logger().error("Camera Couldn't Open", status, "Exiting program.")
+            raise Exception("Camera Failed to Open")
 
         self.cam.enable_positional_tracking(positional_tracking_params)
         self.cam.enable_object_detection(obj_params)
+        self.cam.enable_recording(recording_params)
 
     def detections_to_custom_box(self, detections, im0):
-        def xywh2abcd(xywh, im_shape):
+        def xywh2abcd(xywh, _im_shape):
             output = np.zeros((4, 2))
 
             # Center / Width / Height -> BBox corners coordinates
@@ -126,7 +138,7 @@ class Detector(Node):
             return output
 
         output = []
-        for i, det in enumerate(detections):
+        for _, det in enumerate(detections):
             xywh = det.xywh[0]
 
             # Creating ingestable objects for the ZED SDK
@@ -156,7 +168,7 @@ class Detector(Node):
             vec = rot.apply(
                 np.array(
                     [
-                        detection_position[0] + CAMERA_OFFSET,
+                        detection_position[0] + self.CAMERA_OFFSET,
                         detection_position[1],
                         detection_position[2],
                     ]
@@ -179,19 +191,19 @@ class Detector(Node):
 
         # Loop for the code that operates every 10ms
         # get a new frame from camera and get objects in that frame
+        # NOTE: This is a blocking function: see https://www.stereolabs.com/developers/release/3.0/migration-guide
         if self.cam.grab(self.runtime_params) == sl.ERROR_CODE.SUCCESS:
             self.cam.retrieve_image(self.raw_image, sl.VIEW.LEFT)
             image_net = self.raw_image.get_data()
 
             # get raw frame
-            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_BGRA2BGR)
-            # raw_frame_publish = self.bridge.cv2_to_imgmsg(raw_image_np, encoding="rgb8")
+            raw_image_np = cv2.cvtColor(image_net, cv2.COLOR_RGBA2RGB)
 
             # pass frame into YOLO model (get 2D)
-            detections = self.model.predict(raw_image_np, save=False)
+            detections = self.model.predict(raw_image_np, save=False, verbose=False)
             detection_boxes = (
                 detections[0].cpu().numpy().boxes
-            )  # what is the [0] indexing into, does this pull out the first detection?
+            )
             custom_boxes = self.detections_to_custom_box(detection_boxes, image_net)
 
             # pass into 2D to 3D to get approximate depth
@@ -203,7 +215,7 @@ class Detector(Node):
 
             num_detections = len(self.objects.object_list)
             NAND_pose = None
-            if num_detections > 0:
+            if num_detections > 0 and self.SC_pose is not None:
                 utms = self.objects_to_utm()
                 # NOTE: we're currently defining NAND to just be the first bounding box, we might change how we figure out what NAND is if there are multiple detections
                 NAND_pose = Odometry()
@@ -220,7 +232,7 @@ class Detector(Node):
             image_np = detections[0].plot() if detections else raw_image_np
             annotated_compressed_frame_msg.data = np.array(cv2.imencode('.jpg', image_np)[1]).tobytes()
             self.annotated_camera_frame_publisher.publish(annotated_compressed_frame_msg)
-            
+
             if NAND_pose is not None:
                 self.observed_NAND_odom_publisher.publish(NAND_pose)
 

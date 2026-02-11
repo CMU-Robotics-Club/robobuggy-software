@@ -3,8 +3,8 @@
 import time
 
 import rclpy
+from buggy.msg import StampedFloat64Msg
 from rclpy.node import Node
-from std_msgs.msg import Float64
 import numpy as np
 
 
@@ -21,7 +21,7 @@ class DebugController(Node):
     def __init__(self) -> None:
         super().__init__("debug_steer")
         self.steer_publisher = self.create_publisher(
-            Float64, "input/steering", 10)
+            StampedFloat64Msg, "input/steering", 1)
         self.rate = 1000  # Hz
         self.steer_cmd = 0.0
 
@@ -60,7 +60,7 @@ class DebugController(Node):
         t = time.time() - self.t0
 
         self.steer_cmd = self.steer_fn(t)
-        msg = Float64()
+        msg = StampedFloat64Msg()
         msg.data = self.steer_cmd
 
         if time.time() - self.log_t0 >= 0.1:

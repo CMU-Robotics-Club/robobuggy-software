@@ -1,13 +1,17 @@
 SC:
   SC_sim_single:
     ros__parameters:
-      velocity: 12
+      velocity: 12.0
+      steering_offset: 8.0 # between 20.0 and -20.0, in degrees
+      steering_offset_func: 'sin' # 'constant' or 'sin'
+      steering_offset_period: 10.0 # seconds, only used when steering_offset_func is 'sin'
       steering_delay: 0 # 1 step = 0.01s (at 100 hz steering)
-      navsat_noise_std: 1e-6 # standard deviation of simulated GPS noise (in degrees lat/long)
+      step_noise_std: 0.05 # standard deviation of simulated GPS noise (in meters) 
       pose: 'Hill1_SC'
 
   SC_controller:
     ros__parameters:
       dist: 0.0
-      traj_name: 'buggycourse_safe.json'
+      traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
+      useSteerOffset: false 

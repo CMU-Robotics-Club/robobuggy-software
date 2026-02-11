@@ -49,7 +49,7 @@ class StanleyController(Controller):
             trajectory (Trajectory): reference trajectory
 
         Returns:
-            float (desired steering angle)
+            steering_cmd (float): desired steering angle, in radians
         """
         if self.current_traj_index >= trajectory.get_num_points() - 1:
             self.node.get_logger().error("[Stanley]: Ran out of path to follow!")
@@ -138,7 +138,7 @@ class StanleyController(Controller):
             reference_navsat.latitude = lat
             reference_navsat.longitude = lon
             self.debug_reference_pos_publisher.publish(reference_navsat)
-        except Exception as e:
+        except (ValueError, utm.error.OutOfRangeError) as e:
             self.node.get_logger().warn(
                 "[Stanley] Unable to convert closest track position lat lon; Error: "
                 + str(e)

@@ -22,13 +22,13 @@ class Telematics(Node):
         def wrap_args(callback, callback_args):
             return lambda msg: callback(msg, callback_args)
 
-        self.self_publisher = self.create_publisher(NavSatFix, "self/state_navsatfix", 10)
+        self.self_publisher = self.create_publisher(NavSatFix, "self/state_navsatfix", 1)
         self.self_subscriber = self.create_subscription(Odometry, "self/state", wrap_args(self.convert_buggystate, self.self_publisher), 1)
 
-        self.other_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 10)
+        self.other_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 1)
         self.other_subscriber = self.create_subscription(Odometry, "other/state", wrap_args(self.convert_buggystate, self.other_publisher), 1)
 
-        self.other_estim_publisher = self.create_publisher(NavSatFix, "other/stateNoUKF_navsatfix", 10)
+        self.other_estim_publisher = self.create_publisher(NavSatFix, "other/stateNoUKF_navsatfix", 1)
         self.other_estim_subscriber = self.create_subscription(Odometry, "other/stateNoUKF", wrap_args(self.convert_buggystate, self.other_estim_publisher), 1)
 
     # TODO Make this a static method?
@@ -54,9 +54,9 @@ class Telematics(Node):
             #     f"Converted other buggy estimate position to lat long for navsat: {lat}, {long}"
             # )
 
-        except Exception as e:
+        except (ValueError, utm.error.OutOfRangeError) as e:
             self.get_logger().debug(
-                "Unable to convert buggy position to lon lat" + str(e)
+                "Unable to convert buggy position to lat lon; Error: " + str(e)
             )
 
 
