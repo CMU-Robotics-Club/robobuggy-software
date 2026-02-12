@@ -14,6 +14,9 @@
     <include file="$(find-pkg-share velodyne)/launch/velodyne-all-nodes-VLP16-launch.py">
         <arg name="frame_id" value="velodyne"/>
         <arg name="port" value="2368"/>
+        <arg name="cut_angle" value="6.2831853072"/> <!-- 2 PI-->
+        <arg name="model" value="VLP16"/>
+        <arg name="rpm" value="300.0"/>
     </include>
 
     <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
