@@ -17,7 +17,7 @@ class UKF(Node):
 
         self.start = False
 
-        self.x_hat = None
+        self.x_hat = None   
         self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) #state covariance
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])

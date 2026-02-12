@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import scipy
 import scipy.linalg
@@ -114,3 +115,11 @@ def ukf_update(x_hat, Sigma, y, R):
     Sigma_next = Sigma - K @ S @ np.transpose(K)
 
     return x_hat_next, Sigma_next
+
+# input our guess at 1 standard deviation, get the input for UKF covariance matrix
+def stddev_to_variance(stddev):
+    return (3.0 * stddev)**2
+
+# input the UKF variance, output expected 1 standard deviation
+def variance_to_stddev(variance):
+    return math.sqrt(variance) / 3.0
