@@ -35,7 +35,7 @@ class VisionUKF(Node):
         
         # TODO update these values after testing the camera/lidar
         self.R_lidar = self.get_lidar_acc_matrix()
-        self.R_camera = self.accuracy_to_mat(50)
+        self.R_camera = self.get_camera_acc_matrix()
 
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
@@ -53,16 +53,19 @@ class VisionUKF(Node):
         if not self.start:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
+            dist = np.linalg.norm(self.x_hat)
+            self.R_lidar = self.get_lidar_acc_matrix(dist=dist)
 
-            y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-            self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_lidar)
+        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+        self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_lidar)
 
     def update_camera(self, msg):
         if not self.start:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
-
-        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+            dist = np.linalg.norm(self.x_hat)
+            self.R_camera = self.get_camera_acc_matrix(dist=dist)
+        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]        
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_camera)
 
     def loop(self):
@@ -77,12 +80,44 @@ class VisionUKF(Node):
         newMsg.twist.twist.linear.x = self.x_hat[3]
         self.nand_publisher.publish(newMsg)
 
-    def get_lidar_acc_matrix(self):
-        # [sensor accuracy, estimation accuracy]
-        # according to the datasheet, lidar is about +- 3cm 
-        x_acc = [0, 0]
-        y_acc = [0, 0]
-        z_acc = [0, 0]
+    def get_lidar_acc_matrix(self, dist=1):
+        # --- SENSOR UNCERTAINTY ---
+        sigma_range = 0.03  # meters (datasheet ±3cm)
+        R_sensor = np.diag([sigma_range**2,
+                            sigma_range**2,
+                            sigma_range**2])
+
+        # --- ESTIMATOR UNCERTAINTY ---
+        sigma_estimator = 0.10  # meters (temporary assumption)
+        R_estimator = np.diag([sigma_estimator**2,
+                            sigma_estimator**2,
+                            sigma_estimator**2])
+
+        # --- TOTAL MEASUREMENT COVARIANCE ---
+        R_total = R_sensor + R_estimator
+
+        return R_total
+    
+
+    def get_camera_acc_matrix(self, dist=1):
+        # --- SENSOR UNCERTAINTY ---
+        sigma_range = 0.05 * dist  # meters (datasheet 5% of distance)
+        R_sensor = np.diag([sigma_range**2,
+                            sigma_range**2,
+                            sigma_range**2])
+
+        # --- ESTIMATOR UNCERTAINTY ---
+        sigma_estimator = 0.10  # meters (temporary assumption)
+        R_estimator = np.diag([sigma_estimator**2,
+                            sigma_estimator**2,
+                            sigma_estimator**2])
+
+        # --- TOTAL MEASUREMENT COVARIANCE ---
+        R_total = R_sensor + R_estimator
+
+        return R_total
+
+
 
  
     def accuracy_to_mat(self, accuracy):
