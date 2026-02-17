@@ -60,10 +60,24 @@ def euclidean_clustering(data, eps=0.35, min_points=20):
 
     return clusters, labels
 
+def point_in_circle(point : np.ndarray, radius):
+    distance = np.linalg.norm(point[:2]) #x, y
+    if distance < radius:
+        return True
+    return False
+
+def cluster_mean_in_circle (cluster, radius):
+    mean_point = np.mean(cluster, axis=0) # get the x,y,z mean
+    return point_in_circle(mean_point, radius)
+
+def filter_clusters (clusters, radius=5):
+    return [c for c in clusters if cluster_mean_in_circle(c, radius)]
+
 def main():
     data = np.load('../../../../velodyne_points.npy')
 
     print(data.shape)
+    print(np.max(data, axis=0))
     g, ng_clean = ground_plane_segmentation(data)
 
     pcd_g = o3d.geometry.PointCloud()
@@ -71,6 +85,8 @@ def main():
     pcd_g.paint_uniform_color([1, 0, 0])
 
     clusters, labels = euclidean_clustering(ng_clean)
+    clusters = filter_clusters(clusters)
+
 
     # color clusters differently for visualization
     pcd_ng = o3d.geometry.PointCloud()
@@ -78,7 +94,7 @@ def main():
 
     # simple coloring: each cluster gets a different color
     colors = np.zeros((len(ng_clean), 3))
-    for i in range(len(clusters)):
+    for i in range(np.max(labels)):
         mask = labels == i
         colors[mask] = np.random.rand(3)
 

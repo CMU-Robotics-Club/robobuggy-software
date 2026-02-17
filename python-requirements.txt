@@ -17,3 +17,4 @@ empy==3.3.4
 catkin_pkg
 lark
 pyvista
+open3d==0.19.0
