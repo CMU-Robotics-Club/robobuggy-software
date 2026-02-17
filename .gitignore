@@ -20,6 +20,9 @@ vision/data/
 .sc/
 .nand/
 .venv/
+.robobuggy/
 
 # PYCHARM
 .idea/
+
+.vscode/settings.json
