@@ -87,18 +87,19 @@ def main():
     clusters, labels = euclidean_clustering(ng_clean)
     clusters = filter_clusters(clusters)
 
-
-    # color clusters differently for visualization
-    pcd_ng = o3d.geometry.PointCloud()
-    pcd_ng.points = o3d.utility.Vector3dVector(ng_clean)
-
     # simple coloring: each cluster gets a different color
-    colors = np.zeros((len(ng_clean), 3))
-    for i in range(np.max(labels)):
-        mask = labels == i
-        colors[mask] = np.random.rand(3)
+    # create a list of every point present in the filtered clusters (in range)
+    in_range_ng = []
+    colors = []
+    for cluster in clusters:
+        color = np.random.rand(3)
+        for point in cluster:
+            in_range_ng.append(point)
+            colors.append(color)
 
-    pcd_ng.colors = o3d.utility.Vector3dVector(colors)
+    pcd_ranged_ng = o3d.geometry.PointCloud()
+    pcd_ranged_ng.points = o3d.utility.Vector3dVector(in_range_ng)
+    pcd_ranged_ng.colors = o3d.utility.Vector3dVector(colors)
 
     boxes = []
     for c in clusters:
@@ -109,9 +110,9 @@ def main():
         boxes.append(bbox)
 
     pcd_g = pcd_g.voxel_down_sample(0.05)
-    pcd_ng = pcd_ng.voxel_down_sample(0.1)
+    pcd_ranged_ng = pcd_ranged_ng.voxel_down_sample(0.1)
 
-    o3d.visualization.draw_geometries([pcd_ng] + boxes)
+    o3d.visualization.draw_geometries([pcd_ranged_ng] + boxes)
 
 if __name__ == '__main__':
     main()
