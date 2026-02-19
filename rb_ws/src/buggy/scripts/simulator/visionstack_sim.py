@@ -64,6 +64,9 @@ class VisionStack(Node):
         self.sc_heading = msg.position.z 
 
     def republish(self, msg):
+        if self.sc_x is None or self.sc_y is None or self.sc_heading is None:
+            # self.get_logger().warn("Waiting for self-state position data...")
+            return
         nand_x = msg.pose.pose.position.x
         nand_y = msg.pose.pose.position.y
         distance = math.sqrt((nand_x - self.sc_x)**2 + (nand_y - self.sc_y)**2)
