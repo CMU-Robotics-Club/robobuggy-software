@@ -13,7 +13,7 @@ class VisionStack(Node):
         self.get_logger().info('INITIALIZED')
 
         self.self_state_subscriber = self.create_subscription(
-            Pose, "/self/state", self.update_selfstate, 1
+            Pose, "/SC/self/state", self.update_selfstate, 1
         )
 
         self.other_state_subscriber = self.create_subscription(
