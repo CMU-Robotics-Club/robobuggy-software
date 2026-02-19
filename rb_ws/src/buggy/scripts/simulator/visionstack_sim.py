@@ -13,7 +13,7 @@ class VisionStack(Node):
         self.get_logger().info('INITIALIZED')
 
         self.self_state_subscriber = self.create_subscription(
-            Pose, "/SC/self/state", self.update_selfstate, 1
+            Odometry, "/SC/self/state", self.update_selfstate, 1
         )
 
         self.other_state_subscriber = self.create_subscription(
@@ -59,9 +59,9 @@ class VisionStack(Node):
 
         
     def update_selfstate(self, msg):
-        self.sc_x = msg.position.x 
-        self.sc_y = msg.position.y 
-        self.sc_heading = msg.position.z 
+        self.sc_x = msg.pose.pose.position.x 
+        self.sc_y = msg.pose.pose.position.y 
+        self.sc_heading = msg.pose.pose.position.z 
 
     def republish(self, msg):
         if self.sc_x is None or self.sc_y is None or self.sc_heading is None:
