@@ -6,6 +6,8 @@ import math
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import NavSatFix
+from utils.odom_to_navsat import odom_to_navsat
 
 class VisionStack(Node):
     def __init__(self):
@@ -20,8 +22,8 @@ class VisionStack(Node):
             Odometry, "/NAND/self/state", self.republish, 1
         )
 
-        self.cam_publisher = self.create_publisher(Odometry, "/vision/other/state", 1)
-        self.lidar_publisher = self.create_publisher(Odometry, "/lidar/other/state", 1)
+        self.cam_publisher = self.create_publisher(NavSatFix, "/vision/other/state", 1)
+        self.lidar_publisher = self.create_publisher(NavSatFix, "/lidar/other/state", 1)
         
         self.sc_x = None
         self.sc_y = None
@@ -81,10 +83,10 @@ class VisionStack(Node):
             cam_state = random.randint(0, 100)
             if cam_state < 60:
                 # output correctly
-                self.cam_publisher.publish(msg)
+                self.cam_publisher.publish(odom_to_navsat(msg))
             elif cam_state < 80:
                 # output incorrectly 
-                self.cam_publisher.publish(msg)
+                self.cam_publisher.publish(odom_to_navsat(msg))
 
 
          # if within lidar range: output correctly with 80% accuracy, output incorrectly with 10% accuracy
@@ -92,10 +94,10 @@ class VisionStack(Node):
             lidar_state = random.randint(0, 100)
             if lidar_state < 80:
                 # output correctly
-                self.lidar_publisher.publish(msg)
+                self.lidar_publisher.publish(odom_to_navsat(msg))
             elif lidar_state < 90:
                 # output incorrectly 
-                self.cam_publisher.publish(msg)
+                self.cam_publisher.publish(odom_to_navsat(msg))
 
 
 def main(args=None):
