@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from rb_ws.build.buggy.rosidl_generator_py.buggy import msg
+from buggy import msg
 import rclpy
 from rclpy.node import Node
 
