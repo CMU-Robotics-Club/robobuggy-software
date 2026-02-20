@@ -8,7 +8,6 @@ from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Pose
 
 # from zed_msgs import Object
 import pyzed.sl as sl
@@ -86,7 +85,7 @@ class Detector(Node):
         init_params = sl.InitParameters(svo_real_time_mode=True)
         positional_tracking_params = sl.PositionalTrackingParameters()
         obj_params = sl.ObjectDetectionParameters()
-        recording_params = sl.RecordingParameters(self.svo_file_path, sl.SVO_COMPRESSION_MODE.H264)
+        # recording_params = sl.RecordingParameters(self.svo_file_path, sl.SVO_COMPRESSION_MODE.H264)
 
         init_params.coordinate_units = sl.UNIT.METER
         init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
@@ -113,7 +112,7 @@ class Detector(Node):
         self.cam.enable_object_detection(obj_params)
 
     def detections_to_custom_box(self, detections, im0):
-        def xywh2abcd(xywh, im_shape):
+        def xywh2abcd(xywh, _):
             output = np.zeros((4, 2))
 
             # Center / Width / Height -> BBox corners coordinates
