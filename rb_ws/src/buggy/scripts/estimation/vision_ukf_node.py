@@ -19,7 +19,9 @@ from rclpy.node import Node
 from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
 
-from utils.odom_to_navsat import odom_to_navsat
+from sensor_msgs.msg import NavSatFix
+
+from util.odomToNavsatFix import odom_to_navsat
 
 
 from ukf import *

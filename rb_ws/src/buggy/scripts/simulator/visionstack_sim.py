@@ -7,7 +7,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
-from utils.odom_to_navsat import odom_to_navsat
+from util.odomToNavsatFix import odom_to_navsat
 
 class VisionStack(Node):
     def __init__(self):
