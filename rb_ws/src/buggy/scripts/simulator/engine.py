@@ -71,8 +71,10 @@ class Simulator(Node):
 
         self.sim_time = 0.0
 
-        self.declare_parameter("step_noise_std", 1e-2)
-        self.step_noise_std = self.get_parameter("step_noise_std").value
+        self.declare_parameter("process_noise_std", 0.0)
+        self.process_noise_std = self.get_parameter("process_noise_std").value
+        self.declare_parameter("measurement_noise_std", 1e-2)
+        self.measurement_noise_std = self.get_parameter("measurement_noise_std").value
 
         init_pose_name = self.get_parameter("pose").value
         self.init_pose = self.starting_poses[init_pose_name]
@@ -109,9 +111,6 @@ class Simulator(Node):
         self.velocity_subscriber = self.create_subscription(
             Float64, "sim/velocity", self.update_velocity, 1
         )
-
-        # for X11 matplotlib (direction included)
-        self.plot_publisher = self.create_publisher(Pose, "sim_2d/utm", 1)
 
         # simulate the INS's outputs (noise included)
         # this is published as a BuggyState (UTM and radians)
@@ -181,8 +180,8 @@ class Simulator(Node):
         k4 = self.dynamics(state + h * k3, velocity)
 
         final_state = state + h/6 * (k1 + 2 * k2 + 2 * k3 + k4)
-        final_state[0] += np.random.normal(0, self.step_noise_std)
-        final_state[1] += np.random.normal(0, self.step_noise_std)
+        final_state[0] += np.random.normal(0, self.process_noise_std)
+        final_state[1] += np.random.normal(0, self.process_noise_std)
 
         e_utm_new, n_utm_new, heading_new, _, _ = final_state
         heading_new = np.rad2deg(heading_new)
@@ -194,19 +193,19 @@ class Simulator(Node):
             self.sim_time = sim_time + h
 
     def publish(self):
-        p = Pose()
+        odom_pose = Pose()
         time_stamp = self.get_clock().now().to_msg()
         with self.lock:
-            p.position.x = self.e_utm
-            p.position.y = self.n_utm
-            p.position.z = float(self.heading)
+            odom_pose.position.x = self.e_utm
+            odom_pose.position.y = self.n_utm
             velocity = self.velocity
 
-        self.plot_publisher.publish(p)
+        odom_pose.position.x += np.random.normal(0, self.measurement_noise_std)
+        odom_pose.position.y += np.random.normal(0, self.measurement_noise_std)
 
         (lat, long) = utm.to_latlon(
-            p.position.x,
-            p.position.y,
+            odom_pose.position.x,
+            odom_pose.position.y,
             Constants.UTM_ZONE_NUM,
             Constants.UTM_ZONE_LETTER,
         )
@@ -220,19 +219,20 @@ class Simulator(Node):
         odom = Odometry()
         odom.header.stamp = time_stamp
 
-        odom_pose = Pose()
-        east, north, _, _ = utm.from_latlon(lat, long)
-        odom_pose.position.x = float(east)
-        odom_pose.position.y = float(north)
         odom_pose.position.z = float(260)
-
         odom_pose.orientation.z = np.deg2rad(self.heading)
+
+        # variance on x and y from measurement_noise_std
+        odom_pose_covariance = [0.0] * 36
+        measure_noise_var = self.measurement_noise_std ** 2
+        odom_pose_covariance[0] = measure_noise_var   # x
+        odom_pose_covariance[7] = measure_noise_var   # y
 
         # NOTE: autonsystem only cares about magnitude of velocity, so we don't need to split into components
         odom_twist = Twist()
         odom_twist.linear.x = float(velocity)
 
-        odom.pose = PoseWithCovariance(pose=odom_pose)
+        odom.pose = PoseWithCovariance(pose=odom_pose, covariance=odom_pose_covariance)
         odom.twist = TwistWithCovariance(twist=odom_twist)
 
         self.pose_publisher.publish(odom)

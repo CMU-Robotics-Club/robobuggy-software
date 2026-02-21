@@ -13,8 +13,16 @@ NAND:
       stateTopic: "self/state"
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
+      steerOffsetTopic: "self/steering_offset/filtered"
       useHeadingRate: true
       controllerName: "controller"
       useSteerOffset: false
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
+      useSteerOffset: false
+
+  NAND_offset_estimator:
+    ros__parameters:
+      steerOffsetRawTopic: "self/steering_offset/raw"
+      steerOffsetFilteredTopic: "self/steering_offset/filtered"
+      steerOffsetFilterTimeConstant: 50   # in timesteps; smoothing factor alpha for low pass filter is 1 / steerOffsetFilterTimeConstant

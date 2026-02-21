@@ -11,6 +11,7 @@ from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
 
+from buggy.msg import StampedFloat64Msg
 
 class Translator(Node):
     """

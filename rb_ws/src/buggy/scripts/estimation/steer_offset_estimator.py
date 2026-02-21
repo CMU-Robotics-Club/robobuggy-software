@@ -12,6 +12,7 @@ from buggy.msg import StampedFloat64Msg, SCDebugInfoMsg, NANDDebugInfoMsg
 
 from estimation import ukf_utils
 from util.constants import Constants
+from util.LowPassFilter import LowPassFilter
 
 class SteerOffsetEstimator(Node):
     """
@@ -95,14 +96,14 @@ class SteerOffsetEstimator(Node):
         self.enabled = True  # estimator enabled
         self.auton_enabled_prev = None  # previous auton flag for edge detection
 
-        # moved to reset_filter()
-        # self.x_hat: np.ndarray = None
-        # self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) # state covariance
-        # self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6])  # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
-        # self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
-        # self.last_time = None
-
         self.reset_filter() # initialize filter state
+
+        self.declare_parameter("steerOffsetFilterTimeConstant", 50)
+        steerOffsetFilterTimeConstant = self.get_parameter("steerOffsetFilterTimeConstant").value
+        self.lowPassFilter = LowPassFilter(alpha = 1.0 / steerOffsetFilterTimeConstant)
+
+        self.declare_parameter("steerOffsetRawTopic", "self/steer_offset/raw")
+        self.declare_parameter("steerOffsetFilteredTopic", "self/steer_offset/filtered")
 
         if (self.get_namespace() == "/SC"):
             self.wheelbase = Constants.WHEELBASE_SC
@@ -112,9 +113,12 @@ class SteerOffsetEstimator(Node):
             self.create_subscription(NANDDebugInfoMsg, "debug/firmware", self.firmware_debug_callback, 1)
         self.create_subscription(Odometry, "self/state", self.update_measurement, 1) # Using EKF output for simplicity
         self.create_subscription(StampedFloat64Msg, "input/steering", self.update_steering, 1)
-        self.offset_publisher = self.create_publisher(Float64, "self/steer_offset", 1)
+
+        self.offset_publisher_raw = self.create_publisher(Float64, self.get_parameter("steerOffsetRawTopic").value, 1)
+        self.offset_publisher_filtered = self.create_publisher(Float64, self.get_parameter("steerOffsetFilteredTopic").value, 1)
         self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/state", 1)
         self.state_covar_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/covariance", 1)
+
 
         self.steering = 0
 
@@ -124,8 +128,10 @@ class SteerOffsetEstimator(Node):
         """Reset the UKF so next measurement initializes state."""
         self.start = False
         self.x_hat: np.ndarray = np.zeros((5,))  # state vector
-        self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 1.2e-3]) # state covariance
-        self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6])  # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
+
+        # Offset variance extremely high out of caution and proof of convergence
+        self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-2]) # state covariance
+        self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
         self.last_time = None
 
@@ -180,11 +186,11 @@ class SteerOffsetEstimator(Node):
                 msg.pose.pose.orientation.z,
                 msg.twist.twist.linear.x,
                 0])
-            # extract 2x2 position covariance from the 6x6 pose covariance
-            self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
 
         # measurement vector
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+        # extract 2x2 position covariance from the 6x6 pose covariance
+        self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
         # perform measurement update
         self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_update(self.x_hat, self.Sigma, y, self.R)
 
@@ -197,7 +203,10 @@ class SteerOffsetEstimator(Node):
 
         - Runs the predict step using the RK4-discretized dynamics.
         - Wraps heading and steering offset to keep them in valid ranges.
-        - Publishes steer offset, full state, and covariance at 100 Hz.
+        - Applies a low-pass filter to the steering offset.
+          - A low-pass filter filters out high-frequency noise in the estimate at the cost of responsiveness/increased lag;
+            this is okay since we expect the steering offset to vary slowly over time.
+        - Publishes steer offset (raw and filtered), full state, and covariance at 100 Hz.
         """
         if (not self.enabled) or (not self.start):
             return
@@ -207,10 +216,6 @@ class SteerOffsetEstimator(Node):
         self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
         self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
         self.last_time = time.time()
-
-        # wrap the steering offset to (-pi/2, pi/2]
-        steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
-        self.offset_publisher.publish(Float64(data=steer_offset))
 
         state_msg = Float64MultiArray()
         state_msg.data = self.x_hat.tolist()
@@ -222,6 +227,20 @@ class SteerOffsetEstimator(Node):
         covar_msg = Float64MultiArray()
         covar_msg.data = self.Sigma.flatten().tolist()
         self.state_covar_publisher.publish(covar_msg)
+
+        offset_variance = self.Sigma[-1, -1]
+
+        # Checks the offset variance is reasonable, corresponds to 6 deg std deviation.
+        if offset_variance < Constants.OFFSET_THRESHOLD:
+
+            # wrap the steering offset to (-pi/2, pi/2]
+            steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
+            self.offset_publisher_raw.publish(Float64(data=steer_offset))
+
+            # apply low-pass filter to steering offset
+            steer_offset_filtered = self.lowPassFilter.update(steer_offset)
+            self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
+
 
 
 def main(args=None):

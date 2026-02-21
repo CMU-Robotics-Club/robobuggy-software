@@ -8,6 +8,7 @@ from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry
 from buggy.msg import StampedFloat64Msg
 
+from util.constants import Constants
 
 from ukf_utils import *
 
@@ -90,7 +91,7 @@ class NANDStateEstimator(Node):
         self.start = False
 
         self.x_hat = None
-        self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) #state covariance
+        self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) # state covariance
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
@@ -148,17 +149,41 @@ class NANDStateEstimator(Node):
 
     def accuracy_to_mat(self, accuracy):
         """
-        Convert a scalar accuracy to a 2x2 position covariance matrix.
+        Convert a scalar *circular* position accuracy to a 2x2 position covariance matrix.
 
         Args:
-            accuracy: Position accuracy.
+            accuracy: Position accuracy (radius) in millimeters.
+
+        We assume the position error in x and y follows a 2D Gaussian
+        (normal) distribution that is:
+        * centered at zero (no bias)
+        * has the same spread in x and y
+        * has no correlation between x and y
+
+        The constant 0.848867684498 is a precomputed factor that relates
+        this circular accuracy radius to the underlying standard deviation 
+        of that Gaussian.
+
+        Once we have that standard deviation σ (in meters), the covariance
+        matrix for (x, y) is simply:
+        [ σ²  0  ]
+        [ 0   σ² ]
 
         Returns:
-            2x2 diagonal covariance matrix for x/y position.
+            2x2 diagonal covariance matrix for x/y position (in m²).
         """
+        # convert radius from millimeters to meters
         accuracy /= 1000.0
-        sigma = (accuracy / (0.848867684498)) * (accuracy / (0.848867684498))
-        return np.diag([sigma, sigma])
+
+        # accuracy is the circular error radius (meters)
+        # k is the factor that maps between this radius and the Gaussian σ
+        k = Constants.CEP50_to_STD
+        sigma = accuracy / k
+
+        # variance in each axis (assuming isotropic uncertainty)
+        sigma_sq = sigma * sigma
+
+        return np.diag([sigma_sq, sigma_sq])
 
 def main(args=None):
     rclpy.init(args=args)
