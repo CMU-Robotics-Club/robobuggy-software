@@ -15,15 +15,15 @@ class VisionStack(Node):
         self.get_logger().info('INITIALIZED')
 
         self.self_state_subscriber = self.create_subscription(
-            Pose, "/SC/self/state", self.update_selfstate, 1
+            Odometry, "/SC/self/state", self.update_selfstate, 1
         )
 
         self.other_state_subscriber = self.create_subscription(
             Odometry, "/NAND/self/state", self.republish, 1
         )
 
-        self.cam_publisher = self.create_publisher(NavSatFix, "/vision/other/state", 1)
-        self.lidar_publisher = self.create_publisher(NavSatFix, "/lidar/other/state", 1)
+        self.cam_publisher = self.create_publisher(NavSatFix, "vision/other/state", 1)
+        self.lidar_publisher = self.create_publisher(NavSatFix, "lidar/other/state", 1)
         
         self.sc_x = None
         self.sc_y = None
@@ -61,13 +61,14 @@ class VisionStack(Node):
 
         
     def update_selfstate(self, msg):
+        # self.get_logger().warn("updating SC state in visionstacksim")
         self.sc_x = msg.position.x 
         self.sc_y = msg.position.y 
         self.sc_heading = msg.position.z 
 
     def republish(self, msg):
         if self.sc_x is None or self.sc_y is None or self.sc_heading is None:
-            # self.get_logger().warn("Waiting for self-state position data...")
+            self.get_logger().warn("Waiting for self-state position data...")
             return
         nand_x = msg.pose.pose.position.x
         nand_y = msg.pose.pose.position.y
@@ -76,9 +77,11 @@ class VisionStack(Node):
         in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading)
         in_cam_view = in_fov and distance < 20
         # lidar should only republish if nand position is within 5 meters of sc 
-        in_lidar_view = distance < 5
+        in_lidar_view = distance < 10
 
         # if within camera range: output correctly with 60% accuracy, output incorrectly with 20% accuracy
+        self.get_logger().warn(f"lidar/camera publish: {in_cam_view} {in_lidar_view}")
+
         if in_cam_view:
             cam_state = random.randint(0, 100)
             if cam_state < 60:
@@ -90,7 +93,7 @@ class VisionStack(Node):
 
 
          # if within lidar range: output correctly with 80% accuracy, output incorrectly with 10% accuracy
-        if in_cam_view:
+        if in_lidar_view:
             lidar_state = random.randint(0, 100)
             if lidar_state < 80:
                 # output correctly
