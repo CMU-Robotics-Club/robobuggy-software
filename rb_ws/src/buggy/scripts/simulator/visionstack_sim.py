@@ -6,6 +6,8 @@ import math
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import NavSatFix
+from util.odomToNavsatFix import odom_to_navsat
 
 class VisionStack(Node):
     def __init__(self):
@@ -20,8 +22,11 @@ class VisionStack(Node):
             Odometry, "/NAND/self/state", self.republish, 1
         )
 
-        self.cam_publisher = self.create_publisher(Odometry, "/vision/other/state", 1)
-        self.lidar_publisher = self.create_publisher(Odometry, "/lidar/other/state", 1)
+        self.cam_publisher = self.create_publisher(Odometry, "vision/other/state", 1)
+        self.navsat_cam_publisher = self.create_publisher(NavSatFix, "vision/other/pose_navsat", 1)
+
+        self.lidar_publisher = self.create_publisher(Odometry, "lidar/other/state", 1)
+        self.navsat_lidar_publisher = self.create_publisher(NavSatFix, "lidar/other/pose_navsat", 1)
         
         self.sc_x = None
         self.sc_y = None
@@ -65,7 +70,7 @@ class VisionStack(Node):
 
     def republish(self, msg):
         if self.sc_x is None or self.sc_y is None or self.sc_heading is None:
-            # self.get_logger().warn("Waiting for self-state position data...")
+            self.get_logger().warn("Waiting for self-state position data...")
             return
         nand_x = msg.pose.pose.position.x
         nand_y = msg.pose.pose.position.y
@@ -74,28 +79,35 @@ class VisionStack(Node):
         in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading)
         in_cam_view = in_fov and distance < 20
         # lidar should only republish if nand position is within 5 meters of sc 
-        in_lidar_view = distance < 5
+        in_lidar_view = distance < 10
 
         # if within camera range: output correctly with 60% accuracy, output incorrectly with 20% accuracy
+        self.get_logger().warn(f"lidar/camera publish: {in_cam_view} {in_lidar_view}")
+
+        # TODO: how are these making incorrect values?
         if in_cam_view:
             cam_state = random.randint(0, 100)
             if cam_state < 60:
                 # output correctly
                 self.cam_publisher.publish(msg)
+                self.navsat_cam_publisher.publish(odom_to_navsat(msg))
             elif cam_state < 80:
-                # output incorrectly 
+                # output incorrectly
                 self.cam_publisher.publish(msg)
+                self.navsat_cam_publisher.publish(odom_to_navsat(msg))
 
 
          # if within lidar range: output correctly with 80% accuracy, output incorrectly with 10% accuracy
-        if in_cam_view:
+        if in_lidar_view:
             lidar_state = random.randint(0, 100)
             if lidar_state < 80:
                 # output correctly
                 self.lidar_publisher.publish(msg)
+                self.navsat_lidar_publisher.publish(odom_to_navsat(msg))
             elif lidar_state < 90:
                 # output incorrectly 
-                self.cam_publisher.publish(msg)
+                self.lidar_publisher.publish(msg)
+                self.navsat_lidar_publisher.publish(odom_to_navsat(msg))
 
 
 def main(args=None):

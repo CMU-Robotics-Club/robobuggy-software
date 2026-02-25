@@ -19,6 +19,10 @@ from rclpy.node import Node
 from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
 
+from sensor_msgs.msg import NavSatFix
+
+from util.odomToNavsatFix import odom_to_navsat
+
 
 from ukf import *
 
@@ -39,11 +43,10 @@ class VisionUKF(Node):
 
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
-        # TODO is it the right name
         self.create_subscription(Odometry, "vision/other/state", self.update_camera, 1)
         self.create_subscription(Odometry, "lidar/other/state", self.update_lidar, 1)
         
-        self.nand_publisher = self.create_publisher(Odometry, "other/vision_fusion", 10)
+        self.nand_publisher = self.create_publisher(NavSatFix, "other/vision_fusion", 10)
 
         self.steering = 0
 
@@ -78,7 +81,7 @@ class VisionUKF(Node):
         newMsg.pose.pose.position.y = self.x_hat[1]
         newMsg.pose.pose.orientation.z = self.x_hat[2]
         newMsg.twist.twist.linear.x = self.x_hat[3]
-        self.nand_publisher.publish(newMsg)
+        self.nand_publisher.publish(odom_to_navsat(newMsg))
 
     def get_lidar_acc_matrix(self, dist=1):
         # --- SENSOR UNCERTAINTY ---
