@@ -43,7 +43,6 @@ class VisionUKF(Node):
 
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
-        # TODO is it the right name
         self.create_subscription(Odometry, "vision/other/state", self.update_camera, 1)
         self.create_subscription(Odometry, "lidar/other/state", self.update_lidar, 1)
         
