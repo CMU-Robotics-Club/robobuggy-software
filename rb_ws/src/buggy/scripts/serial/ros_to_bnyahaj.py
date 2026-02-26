@@ -89,6 +89,11 @@ class Translator(Node):
         self.control_latency_publisher = self.create_publisher(
             Float64, "debug/control_latency", 1
         )
+        self.serial_loop_time_publisher = self.create_publisher(
+            Float64, "debug/serial_loop_hz", 1
+        )
+
+        self.last_loop_timestamp = None
 
     def set_alarm(self, msg):
         """
@@ -119,6 +124,13 @@ class Translator(Node):
             self.fresh_steer = True
 
     def loop(self):
+        cur = time.time()
+        if self.last_loop_timestamp is not None:
+            hz = 1 / (cur - self.last_loop_timestamp)
+            self.serial_loop_time_publisher.publish(Float64(data=hz))
+        
+        self.last_loop_timestamp = cur
+
         packet_on_buffer = True
         while packet_on_buffer:
             packet = self.comms.read_packet()

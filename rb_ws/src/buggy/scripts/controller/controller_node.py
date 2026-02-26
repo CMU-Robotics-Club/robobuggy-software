@@ -4,6 +4,7 @@ import os
 import numpy as np
 import rclpy
 from rclpy.node import Node
+import time
 
 from std_msgs.msg import Float32, Bool, Float64
 from nav_msgs.msg import Odometry
@@ -67,6 +68,9 @@ class Controller(Node):
         )
         self.heading_publisher = self.create_publisher(
             Float32, "debug/heading", 1
+        )
+        self.control_input_age_publisher = self.create_publisher(
+            Float64, "debug/control_input_age", 1
         )
 
         # Subscribers
@@ -150,6 +154,12 @@ class Controller(Node):
                 return
 
         odom = self.odom
+
+        # Age of steering input used for this control command
+        sw_stamp = odom.header.stamp.sec * int(1e9) + odom.header.stamp.nanosec
+        sw_dt = (time.time_ns() - sw_stamp) * 1e-9
+        self.control_input_age_publisher.publish(Float64(data=sw_dt))
+
         self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
 
         steering_angle = self.controller.compute_control(odom, self.cur_traj)
