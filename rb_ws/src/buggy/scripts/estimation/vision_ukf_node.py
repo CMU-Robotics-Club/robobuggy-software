@@ -43,7 +43,7 @@ class VisionUKF(Node):
 
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
-        self.create_subscription(Odometry, "vision/other/state", self.update_camera, 1)
+        self.create_subscription(Odometry, "camera/other/state", self.update_camera, 1)
         self.create_subscription(Odometry, "lidar/other/state", self.update_lidar, 1)
         
         self.nand_publisher = self.create_publisher(NavSatFix, "other/vision_fusion", 10)
@@ -63,6 +63,7 @@ class VisionUKF(Node):
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_lidar)
 
     def update_camera(self, msg):
+
         if not self.start:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
@@ -87,13 +88,11 @@ class VisionUKF(Node):
         # --- SENSOR UNCERTAINTY ---
         sigma_range = 0.03  # meters (datasheet ±3cm)
         R_sensor = np.diag([sigma_range**2,
-                            sigma_range**2,
-                            sigma_range**2])
+                            sigma_range**2,])
 
         # --- ESTIMATOR UNCERTAINTY ---
         sigma_estimator = 0.10  # meters (temporary assumption)
         R_estimator = np.diag([sigma_estimator**2,
-                            sigma_estimator**2,
                             sigma_estimator**2])
 
         # --- TOTAL MEASUREMENT COVARIANCE ---
@@ -106,13 +105,11 @@ class VisionUKF(Node):
         # --- SENSOR UNCERTAINTY ---
         sigma_range = 0.05 * dist  # meters (datasheet 5% of distance)
         R_sensor = np.diag([sigma_range**2,
-                            sigma_range**2,
                             sigma_range**2])
 
         # --- ESTIMATOR UNCERTAINTY ---
         sigma_estimator = 0.10  # meters (temporary assumption)
         R_estimator = np.diag([sigma_estimator**2,
-                            sigma_estimator**2,
                             sigma_estimator**2])
 
         # --- TOTAL MEASUREMENT COVARIANCE ---

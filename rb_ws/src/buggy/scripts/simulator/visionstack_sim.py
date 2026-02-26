@@ -3,6 +3,8 @@ import random
 import random
 import rclpy
 import math
+import copy
+
 from rclpy.node import Node
 from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
@@ -22,8 +24,8 @@ class VisionStack(Node):
             Odometry, "/NAND/self/state", self.republish, 1
         )
 
-        self.cam_publisher = self.create_publisher(Odometry, "vision/other/state", 1)
-        self.navsat_cam_publisher = self.create_publisher(NavSatFix, "vision/other/pose_navsat", 1)
+        self.cam_publisher = self.create_publisher(Odometry, "camera/other/state", 1)
+        self.navsat_cam_publisher = self.create_publisher(NavSatFix, "camera/other/pose_navsat", 1)
 
         self.lidar_publisher = self.create_publisher(Odometry, "lidar/other/state", 1)
         self.navsat_lidar_publisher = self.create_publisher(NavSatFix, "lidar/other/pose_navsat", 1)
@@ -32,6 +34,28 @@ class VisionStack(Node):
         self.sc_y = None
         self.sc_heading = None 
 
+    def corrupt_odom(self, msg: Odometry, pos_noise: float = 5.0, angle_noise: float = math.pi) -> Odometry:
+        """Return a deep-copied Odometry msg with randomized/noisy values."""
+        corrupted = copy.deepcopy(msg)
+
+        # Corrupt position with large gaussian noise
+        corrupted.pose.pose.position.x += random.gauss(0, pos_noise)
+        corrupted.pose.pose.position.y += random.gauss(0, pos_noise)
+        corrupted.pose.pose.position.z += random.gauss(0, pos_noise)
+
+        # Corrupt orientation — generate a random unit quaternion
+        u1, u2, u3 = random.random(), random.random(), random.random()
+        corrupted.pose.pose.orientation.x = math.sqrt(1 - u1) * math.sin(2 * math.pi * u2)
+        corrupted.pose.pose.orientation.y = math.sqrt(1 - u1) * math.cos(2 * math.pi * u2)
+        corrupted.pose.pose.orientation.z = math.sqrt(u1)      * math.sin(2 * math.pi * u3)
+        corrupted.pose.pose.orientation.w = math.sqrt(u1)      * math.cos(2 * math.pi * u3)
+
+        # Corrupt velocity
+        corrupted.twist.twist.linear.x  += random.gauss(0, pos_noise)
+        corrupted.twist.twist.linear.y  += random.gauss(0, pos_noise)
+        corrupted.twist.twist.angular.z += random.gauss(0, angle_noise)
+
+        return corrupted
 
     def is_within_fov(self, observer, target, heading, fov_degrees=100):
         """
@@ -78,36 +102,40 @@ class VisionStack(Node):
         # camera should only republish if nand position is within view of sc and within 20 meters 
         in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading)
         in_cam_view = in_fov and distance < 20
-        # lidar should only republish if nand position is within 5 meters of sc 
+        # lidar should only republish if nand position is within 10 meters of sc 
         in_lidar_view = distance < 10
 
         # if within camera range: output correctly with 60% accuracy, output incorrectly with 20% accuracy
         self.get_logger().warn(f"lidar/camera publish: {in_cam_view} {in_lidar_view}")
 
-        # TODO: how are these making incorrect values?
+
+        # Camera: 60% correct, 20% incorrect, 20% no output
         if in_cam_view:
             cam_state = random.randint(0, 100)
             if cam_state < 60:
-                # output correctly
+                # Correct detection
                 self.cam_publisher.publish(msg)
                 self.navsat_cam_publisher.publish(odom_to_navsat(msg))
             elif cam_state < 80:
-                # output incorrectly
-                self.cam_publisher.publish(msg)
-                self.navsat_cam_publisher.publish(odom_to_navsat(msg))
+                # Incorrect detection — publish corrupted values
+                bad_msg = self.corrupt_odom(msg, pos_noise=3.0)
+                self.cam_publisher.publish(bad_msg)
+                self.navsat_cam_publisher.publish(odom_to_navsat(bad_msg))
+            # else: 20% missed detection — publish nothing
 
-
-         # if within lidar range: output correctly with 80% accuracy, output incorrectly with 10% accuracy
+        # Lidar: 80% correct, 10% incorrect, 10% no output
         if in_lidar_view:
             lidar_state = random.randint(0, 100)
             if lidar_state < 80:
-                # output correctly
+                # Correct detection
                 self.lidar_publisher.publish(msg)
                 self.navsat_lidar_publisher.publish(odom_to_navsat(msg))
             elif lidar_state < 90:
-                # output incorrectly 
-                self.lidar_publisher.publish(msg)
-                self.navsat_lidar_publisher.publish(odom_to_navsat(msg))
+                # Incorrect detection — publish corrupted values
+                bad_msg = self.corrupt_odom(msg, pos_noise=1.5)  # lidar is more precise, so less noise
+                self.lidar_publisher.publish(bad_msg)
+                self.navsat_lidar_publisher.publish(odom_to_navsat(bad_msg))
+            # else: 10% missed detection — publish nothing
 
 
 def main(args=None):
