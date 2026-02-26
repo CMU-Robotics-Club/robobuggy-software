@@ -13,6 +13,9 @@ import numpy as np
 
 from buggy.msg import StampedFloat64Msg
 
+# max number of packets to read from the buffer in each loop iteration
+PACKET_READ_LIMIT = 20
+
 class Translator(Node):
     """
     Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
@@ -48,7 +51,6 @@ class Translator(Node):
         self.steer_sw_timestamp = 0
 
         self.alarm = 0
-        self.fresh_steer = False
         self.lock = Lock()
 
         self.create_subscription(
@@ -97,6 +99,7 @@ class Translator(Node):
         with self.lock:
             self.get_logger().debug(f"Reading alarm of {msg.data}")
             self.alarm = msg.data
+            self.comms.send_alarm(self.alarm)
 
     def set_steering(self, msg: StampedFloat64Msg):
         """
@@ -116,17 +119,26 @@ class Translator(Node):
             self.steer_angle = msg.data
             self.steer_fw_timestamp = fw_stamp
             self.steer_sw_timestamp = sw_stamp
-            self.fresh_steer = True
+
+            self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
+            sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
+            self.control_latency_publisher.publish(Float64(data=sw_dt))
+
+            self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
 
     def loop(self):
         packet_on_buffer = True
-        while packet_on_buffer:
+        # 20 packet limit to prevent starvation of write operations if there are too many packets on the buffer
+        packets_processed = 0
+        while packet_on_buffer and packets_processed < PACKET_READ_LIMIT:
             packet = self.comms.read_packet()
             if (packet is None):
                 packet_on_buffer = False
                 self.get_logger().debug("NO PACKET")
+                continue
             else:
                 self.get_logger().debug("PACKET")
+                packets_processed += 1
 
             if isinstance(packet, NANDDebugInfo):
                 rospacket = NANDDebugInfoMsg()
@@ -217,17 +229,6 @@ class Translator(Node):
                 self.roundtrip_time_publisher.publish(Float64(data=rtt))
                 self.teensycycle_time_publisher.publish(Float64(data=packet.teensy_cycle_time * 1e-6))
 
-        if self.fresh_steer:
-            with self.lock:
-                self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
-                sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
-                self.control_latency_publisher.publish(Float64(data=sw_dt))
-
-                self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
-                self.fresh_steer = False
-
-        with self.lock:
-            self.comms.send_alarm(self.alarm)
         with self.lock:
             self.comms.send_timestamp(time.time_ns())
 
