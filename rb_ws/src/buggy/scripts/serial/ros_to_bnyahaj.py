@@ -101,6 +101,11 @@ class Translator(Node):
         self.control_latency_publisher = self.create_publisher(
             Float64, "debug/control_latency", 1
         )
+        self.serial_loop_time_publisher = self.create_publisher(
+            Float64, "debug/serial_loop_hz", 1
+        )
+
+        self.last_loop_timestamp = None
 
         # Control Stack Event Tracing
         self.ctrl_evt_publisher = self.create_publisher(
@@ -149,6 +154,13 @@ class Translator(Node):
         self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
 
     def loop(self):
+        cur = time.time()
+        if self.last_loop_timestamp is not None:
+            hz = 1 / (cur - self.last_loop_timestamp)
+            self.serial_loop_time_publisher.publish(Float64(data=hz))
+        
+        self.last_loop_timestamp = cur
+
         packet_on_buffer = True
         # 20 packet limit to prevent starvation of write operations if there are too many packets on the buffer
         packets_processed = 0
