@@ -235,6 +235,10 @@ class Simulator(Node):
         odom.pose = PoseWithCovariance(pose=odom_pose, covariance=odom_pose_covariance)
         odom.twist = TwistWithCovariance(twist=odom_twist)
 
+        ns = time.time_ns()
+        odom.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        odom.header.stamp.nanosec = ns % int(1e9)
+
         self.pose_publisher.publish(odom)
 
     def loop(self):

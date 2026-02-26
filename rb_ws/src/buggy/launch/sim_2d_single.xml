@@ -7,6 +7,9 @@
     <node pkg="buggy" exec="engine.py" name="SC_sim_single" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
+    <node pkg="buggy" exec="ros_to_bnyahaj.py" name="SC_ros_to_bnyahaj" respawn="true" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
     <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" namespace="SC"/>
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
         <param from="$(var config_file)"/>
