@@ -1,6 +1,7 @@
 import numpy as np
 import open3d as o3d
 from sklearn import linear_model
+from time import time
 
 def ground_plane_segmentation(data):
     data -= np.mean(data, axis=0)
@@ -31,6 +32,15 @@ def ground_plane_segmentation(data):
 
     return g, ng_clean
 
+def cluster_volume(cluster_points):
+    pc = o3d.geometry.PointCloud()
+    pc.points = o3d.utility.Vector3dVector(cluster_points)
+
+    bbox = pc.get_axis_aligned_bounding_box()
+    bbox.color = (1, 0, 0)
+
+    return bbox.volume(), bbox
+
 def euclidean_clustering(data, eps=0.35, min_points=20):
     """
     data: (N,3) numpy array of non-ground points
@@ -54,11 +64,26 @@ def euclidean_clustering(data, eps=0.35, min_points=20):
     print(f"Found {max_label + 1} clusters")
 
     clusters = []
+
     for i in range(max_label + 1):
         cluster_i = data[labels == i]
         clusters.append(cluster_i)
+    MIN_VOL = 0.05
+    MAX_VOL = 30.0
 
-    return clusters, labels
+    filtered_clusters = []
+    filtered_boxes = []
+
+    for c in clusters:
+        vol, bbox = cluster_volume(c)
+
+        if MIN_VOL < vol < MAX_VOL:
+            filtered_clusters.append(c)
+            filtered_boxes.append(bbox)
+
+    print(f"Kept {len(filtered_clusters)} / {len(clusters)} clusters")
+
+    return filtered_clusters, filtered_boxes, labels
 
 def point_in_circle(point : np.ndarray, radius):
     distance = np.linalg.norm(point[:2]) #x, y
@@ -74,7 +99,8 @@ def filter_clusters (clusters, radius=5):
     return [c for c in clusters if cluster_mean_in_circle(c, radius)]
 
 def main():
-    data = np.load('../../../../velodyne_points.npy')
+    file = np.load('sc_feb_21_26_roll_1.npz', allow_pickle=True)
+    data = file['frames'][0]
 
     print(data.shape)
     print(np.max(data, axis=0))
@@ -86,7 +112,7 @@ def main():
     pcd_g.points = o3d.utility.Vector3dVector(g)
     pcd_g.paint_uniform_color([1, 0, 0])
 
-    clusters, labels = euclidean_clustering(ng_clean)
+    clusters, boxes, labels = euclidean_clustering(ng_clean)
     clusters = filter_clusters(clusters)
 
     # simple coloring: each cluster gets a different color
@@ -98,6 +124,12 @@ def main():
         for point in cluster:
             in_range_ng.append(point)
             colors.append(color)
+    # clusters, boxes, labels = euclidean_clustering(ng_clean)
+    #
+    # # color clusters differently for visualization
+    pcd_ng = o3d.geometry.PointCloud()
+    pcd_ng.points = o3d.utility.Vector3dVector(ng_clean)
+    pcd_ng.paint_uniform_color([0, 0, 0])
 
     pcd_ranged_ng = o3d.geometry.PointCloud()
     pcd_ranged_ng.points = o3d.utility.Vector3dVector(in_range_ng)
@@ -114,9 +146,18 @@ def main():
     time_end = time()
     print(f"Processing time: {time_end - time_start:.2f} seconds")
 
+    # # simple coloring: each cluster gets a different color
+    # colors = np.zeros((len(ng_clean), 3))
+    # for i in range(len(clusters)):
+    #     mask = labels == i
+    #     colors[mask] = np.random.rand(3)
+    #
+    # pcd_ng.colors = o3d.utility.Vector3dVector(colors)
+    #
     pcd_g = pcd_g.voxel_down_sample(0.05)
     pcd_ranged_ng = pcd_ranged_ng.voxel_down_sample(0.1)
 
+    o3d.visualization.draw_geometries([pcd_ng, pcd_g])
     o3d.visualization.draw_geometries([pcd_ranged_ng] + boxes)
 
 if __name__ == '__main__':

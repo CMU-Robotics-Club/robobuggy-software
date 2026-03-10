@@ -57,7 +57,7 @@ def main():
 
     # Read bag
 
-    plotter = pv.Plotter()
+    # plotter = pv.Plotter()
     i = 0
     while reader.has_next():
         topic, data, _ = reader.read_next()
@@ -70,42 +70,56 @@ def main():
 
         # Convert PointCloud2 → NumPy
         # print()
-        cloud_np = np.array(
-            list(list(x) for x in point_cloud2.read_points(
-                msg,
-                field_names=("x", "y", "z"),
-                skip_nans=True
-            )),
-            dtype=np.float32
+        points = point_cloud2.read_points(
+            msg,
+            field_names=("x", "y", "z"),
+            skip_nans=True
         )
+
+        cloud_struct = np.fromiter(
+            points,
+            dtype=np.dtype([
+                ("x", np.float32),
+                ("y", np.float32),
+                ("z", np.float32),
+            ])
+        )
+
+        cloud_np = np.stack(
+            (cloud_struct["x"],
+             cloud_struct["y"],
+             cloud_struct["z"]),
+            axis=-1
+        )
+
         print(cloud_np.shape)
 
         time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
 
                 # frame: (N, 3) NumPy array
-        cloud = pv.PolyData(cloud_np)
+        # cloud = pv.PolyData(cloud_np)
 
-        plotter.add_points(
-            cloud,
-            point_size=2,
-            render_points_as_spheres=False
-        )
+        # plotter.add_points(
+        #     cloud,
+        #     point_size=2,
+        #     render_points_as_spheres=False
+        # )
 
         frames.append(cloud_np)
-        if i >= 5:
-            break
-    plotter.add_mesh(pv.Sphere())
-    plotter.add_axes()
-    plotter.show_grid()
-    plotter.show(screenshot='output.png')
+        # if i >= 5:
+        #     break
+    # plotter.add_mesh(pv.Sphere())
+    # plotter.add_axes()
+    # plotter.show_grid()
+    # plotter.show(screenshot='output.png')
 
     # Save
 
-    final = np.concatenate(frames)
-    print(final.shape)
-    np.save(
-        "velodyne_points",
-        arr=final,
+    # final = np.concatenate(frames)
+    # print(final.shape)
+    np.savez_compressed(
+        args.bag_file[:-5] + ".npz",
+        frames=np.array(frames, dtype=object)
     )
 
     print("Extraction complete.")
