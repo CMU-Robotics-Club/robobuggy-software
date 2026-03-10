@@ -24,11 +24,11 @@ class VisionStack(Node):
             Odometry, "/NAND/self/state", self.republish, 1
         )
 
-        self.cam_publisher = self.create_publisher(Odometry, "camera/other/state", 1)
-        self.navsat_cam_publisher = self.create_publisher(NavSatFix, "camera/other/pose_navsat", 1)
+        self.cam_publisher = self.create_publisher(Odometry, "/SC/camera/other/state", 1)
+        self.navsat_cam_publisher = self.create_publisher(NavSatFix, "/SC/camera/other/pose_navsat", 1)
 
-        self.lidar_publisher = self.create_publisher(Odometry, "lidar/other/state", 1)
-        self.navsat_lidar_publisher = self.create_publisher(NavSatFix, "lidar/other/pose_navsat", 1)
+        self.lidar_publisher = self.create_publisher(Odometry, "/SC/lidar/other/state", 1)
+        self.navsat_lidar_publisher = self.create_publisher(NavSatFix, "/SC/lidar/other/pose_navsat", 1)
         
         self.sc_x = None
         self.sc_y = None
@@ -41,14 +41,7 @@ class VisionStack(Node):
         # Corrupt position with large gaussian noise
         corrupted.pose.pose.position.x += random.gauss(0, pos_noise)
         corrupted.pose.pose.position.y += random.gauss(0, pos_noise)
-        corrupted.pose.pose.position.z += random.gauss(0, pos_noise)
-
-        # Corrupt orientation — generate a random unit quaternion
-        u1, u2, u3 = random.random(), random.random(), random.random()
-        corrupted.pose.pose.orientation.x = math.sqrt(1 - u1) * math.sin(2 * math.pi * u2)
-        corrupted.pose.pose.orientation.y = math.sqrt(1 - u1) * math.cos(2 * math.pi * u2)
-        corrupted.pose.pose.orientation.z = math.sqrt(u1)      * math.sin(2 * math.pi * u3)
-        corrupted.pose.pose.orientation.w = math.sqrt(u1)      * math.cos(2 * math.pi * u3)
+        corrupted.pose.pose.position.z += random.gauss(0, angle_noise)  # z = heading in radians
 
         # Corrupt velocity
         corrupted.twist.twist.linear.x  += random.gauss(0, pos_noise)
@@ -100,7 +93,7 @@ class VisionStack(Node):
         nand_y = msg.pose.pose.position.y
         distance = math.sqrt((nand_x - self.sc_x)**2 + (nand_y - self.sc_y)**2)
         # camera should only republish if nand position is within view of sc and within 20 meters 
-        in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading)
+        in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading * 180/math.pi)
         in_cam_view = in_fov and distance < 20
         # lidar should only republish if nand position is within 10 meters of sc 
         in_lidar_view = distance < 10
@@ -109,6 +102,8 @@ class VisionStack(Node):
         self.get_logger().warn(f"lidar/camera publish: {in_cam_view} {in_lidar_view}")
 
 
+        in_cam_view = True
+        in_lidar_view = True
         # Camera: 60% correct, 20% incorrect, 20% no output
         if in_cam_view:
             cam_state = random.randint(0, 100)
