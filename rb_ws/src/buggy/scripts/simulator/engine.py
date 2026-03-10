@@ -20,8 +20,8 @@ class Simulator(Node):
         self.get_logger().info('INITIALIZED.')
 
         self.starting_poses = {
-            "Hill1_NAND": (589760.46, 4477322.07, -110),
-            "Hill1_SC": (589761.40, 4477321.75, -110),
+            "Hill1_SC": (589760.46, 4477322.07, -110),
+            "Hill1_NAND": (589747.25, 4477284.39, -110),
             "Hill2_NAND": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
             "Hill2_SC": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
             "WESTINGHOUSE": (589647, 4477143, -150),

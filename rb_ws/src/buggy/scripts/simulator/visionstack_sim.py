@@ -83,7 +83,7 @@ class VisionStack(Node):
     def update_selfstate(self, msg):
         self.sc_x = msg.pose.pose.position.x 
         self.sc_y = msg.pose.pose.position.y 
-        self.sc_heading = msg.pose.pose.position.z 
+        self.sc_heading = msg.pose.pose.orientation.z 
 
     def republish(self, msg):
         if self.sc_x is None or self.sc_y is None or self.sc_heading is None:
@@ -94,16 +94,13 @@ class VisionStack(Node):
         distance = math.sqrt((nand_x - self.sc_x)**2 + (nand_y - self.sc_y)**2)
         # camera should only republish if nand position is within view of sc and within 20 meters 
         in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading * 180/math.pi)
-        in_cam_view = in_fov and distance < 20
+        self.get_logger().warn(f"FOV: {in_fov}")
+        
+        in_cam_view = in_fov and distance < 25
         # lidar should only republish if nand position is within 10 meters of sc 
         in_lidar_view = distance < 10
 
         # if within camera range: output correctly with 60% accuracy, output incorrectly with 20% accuracy
-        self.get_logger().warn(f"lidar/camera publish: {in_cam_view} {in_lidar_view}")
-
-
-        in_cam_view = True
-        in_lidar_view = True
         # Camera: 60% correct, 20% incorrect, 20% no output
         if in_cam_view:
             cam_state = random.randint(0, 100)
