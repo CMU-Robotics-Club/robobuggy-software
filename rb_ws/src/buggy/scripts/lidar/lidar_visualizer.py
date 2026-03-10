@@ -1,3 +1,4 @@
+from time import time
 import numpy as np
 import open3d as o3d
 from sklearn import linear_model
@@ -42,6 +43,7 @@ def euclidean_clustering(data, eps=0.35, min_points=20):
     pcd.points = o3d.utility.Vector3dVector(data)
 
     # Run DBSCAN = Euclidean clustering in Open3D
+    # TODO: add weighted distance function to account for dbscan assumption that density of points is uniform
     labels = np.array(
         pcd.cluster_dbscan(
             eps=eps,          # radius for neighborhood search
