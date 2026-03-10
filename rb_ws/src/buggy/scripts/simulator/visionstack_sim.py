@@ -94,7 +94,6 @@ class VisionStack(Node):
         distance = math.sqrt((nand_x - self.sc_x)**2 + (nand_y - self.sc_y)**2)
         # camera should only republish if nand position is within view of sc and within 20 meters 
         in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading * 180/math.pi)
-        self.get_logger().warn(f"FOV: {in_fov}")
         
         in_cam_view = in_fov and distance < 25
         # lidar should only republish if nand position is within 10 meters of sc 
