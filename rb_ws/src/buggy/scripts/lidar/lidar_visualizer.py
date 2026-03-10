@@ -78,6 +78,8 @@ def main():
 
     print(data.shape)
     print(np.max(data, axis=0))
+
+    time_start = time()
     g, ng_clean = ground_plane_segmentation(data)
 
     pcd_g = o3d.geometry.PointCloud()
@@ -108,6 +110,9 @@ def main():
         bbox = pc.get_axis_aligned_bounding_box()
         bbox.color = (1, 0, 0)
         boxes.append(bbox)
+
+    time_end = time()
+    print(f"Processing time: {time_end - time_start:.2f} seconds")
 
     pcd_g = pcd_g.voxel_down_sample(0.05)
     pcd_ranged_ng = pcd_ranged_ng.voxel_down_sample(0.1)
