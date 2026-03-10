@@ -1,6 +1,6 @@
 /**: # Global Params
   ros__parameters:
-      traj_name: "buggycourse_pavedline.json"
+      traj_name: "buggycourse_sc.json"
 
 SC:
   bnyahaj:
@@ -13,11 +13,20 @@ SC:
       stateTopic: "self/state"
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
+      steerOffsetTopic: "self/steering_offset/filtered"
       useHeadingRate: true
       controllerName: "controller"
+      useSteerOffset: false 
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
-  
+      useSteerOffset: false 
+
+  SC_offset_estimator:
+    ros__parameters:
+      steerOffsetRawTopic: "self/steering_offset/raw"
+      steerOffsetFilteredTopic: "self/steering_offset/filtered"
+      steerOffsetFilterTimeConstant: 50   # in timesteps; smoothing factor alpha for low pass filter is 1 / steerOffsetFilterTimeConstant
+
   SC_NAND_controller:
     ros__parameters:
       dist: 0.0
@@ -26,10 +35,14 @@ SC:
       steeringTopic: "other/steering"
       useHeadingRate: false
       controllerName: "NAND_controller"
-      traj_name: "buggycourse_pavedline.json"
+      traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
   SC_path_planner:
     ros__parameters:
       # traj_name: "buggycourse_safe.json"
       curb_name: "buggycourse_curb.json"
+
+  SC_vision:
+    ros__parameters:
+      model_name: "01-15-25_no_pushbar_yolov11n.pt"

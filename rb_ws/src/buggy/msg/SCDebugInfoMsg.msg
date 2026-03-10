@@ -4,7 +4,7 @@ float64 software_steering_angle
 float64 true_steering_angle
 bool operator_ready
 bool brake_status
-bool use_auton_steer
+bool auton_steer
 bool tx12_state
 uint8 stepper_alarm
 uint8 rc_uplink_qual

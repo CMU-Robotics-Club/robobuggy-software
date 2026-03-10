@@ -15,4 +15,5 @@ NAND:
       steeringTopic: 'input/steering'
       useHeadingRate: true
       controllerName: 'controller'
+      useSteerOffset: false
       controller: 'stanley'
