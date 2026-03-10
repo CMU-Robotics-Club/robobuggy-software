@@ -12,11 +12,9 @@
 
 import numpy as np
 
-from buggy import msg
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
 
 from sensor_msgs.msg import NavSatFix
@@ -33,10 +31,10 @@ class VisionUKF(Node):
 
         self.start = False
 
-        self.x_hat = None   
+        self.x_hat = None
         # TODO update these values, use the new functions in ukf.py for readability
         self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) #state covariance
-        
+
         # TODO update these values after testing the camera/lidar
         self.R_lidar = self.get_lidar_acc_matrix()
         self.R_camera = self.get_camera_acc_matrix()
@@ -45,7 +43,7 @@ class VisionUKF(Node):
 
         self.create_subscription(Odometry, "camera/other/state", self.update_camera, 1)
         self.create_subscription(Odometry, "lidar/other/state", self.update_lidar, 1)
-        
+
         self.nand_publisher = self.create_publisher(NavSatFix, "other/vision_fusion", 10)
 
         self.steering = 0
@@ -69,7 +67,7 @@ class VisionUKF(Node):
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
             dist = np.linalg.norm(self.x_hat)
             self.R_camera = self.get_camera_acc_matrix(dist=dist)
-        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]        
+        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_camera)
 
     def loop(self):
@@ -85,6 +83,8 @@ class VisionUKF(Node):
         self.nand_publisher.publish(odom_to_navsat(newMsg))
 
     def get_lidar_acc_matrix(self, dist=1):
+        _ = dist
+
         # --- SENSOR UNCERTAINTY ---
         sigma_range = 0.03  # meters (datasheet ±3cm)
         R_sensor = np.diag([sigma_range**2,
@@ -99,7 +99,7 @@ class VisionUKF(Node):
         R_total = R_sensor + R_estimator
 
         return R_total
-    
+
 
     def get_camera_acc_matrix(self, dist=1):
         # --- SENSOR UNCERTAINTY ---
@@ -119,7 +119,7 @@ class VisionUKF(Node):
 
 
 
- 
+
     def accuracy_to_mat(self, accuracy):
         accuracy /= 1000.0
         sigma = (accuracy / (0.848867684498)) * (accuracy / (0.848867684498))

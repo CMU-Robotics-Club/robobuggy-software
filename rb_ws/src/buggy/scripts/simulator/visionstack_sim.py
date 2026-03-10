@@ -1,12 +1,10 @@
 #! /usr/bin/env python3
 import random
-import random
-import rclpy
 import math
 import copy
+import rclpy
 
 from rclpy.node import Node
-from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from util.odomToNavsatFix import odom_to_navsat
@@ -29,10 +27,10 @@ class VisionStack(Node):
 
         self.lidar_publisher = self.create_publisher(Odometry, "/SC/lidar/other/state", 1)
         self.navsat_lidar_publisher = self.create_publisher(NavSatFix, "/SC/lidar/other/pose_navsat", 1)
-        
+
         self.sc_x = None
         self.sc_y = None
-        self.sc_heading = None 
+        self.sc_heading = None
 
     def corrupt_odom(self, msg: Odometry, pos_noise: float = 5.0, angle_noise: float = math.pi) -> Odometry:
         """Return a deep-copied Odometry msg with randomized/noisy values."""
@@ -63,27 +61,27 @@ class VisionStack(Node):
         # 1. Calculate the angle from observer to target
         dx = target[0] - observer[0]
         dy = target[1] - observer[1]
-        
+
         # math.atan2(y, x) returns the angle in radians
         angle_to_target_rad = math.atan2(dy, dx)
         angle_to_target_deg = math.degrees(angle_to_target_rad)
-        
+
         # 2. Calculate the difference between heading and angle to target
         # We want to know how far "off-center" the target is
         diff = angle_to_target_deg - heading
-        
+
         # 3. Normalize the angle to be between -180 and 180
         # This handles cases where the observer faces 0 and the target is at 350
         diff = (diff + 180) % 360 - 180
-        
+
         # 4. Check if the absolute difference is within half of the FOV
         return abs(diff) <= fov_degrees / 2
 
-        
+
     def update_selfstate(self, msg):
-        self.sc_x = msg.pose.pose.position.x 
-        self.sc_y = msg.pose.pose.position.y 
-        self.sc_heading = msg.pose.pose.orientation.z 
+        self.sc_x = msg.pose.pose.position.x
+        self.sc_y = msg.pose.pose.position.y
+        self.sc_heading = msg.pose.pose.orientation.z
 
     def republish(self, msg):
         if self.sc_x is None or self.sc_y is None or self.sc_heading is None:
@@ -92,11 +90,11 @@ class VisionStack(Node):
         nand_x = msg.pose.pose.position.x
         nand_y = msg.pose.pose.position.y
         distance = math.sqrt((nand_x - self.sc_x)**2 + (nand_y - self.sc_y)**2)
-        # camera should only republish if nand position is within view of sc and within 20 meters 
+        # camera should only republish if nand position is within view of sc and within 20 meters
         in_fov = self.is_within_fov((self.sc_x, self.sc_y), (nand_x, nand_y), self.sc_heading * 180/math.pi)
-        
+
         in_cam_view = in_fov and distance < 25
-        # lidar should only republish if nand position is within 10 meters of sc 
+        # lidar should only republish if nand position is within 10 meters of sc
         in_lidar_view = distance < 10
 
         # if within camera range: output correctly with 60% accuracy, output incorrectly with 20% accuracy

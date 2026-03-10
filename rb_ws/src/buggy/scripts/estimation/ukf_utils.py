@@ -104,6 +104,7 @@ def ukf_update(x_hat, Sigma, y, R):
     x_hat_next = x_hat + K @ (y - z_hat)
     Sigma_next = Sigma - K @ S @ np.transpose(K)
     debug_info = {"S": S, "singular_flag": singular_flag}
+    _ = debug_info
 
     return x_hat_next, Sigma_next
 
