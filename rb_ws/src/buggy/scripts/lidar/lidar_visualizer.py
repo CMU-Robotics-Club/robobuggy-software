@@ -11,7 +11,7 @@ def ground_plane_segmentation(data):
     nonground = data[~mask]
 
     # Robustly fit linear model with RANSAC algorithm
-    ransac = linear_model.RANSACRegressor()
+    ransac = linear_model.RANSACRegressor(residual_threshold=0.1)   # 10 cm threshold for inliers
     ransac.fit(ground[:, :2], ground[:, 2])
     inlier_mask = ransac.inlier_mask_
     outlier_mask = ~inlier_mask
@@ -126,8 +126,7 @@ def main():
         for point in cluster:
             in_range_ng.append(point)
             colors.append(color)
-    # clusters, boxes, labels = euclidean_clustering(ng_clean)
-    #
+
     # # color clusters differently for visualization
     pcd_ng = o3d.geometry.PointCloud()
     pcd_ng.points = o3d.utility.Vector3dVector(ng_clean)
