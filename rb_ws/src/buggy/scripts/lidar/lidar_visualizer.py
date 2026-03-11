@@ -1,5 +1,6 @@
 import numpy as np
 import open3d as o3d
+from time import time
 from sklearn import linear_model
 
 def ground_plane_segmentation(data):
@@ -73,6 +74,11 @@ def cluster_mean_in_circle (cluster, radius):
 def filter_clusters (clusters, radius=5):
     return [c for c in clusters if cluster_mean_in_circle(c, radius)]
 
+def filter_points_in_circle(points: np.ndarray, radius):
+    distances = np.linalg.norm(points[:, :2], axis=1)
+    mask = distances < radius
+    return points[mask]
+
 def main():
     data = np.load('../../../../velodyne_points.npy')
 
@@ -86,8 +92,10 @@ def main():
     pcd_g.points = o3d.utility.Vector3dVector(g)
     pcd_g.paint_uniform_color([1, 0, 0])
 
-    clusters, labels = euclidean_clustering(ng_clean)
-    clusters = filter_clusters(clusters)
+    print(ng_clean.shape[0])
+    ng_filtered = filter_points_in_circle(ng_clean, radius=6)
+    print(ng_filtered.shape[0])
+    clusters, labels = euclidean_clustering(ng_filtered)
 
     # simple coloring: each cluster gets a different color
     # create a list of every point present in the filtered clusters (in range)
