@@ -97,18 +97,22 @@ def euclidean_clustering(data, eps=0.35, min_points=20, min_height=0.0):
 
     return filtered_clusters, filtered_boxes, labels
 
-def point_in_circle(point : np.ndarray, radius):
-    distance = np.linalg.norm(point[:2]) #x, y
-    if distance < radius:
-        return True
-    return False
+# check if point is an ellipse of width and height
+# (move the ellipse's center forward by forward offset)
+def point_in_ellipse(point: np.ndarray, half_width, half_height, forward_offset=0.0):
+    y = point[0]
+    x = point[1]
+    return ((x / half_width)**2 + ((y-forward_offset) / half_height)**2) <= 1
 
-def cluster_mean_in_circle (cluster, radius):
+def cluster_mean_in_ellipse (cluster, half_width, half_height, forward_offset):
     mean_point = np.mean(cluster, axis=0) # get the x,y,z mean
-    return point_in_circle(mean_point, radius)
+    return point_in_ellipse(mean_point, half_width, half_height, forward_offset)
 
-def filter_clusters (clusters, radius=5):
-    return [c for c in clusters if cluster_mean_in_circle(c, radius)]
+def filter_clusters (clusters, half_width=2, half_height=4.5, forward_offset=0.5):
+    return [c for c in clusters if cluster_mean_in_ellipse(c, half_width, half_height, forward_offset)]
+
+
+#TODO: create a function that creates points to show the ellipse we are bounding to
 
 def filter_points_in_circle(points: np.ndarray, radius):
     distances = np.linalg.norm(points[:, :2], axis=1)
@@ -180,12 +184,15 @@ def main():
     ng_filtered = filter_points_in_circle(ng_clean, radius=8)
     # ng_filtered = filter_points_by_angle(ng_filtered, min_angle=17/16*np.pi, max_angle=0)   # filter out left side due to left-passing behavior; ignores pushers on left side
     clusters, boxes, labels = euclidean_clustering(ng_filtered)
+    clusters, labels = euclidean_clustering(ng_clean)
+    ranged_clusters = filter_clusters(clusters)
 
     # simple coloring: each cluster gets a different color
     # create a list of every point present in the filtered clusters (in range)
+
     in_range_ng = []
     colors = []
-    for cluster in clusters:
+    for cluster in ranged_clusters:
         color = np.random.rand(3)
         for point in cluster:
             in_range_ng.append(point)
@@ -196,12 +203,13 @@ def main():
     pcd_ng.paint_uniform_color([0, 0, 0])
 
     # color clusters differently for visualization
+
     pcd_ranged_ng = o3d.geometry.PointCloud()
     pcd_ranged_ng.points = o3d.utility.Vector3dVector(in_range_ng)
     pcd_ranged_ng.colors = o3d.utility.Vector3dVector(colors)
 
     boxes = []
-    for c in clusters:
+    for c in ranged_clusters:
         pc = o3d.geometry.PointCloud()
         pc.points = o3d.utility.Vector3dVector(c)
         bbox = pc.get_axis_aligned_bounding_box()
@@ -235,6 +243,10 @@ def main():
 
     # Combine ground, unclustered non-ground, clustered points, bounding boxes, grid, and axes into a single view
     # o3d.visualization.draw_geometries([pcd_ranged_ng, axes, grid] + boxes)
+    # TODO: just to get a sense we will show the ellipse we are ranging lidar to
+    # ellipse_plane, _ = make_plane_and_in_ellipse ()
+
+    o3d.visualization.draw_geometries([pcd_ranged_ng, pcd_g] + boxes)
 
 if __name__ == '__main__':
     main()
