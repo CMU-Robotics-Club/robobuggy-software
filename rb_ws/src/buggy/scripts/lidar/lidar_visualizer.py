@@ -42,9 +42,10 @@ def cluster_volume(cluster_points):
 
     return bbox.volume(), bbox
 
-def euclidean_clustering(data, eps=0.35, min_points=20):
+def euclidean_clustering(data, eps=0.35, min_points=20, min_height=0.0):
     """
     data: (N,3) numpy array of non-ground points
+    min_height: reject clusters with bounding-box height below this threshold
     returns: list of clusters, each a (Ki,3) numpy array
     """
 
@@ -72,14 +73,16 @@ def euclidean_clustering(data, eps=0.35, min_points=20):
         clusters.append(cluster_i)
     MIN_VOL = 0.05
     MAX_VOL = 30.0
+    MIN_HEIGHT = float(min_height)
 
     filtered_clusters = []
     filtered_boxes = []
 
     for c in clusters:
         vol, bbox = cluster_volume(c)
+        height = bbox.get_extent()[2]
 
-        if MIN_VOL < vol < MAX_VOL:
+        if MIN_VOL < vol < MAX_VOL and height >= MIN_HEIGHT:
             filtered_clusters.append(c)
             filtered_boxes.append(bbox)
 
