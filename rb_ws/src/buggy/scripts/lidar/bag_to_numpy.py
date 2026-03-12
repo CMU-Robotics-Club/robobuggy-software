@@ -69,7 +69,6 @@ def main():
         msg = deserialize_message(data, lidar_msg_type)
 
         # Convert PointCloud2 → NumPy
-        # print()
         points = point_cloud2.read_points(
             msg,
             field_names=("x", "y", "z"),
@@ -92,7 +91,7 @@ def main():
             axis=-1
         )
 
-        print(cloud_np.shape)
+        # print(cloud_np.shape)
 
         time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
 
