@@ -7,6 +7,7 @@ from rosidl_runtime_py.utilities import get_message
 from sensor_msgs_py import point_cloud2
 import numpy as np
 import pyvista as pv
+from tqdm import tqdm
 
 """
 This script extracts Velodyne LiDAR PointCloud2 data from a ROS 2 MCAP bag
@@ -55,7 +56,12 @@ def main():
 
     frames = []
 
+    # Get total message count for the progress bar
+    metadata = reader.get_metadata()
+    total_msgs = sum(t.message_count for t in metadata.topics_with_message_count if t.topic_metadata.name == lidar_topic)
+
     # Read bag
+    pbar = tqdm(total=total_msgs, desc="Extracting LiDAR frames")
 
     # plotter = pv.Plotter()
     i = 0
@@ -65,6 +71,7 @@ def main():
         if topic != lidar_topic:
             continue
         i += 1
+        pbar.update(1)
 
         msg = deserialize_message(data, lidar_msg_type)
 
@@ -107,6 +114,9 @@ def main():
         frames.append(cloud_np)
         # if i >= 5:
         #     break
+    
+    pbar.close()
+    
     # plotter.add_mesh(pv.Sphere())
     # plotter.add_axes()
     # plotter.show_grid()
