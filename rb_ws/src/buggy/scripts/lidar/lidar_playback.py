@@ -418,8 +418,10 @@ class LidarPlaybackApp:
             self.state["paused"] = True
             self.update_status()
             return True
-
+        
         self.update_frame(next_idx)
+        time_end = time.perf_counter()
+        print(f"Frame {next_idx} update took {time_end - now:.3f}s")
         return True
 
 

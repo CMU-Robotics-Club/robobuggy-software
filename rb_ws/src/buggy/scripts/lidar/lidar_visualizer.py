@@ -8,7 +8,8 @@ from sklearn import linear_model
 
 def ground_plane_segmentation(data):
     # center the data to improve RANSAC stability (not strictly necessary since data is near origin and has small dimensions
-    centered_data = data - np.mean(data, axis=0)
+    data_mean = np.mean(data, axis=0)
+    centered_data = data - data_mean
   
     mask = centered_data[:, 2] < 0
     ground = centered_data[mask]
@@ -32,10 +33,12 @@ def ground_plane_segmentation(data):
     z_pred = a * ng[:, 0] + b * ng[:, 1] + c
     dist = ng[:, 2] - z_pred
 
-    # keep only points ABOVE the plane (with small margin)
+    # keep only points above the plane (with small margin)
+    # TODO: consider if we need to do this
     ng_clean = ng[dist > -0.02]  # allow 2 cm below as tolerance
 
-    return g, ng_clean
+    return g + data_mean, ng_clean + data_mean
+
 
 def cluster_volume(cluster_points):
     pc = o3d.geometry.PointCloud()
