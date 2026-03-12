@@ -1,8 +1,11 @@
 from time import time
 import numpy as np
 import open3d as o3d
+from time import time
 from sklearn import linear_model
 from time import time
+
+# TODO: add all constsants to constants config file
 
 def ground_plane_segmentation(data):
     data -= np.mean(data, axis=0)
@@ -71,7 +74,7 @@ def euclidean_clustering(data, eps=0.35, min_points=20, min_height=0.0):
     for i in range(max_label + 1):
         cluster_i = data[labels == i]
         clusters.append(cluster_i)
-    MIN_VOL = 0.05
+    MIN_VOL = 0.1
     MAX_VOL = 30.0
     MIN_HEIGHT = float(min_height)
 
@@ -103,6 +106,30 @@ def cluster_mean_in_circle (cluster, radius):
 def filter_clusters (clusters, radius=5):
     return [c for c in clusters if cluster_mean_in_circle(c, radius)]
 
+def filter_points_in_circle(points: np.ndarray, radius):
+    distances = np.linalg.norm(points[:, :2], axis=1)
+    mask = distances < radius
+    return points[mask]
+
+def filter_points_by_angle(points: np.ndarray, min_angle=0.0, max_angle=0.0):
+    """
+    Filters points based on their radial angle in the XY plane.
+    Requirements: Input range 0 to 2pi, min_angle <= max_angle,
+    0 is straight ahead (positive Y axis), and angles wrap counter-clockwise.
+    """
+    if min_angle == max_angle:
+        return points
+    
+    angles = np.arctan2(points[:, 0], points[:, 1])
+    
+    if min_angle < max_angle:
+        mask = (angles >= min_angle) & (angles <= max_angle)
+    else:
+        # Handles wrapping around the 0 / 2pi boundary
+        mask = (angles >= min_angle) | (angles <= max_angle)
+        
+    return points[mask]
+
 def main():
     file = np.load('sc_feb_21_26_roll_1.npz', allow_pickle=True)
     data = file['frames'][0]
@@ -117,8 +144,9 @@ def main():
     pcd_g.points = o3d.utility.Vector3dVector(g)
     pcd_g.paint_uniform_color([1, 0, 0])
 
-    clusters, boxes, labels = euclidean_clustering(ng_clean)
-    clusters = filter_clusters(clusters)
+    ng_filtered = filter_points_in_circle(ng_clean, radius=6)
+    ng_filtered = filter_points_by_angle(ng_filtered, min_angle=np.pi/2, max_angle=9/8*np.pi)
+    clusters, labels = euclidean_clustering(ng_filtered)
 
     # simple coloring: each cluster gets a different color
     # create a list of every point present in the filtered clusters (in range)
@@ -130,7 +158,7 @@ def main():
             in_range_ng.append(point)
             colors.append(color)
 
-    # # color clusters differently for visualization
+    # color clusters differently for visualization
     pcd_ng = o3d.geometry.PointCloud()
     pcd_ng.points = o3d.utility.Vector3dVector(ng_clean)
     pcd_ng.paint_uniform_color([0, 0, 0])
