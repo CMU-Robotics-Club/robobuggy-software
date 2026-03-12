@@ -13,7 +13,8 @@ from lidar_visualizer import (
     euclidean_clustering,
     ground_plane_segmentation,
     filter_points_in_circle,
-    filter_points_by_angle
+    filter_points_by_angle,
+    create_grid
 )
 
 # GLFW fallback key codes for arrow keys.
@@ -39,7 +40,7 @@ def parse_args():
     parser.add_argument(
         "--fps",
         type=float,
-        default=10.0,
+        default=5.0,
         help="Playback framerate in merged frames per second.",
     )
     parser.add_argument(
@@ -51,7 +52,7 @@ def parse_args():
     parser.add_argument(
         "--skip-size",
         type=int,
-        default=30,
+        default=50,
         help="Number of merged frames to jump on skip backward/forward.",
     )
     parser.add_argument(
@@ -176,6 +177,14 @@ class LidarPlaybackApp:
             self.cluster_box_material.line_width = 2.0
         self.cluster_box_material.base_color = [0.1, 1.0, 0.1, 1.0]
 
+        self.axes_material = rendering.MaterialRecord()
+        self.axes_material.shader = "defaultUnlit"
+
+        self.grid_material = rendering.MaterialRecord()
+        self.grid_material.shader = "unlitLine"
+        if hasattr(self.grid_material, "line_width"):
+            self.grid_material.line_width = 1.0
+
         initial_frame = self.merged_frame(0)
         init_ground, init_non_ground = ground_plane_segmentation(initial_frame.copy())
 
@@ -190,10 +199,21 @@ class LidarPlaybackApp:
         self.scene_widget.scene.add_geometry("non_ground_points", self.ng_pcd, self.non_ground_material)
         self.scene_widget.scene.add_geometry("cluster_points", self.cluster_pcd, self.cluster_points_material)
 
+        center = np.array([0.0, 0.0, -0.5])
+        up = np.array([0.0, 0.0, 1.0])      
+        view = np.array([1.0, -1.0, 0.5])
+
+        axes = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0, origin=center)
+        grid = create_grid(size=15, n=15, z=center[2])
+        self.scene_widget.scene.add_geometry("axes", axes, self.axes_material)
+        self.scene_widget.scene.add_geometry("grid", grid, self.grid_material)
+
         init_bounds_pcd = o3d.geometry.PointCloud()
         init_bounds_pcd.points = o3d.utility.Vector3dVector(initial_frame)
         bounds = init_bounds_pcd.get_axis_aligned_bounding_box()
-        self.scene_widget.setup_camera(60.0, bounds, bounds.get_center())
+        self.scene_widget.setup_camera(60.0, bounds, np.array(center))   # center the camera at world origin
+        eye = center + (view / np.linalg.norm(view) * 5.0)
+        self.scene_widget.look_at(center, eye, up)
 
         self.window.set_on_layout(self.on_layout)
         self.window.set_on_key(self.on_key)
@@ -264,8 +284,8 @@ class LidarPlaybackApp:
             g = np.empty((0, 3), dtype=np.float64)
             ng_clean = full_frame
 
-        ng_filtered = filter_points_in_circle(ng_clean, radius=6)
-        ng_filtered = filter_points_by_angle(ng_filtered, min_angle=9/8*np.pi, max_angle=np.pi/2)
+        ng_filtered = filter_points_in_circle(ng_clean, radius=8)
+        # ng_filtered = filter_points_by_angle(ng_filtered, min_angle=17/16*np.pi, max_angle=0)   # filter out left side due to left-passing behavior; ignores pushers on left side
 
         clusters = []
         boxes = []

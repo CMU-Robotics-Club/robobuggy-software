@@ -8,10 +8,12 @@ from time import time
 # TODO: add all constsants to constants config file
 
 def ground_plane_segmentation(data):
-    data -= np.mean(data, axis=0)
-    mask = data[:, 2] < 0
-    ground = data[mask]
-    nonground = data[~mask]
+    # center the data to improve RANSAC stability (not strictly necessary since data is near origin and has small dimensions
+    centered_data = data - np.mean(data, axis=0)
+  
+    mask = centered_data[:, 2] < 0
+    ground = centered_data[mask]
+    nonground = centered_data[~mask]
 
     # Robustly fit linear model with RANSAC algorithm
     ransac = linear_model.RANSACRegressor(residual_threshold=0.1)   # 10 cm threshold for inliers
@@ -114,25 +116,54 @@ def filter_points_in_circle(points: np.ndarray, radius):
 def filter_points_by_angle(points: np.ndarray, min_angle=0.0, max_angle=0.0):
     """
     Filters points based on their radial angle in the XY plane.
-    Requirements: Input range 0 to 2pi, min_angle <= max_angle,
-    0 is straight ahead (positive Y axis), and angles wrap counter-clockwise.
+    Robot frame: Straight ahead is negative X, left is negative Y.
+    0 is straight ahead (negative X axis), and angles wrap counter-clockwise.
+    Allows input range from 0 to 2pi.
     """
-    if min_angle == max_angle:
+    # If the range makes a complete circle (e.g., 0 to 2pi), keep everything
+    if min_angle % (2 * np.pi) == max_angle % (2 * np.pi):  # captures min_angle == max_angle
         return points
     
-    angles = np.arctan2(points[:, 0], points[:, 1])
+    # Calculate angles: 0 -> (-x=1, -y=0), pi/2 -> (-x=0, -y=1)
+    angles = np.arctan2(-points[:, 1], -points[:, 0])
     
-    if min_angle < max_angle:
-        mask = (angles >= min_angle) & (angles <= max_angle)
+    # Normalize angles and constraints into 0 to 2pi
+    angles = np.mod(angles, 2 * np.pi)
+    min_a = np.mod(min_angle, 2 * np.pi)
+    max_a = np.mod(max_angle, 2 * np.pi)
+    
+    if min_a < max_a:
+        mask = (angles >= min_a) & (angles <= max_a)
     else:
         # Handles wrapping around the 0 / 2pi boundary
-        mask = (angles >= min_angle) | (angles <= max_angle)
-        
+        mask = (angles >= min_a) | (angles <= max_a)
+
     return points[mask]
 
+def create_grid(size=15, n=15, z=0.0):
+    """Creates a line grid on the XY plane for visualization."""
+    scale = size / n
+    points = []
+    lines = []
+    for i in range(-n, n + 1):
+        # Lines parallel to Y axis
+        points.append([i * scale, -size, z])
+        points.append([i * scale, size, z])
+        lines.append([len(points)-2, len(points)-1])
+        # Lines parallel to X axis
+        points.append([-size, i * scale, z])
+        points.append([size, i * scale, z])
+        lines.append([len(points)-2, len(points)-1])
+    
+    grid = o3d.geometry.LineSet()
+    grid.points = o3d.utility.Vector3dVector(points)
+    grid.lines = o3d.utility.Vector2iVector(lines)
+    grid.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5]] * len(lines))
+    return grid
+
 def main():
-    data = np.load('../../../../velodyne_points.npy', allow_pickle=True)
-    # data = file['frames'][0]
+    file = np.load('sc_feb_21_26_roll_1.npz', allow_pickle=True) # 'sc_feb_21_26_roll_1.npz' '../../../../velodyne_points.npy'
+    data = np.vstack([file['frames'][600], file['frames'][601], file['frames'][602], file['frames'][603], file['frames'][604]])  # merge 5 frames for complete rotation
 
     print(data.shape)
     print(np.max(data, axis=0))
@@ -144,8 +175,8 @@ def main():
     pcd_g.points = o3d.utility.Vector3dVector(g)
     pcd_g.paint_uniform_color([1, 0, 0])
 
-    ng_filtered = filter_points_in_circle(ng_clean, radius=6)
-    ng_filtered = filter_points_by_angle(ng_filtered, min_angle=9/8*np.pi, max_angle=np.pi/2)
+    ng_filtered = filter_points_in_circle(ng_clean, radius=8)
+    # ng_filtered = filter_points_by_angle(ng_filtered, min_angle=17/16*np.pi, max_angle=0)   # filter out left side due to left-passing behavior; ignores pushers on left side
     clusters, boxes, labels = euclidean_clustering(ng_filtered)
 
     # simple coloring: each cluster gets a different color
@@ -182,8 +213,26 @@ def main():
     # pcd_g = pcd_g.voxel_down_sample(0.05)
     # pcd_ranged_ng = pcd_ranged_ng.voxel_down_sample(0.1)
 
-    # Combine ground, unclustered non-ground, clustered points, and bounding boxes into a single view
-    o3d.visualization.draw_geometries([pcd_ng, pcd_g, pcd_ranged_ng] + boxes)
+    center = [0, 0, -0.5]
+    axes = o3d.geometry.TriangleMesh.create_coordinate_frame(size=2.0, origin=center)
+    grid = create_grid(size=15, n=15, z=center[2])
+
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    for g in [pcd_ng, pcd_g, pcd_ranged_ng, axes, grid] + boxes:
+        vis.add_geometry(g)
+
+    ctr = vis.get_view_control()
+    ctr.set_lookat(center)
+    ctr.set_zoom(0.8)
+    ctr.set_up([0, 0, 1])  # Z is up
+    ctr.set_front([1, 0, 0.5])  # camera behind and above the origin (look straight ahead with downward tilt)
+
+    vis.run()
+    vis.destroy_window()
+
+    # Combine ground, unclustered non-ground, clustered points, bounding boxes, grid, and axes into a single view
+    # o3d.visualization.draw_geometries([pcd_ranged_ng, axes, grid] + boxes)
 
 if __name__ == '__main__':
     main()
