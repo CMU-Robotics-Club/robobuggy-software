@@ -131,8 +131,8 @@ def filter_points_by_angle(points: np.ndarray, min_angle=0.0, max_angle=0.0):
     return points[mask]
 
 def main():
-    file = np.load('sc_feb_21_26_roll_1.npz', allow_pickle=True)
-    data = file['frames'][0]
+    data = np.load('../../../../velodyne_points.npy', allow_pickle=True)
+    # data = file['frames'][0]
 
     print(data.shape)
     print(np.max(data, axis=0))
@@ -145,8 +145,8 @@ def main():
     pcd_g.paint_uniform_color([1, 0, 0])
 
     ng_filtered = filter_points_in_circle(ng_clean, radius=6)
-    ng_filtered = filter_points_by_angle(ng_filtered, min_angle=np.pi/2, max_angle=9/8*np.pi)
-    clusters, labels = euclidean_clustering(ng_filtered)
+    ng_filtered = filter_points_by_angle(ng_filtered, min_angle=9/8*np.pi, max_angle=np.pi/2)
+    clusters, boxes, labels = euclidean_clustering(ng_filtered)
 
     # simple coloring: each cluster gets a different color
     # create a list of every point present in the filtered clusters (in range)
@@ -158,11 +158,11 @@ def main():
             in_range_ng.append(point)
             colors.append(color)
 
-    # color clusters differently for visualization
     pcd_ng = o3d.geometry.PointCloud()
     pcd_ng.points = o3d.utility.Vector3dVector(ng_clean)
     pcd_ng.paint_uniform_color([0, 0, 0])
 
+    # color clusters differently for visualization
     pcd_ranged_ng = o3d.geometry.PointCloud()
     pcd_ranged_ng.points = o3d.utility.Vector3dVector(in_range_ng)
     pcd_ranged_ng.colors = o3d.utility.Vector3dVector(colors)
@@ -179,11 +179,11 @@ def main():
     print(f"Processing time: {time_end - time_start:.2f} seconds")
 
 
-    pcd_g = pcd_g.voxel_down_sample(0.05)
-    pcd_ranged_ng = pcd_ranged_ng.voxel_down_sample(0.1)
+    # pcd_g = pcd_g.voxel_down_sample(0.05)
+    # pcd_ranged_ng = pcd_ranged_ng.voxel_down_sample(0.1)
 
-    o3d.visualization.draw_geometries([pcd_ng, pcd_g])
-    o3d.visualization.draw_geometries([pcd_ranged_ng] + boxes)
+    # Combine ground, unclustered non-ground, clustered points, and bounding boxes into a single view
+    o3d.visualization.draw_geometries([pcd_ng, pcd_g, pcd_ranged_ng] + boxes)
 
 if __name__ == '__main__':
     main()

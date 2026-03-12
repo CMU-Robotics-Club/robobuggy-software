@@ -9,7 +9,12 @@ import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 
-from lidar_visualizer import euclidean_clustering, ground_plane_segmentation
+from lidar_visualizer import (
+    euclidean_clustering,
+    ground_plane_segmentation,
+    filter_points_in_circle,
+    filter_points_by_angle
+)
 
 # GLFW fallback key codes for arrow keys.
 KEY_LEFT = 263
@@ -259,13 +264,16 @@ class LidarPlaybackApp:
             g = np.empty((0, 3), dtype=np.float64)
             ng_clean = full_frame
 
+        ng_filtered = filter_points_in_circle(ng_clean, radius=6)
+        ng_filtered = filter_points_by_angle(ng_filtered, min_angle=9/8*np.pi, max_angle=np.pi/2)
+
         clusters = []
         boxes = []
-        if len(ng_clean) >= self.cluster_min_points:
+        if len(ng_filtered) >= self.cluster_min_points:
             try:
                 with redirect_stdout(io.StringIO()):
                     clusters, boxes, _ = euclidean_clustering(
-                        ng_clean,
+                        ng_filtered,
                         eps=self.cluster_eps,
                         min_points=self.cluster_min_points,
                         min_height=self.cluster_min_height,
