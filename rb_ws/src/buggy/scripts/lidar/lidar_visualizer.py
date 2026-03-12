@@ -3,7 +3,6 @@ import numpy as np
 import open3d as o3d
 from time import time
 from sklearn import linear_model
-from time import time
 
 # TODO: add all constsants to constants config file
 
@@ -162,8 +161,8 @@ def create_grid(size=15, n=15, z=0.0):
     return grid
 
 def main():
-    file = np.load('sc_feb_21_26_roll_1.npz', allow_pickle=True) # 'sc_feb_21_26_roll_1.npz' '../../../../velodyne_points.npy'
-    data = np.vstack([file['frames'][600], file['frames'][601], file['frames'][602], file['frames'][603], file['frames'][604]])  # merge 5 frames for complete rotation
+    data = np.load('velodyne_points.npy', allow_pickle=True) # 'sc_feb_21_26_roll_1.npz' 'velodyne_points.npy'
+    # data = np.vstack([file['frames'][600], file['frames'][601], file['frames'][602], file['frames'][603], file['frames'][604]])  # merge 5 frames for complete rotation
 
     print(data.shape)
     print(np.max(data, axis=0))
