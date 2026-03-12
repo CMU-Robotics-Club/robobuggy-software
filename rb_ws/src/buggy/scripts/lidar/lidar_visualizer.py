@@ -150,14 +150,7 @@ def main():
     time_end = time()
     print(f"Processing time: {time_end - time_start:.2f} seconds")
 
-    # # simple coloring: each cluster gets a different color
-    # colors = np.zeros((len(ng_clean), 3))
-    # for i in range(len(clusters)):
-    #     mask = labels == i
-    #     colors[mask] = np.random.rand(3)
-    #
-    # pcd_ng.colors = o3d.utility.Vector3dVector(colors)
-    #
+
     pcd_g = pcd_g.voxel_down_sample(0.05)
     pcd_ranged_ng = pcd_ranged_ng.voxel_down_sample(0.1)
 
