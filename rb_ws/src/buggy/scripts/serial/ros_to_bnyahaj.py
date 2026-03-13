@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 # import random
-from threading import Lock
 import rclpy
 from host_comm import *
 from rclpy.node import Node
@@ -51,7 +50,6 @@ class Translator(Node):
         self.steer_sw_timestamp = 0
 
         self.alarm = 0
-        self.lock = Lock()
 
         self.create_subscription(
             StampedFloat64Msg, "input/steering", self.set_steering, 1
@@ -61,6 +59,8 @@ class Translator(Node):
         # upper bound of reading data from Bnyahaj Serial, at 1ms
         self.timer = self.create_timer(0.001, self.loop)
 
+        # slower loop to send timestamp to teensy, at 10ms
+        self.timestamp_timer = self.create_timer(0.01, self.send_timestamp)
 
         # DEBUG MESSAGE PUBLISHERS:
         if self.self_name == "SC":
@@ -94,12 +94,11 @@ class Translator(Node):
 
     def set_alarm(self, msg):
         """
-        alarm ros topic reader, locked so that only one of the setters runs at once
+        alarm ros topic reader
         """
-        with self.lock:
-            self.get_logger().debug(f"Reading alarm of {msg.data}")
-            self.alarm = msg.data
-            self.comms.send_alarm(self.alarm)
+        self.get_logger().debug(f"Reading alarm of {msg.data}")
+        self.alarm = msg.data
+        self.comms.send_alarm(self.alarm)
 
     def set_steering(self, msg: StampedFloat64Msg):
         """
@@ -115,16 +114,15 @@ class Translator(Node):
 
         sw_stamp = msg.header.stamp.sec * int(1e9) + msg.header.stamp.nanosec
 
-        with self.lock:
-            self.steer_angle = msg.data
-            self.steer_fw_timestamp = fw_stamp
-            self.steer_sw_timestamp = sw_stamp
+        self.steer_angle = msg.data
+        self.steer_fw_timestamp = fw_stamp
+        self.steer_sw_timestamp = sw_stamp
 
-            self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
-            sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
-            self.control_latency_publisher.publish(Float64(data=sw_dt))
+        self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
+        sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
+        self.control_latency_publisher.publish(Float64(data=sw_dt))
 
-            self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
+        self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
 
     def loop(self):
         packet_on_buffer = True
@@ -229,8 +227,8 @@ class Translator(Node):
                 self.roundtrip_time_publisher.publish(Float64(data=rtt))
                 self.teensycycle_time_publisher.publish(Float64(data=packet.teensy_cycle_time * 1e-6))
 
-        with self.lock:
-            self.comms.send_timestamp(time.time_ns())
+    def send_timestamp(self):
+        self.comms.send_timestamp(time.time_ns())
 
 
 def main(args=None):
