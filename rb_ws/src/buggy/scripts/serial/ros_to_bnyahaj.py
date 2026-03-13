@@ -21,9 +21,11 @@ PACKET_READ_LIMIT = 20
 
 class Translator(Node):
     """
-    Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
-    Performs reading (from Bnya Serial) and writing (from Ros Topics) on different python threads, so
-    be careful of multithreading synchronizaiton issues.
+    Translates the output from bnyahaj serial (interpreted from host_comm) to ROS topics and vice versa.
+
+    When used with the default SingleThreadedExecutor, all callbacks and the main loop run in the same
+    thread, so access to shared state in this class is implicitly serialized and no explicit locking is
+    required.
     """
 
     def __init__(self):
