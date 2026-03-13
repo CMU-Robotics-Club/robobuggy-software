@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+"""
+This is the only file that uses host_comm to read/write packets to firmware.
+Further, it runs on the (default) SingleThreadedExecutor, so callback/loop
+execution is implicitly mutually exclusive. Hence, we don't need locks here.
+"""
 
-# import random
 import rclpy
 from host_comm import *
 from rclpy.node import Node
