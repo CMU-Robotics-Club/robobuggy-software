@@ -22,7 +22,7 @@ class VisionStack(Node):
             Odometry, "/NAND/self/state", self.republish, 1
         )
 
-        self.cam_publisher = self.create_publisher(Odometry, "/SC/camera/other/state", 1)
+        self.cam_publisher = self.create_publisher(Odometry, "/SC/vision/other/state", 1)
         self.navsat_cam_publisher = self.create_publisher(NavSatFix, "/SC/camera/other/pose_navsat", 1)
 
         self.lidar_publisher = self.create_publisher(Odometry, "/SC/lidar/other/state", 1)
