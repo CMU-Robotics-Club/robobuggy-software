@@ -20,3 +20,8 @@ vision/data/
 .sc/
 .nand/
 .venv/
+
+# BUILD
+build/
+install/
+log/
