@@ -82,12 +82,13 @@ def ukf_update(x_hat, Sigma, y, R):
     singular_flag = False
     # 1e-9 is a hardcoded threshhold, based on the fact that values around 1e-5 work
     add_term = 1e-9
-    while (abs(np.linalg.det(Sigma)) <= 1e-9):
-        Sigma += np.eye(Sigma.shape[0]) * add_term
-        add_term *= 2
-        if add_term > 1e-6:
-            raise ValueError("Sigma is not positive definite, even after adding significant jitter.")
-        singular_flag = True
+    # Decided against this check, per discussion: https://discord.com/channels/1114989213230825492/1482487961382686781/1482500228526506055
+    # while (abs(np.linalg.det(Sigma)) <= 1e-9):
+    #     Sigma += np.eye(Sigma.shape[0]) * add_term
+    #     add_term *= 2
+    #     if add_term > 1e-6:
+    #         raise ValueError("Sigma is not positive definite, even after adding significant jitter.")
+    #     singular_flag = True
 
     sigma_points, W = generate_sigma_points(x_hat, Sigma)
 
