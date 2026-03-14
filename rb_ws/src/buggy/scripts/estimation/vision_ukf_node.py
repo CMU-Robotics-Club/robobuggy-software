@@ -80,11 +80,21 @@ class VisionUKF(Node):
 
         y = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y])
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_camera)
+    
+    def rk4_dynamics(cls, x_curr, u_curr, params, dt):
+        """Approximately integrate dynamics over a timestep dt using RK4 to get a discrete update function."""
+        k1 = cls.dynamics(x_curr, u_curr, params)
+        k2 = cls.dynamics(x_curr + k1 * dt / 2, u_curr, params)
+        k3 = cls.dynamics(x_curr + k2 * dt / 2, u_curr, params)
+        k4 = cls.dynamics(x_curr + k3 * dt, u_curr, params)
+
+        x_next = x_curr + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
+        return x_next
 
     def loop(self):
         if not self.start:
             return
-        self.x_hat, self.Sigma = ukf_predict(self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
+        self.x_hat, self.Sigma = ukf_predict(rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
 
         newMsg = Odometry()
         newMsg.pose.pose.position.x = self.x_hat[0]
