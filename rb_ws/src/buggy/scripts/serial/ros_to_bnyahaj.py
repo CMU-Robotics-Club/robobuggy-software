@@ -5,6 +5,8 @@ Further, it runs on the (default) SingleThreadedExecutor, so callback/loop
 execution is implicitly mutually exclusive. Hence, we don't need locks here.
 """
 
+import time
+
 import rclpy
 from host_comm import *
 from rclpy.node import Node
@@ -13,7 +15,6 @@ from std_msgs.msg import Float64, Int8
 from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
-import time
 
 from buggy.msg import StampedFloat64Msg
 
