@@ -43,18 +43,24 @@ class VisionUKF(Node):
 
         self.create_subscription(Odometry, "vision/other/state", self.update_camera, 1)
         self.create_subscription(Odometry, "lidar/other/state", self.update_lidar, 1)
+        self.create_subscription(Odometry, "self/state", self.update_self, 1)
 
         self.nand_publisher = self.create_publisher(NavSatFix, "other/vision_fusion", 10)
 
         self.steering = 0
+        self.self_pos = None
 
         self.timer = self.create_timer(0.01, self.loop)
 
+    def update_self(self, msg):
+        self.self_pos = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y])
+
+
     def update_lidar(self, msg):
-        if not self.start:
+        if not self.start and self.self_pos:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
-            dist = np.linalg.norm(self.x_hat[:2])
+            dist = np.linalg.norm(self.x_hat[:2] - self.self_pos)
             self.R_lidar = self.get_lidar_acc_matrix(dist=dist)
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
@@ -62,10 +68,10 @@ class VisionUKF(Node):
 
     def update_camera(self, msg):
 
-        if not self.start:
+        if not self.start and self.self_pos:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
-            dist = np.linalg.norm(self.x_hat[:2])
+            dist = np.linalg.norm(self.x_hat[:2] - self.self_pos)
             self.R_camera = self.get_camera_acc_matrix(dist=dist)
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_camera)
