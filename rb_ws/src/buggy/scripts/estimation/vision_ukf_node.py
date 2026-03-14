@@ -57,23 +57,28 @@ class VisionUKF(Node):
 
 
     def update_lidar(self, msg):
-        if not self.start and self.self_pos:
+        if not self.start:
+            if self.self_pos is None:
+                return
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
             dist = np.linalg.norm(self.x_hat[:2] - self.self_pos)
             self.R_lidar = self.get_lidar_acc_matrix(dist=dist)
 
-        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+        y = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y])
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_lidar)
 
     def update_camera(self, msg):
 
-        if not self.start and self.self_pos:
+        if not self.start:
+            if self.self_pos is None:
+                return
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
             dist = np.linalg.norm(self.x_hat[:2] - self.self_pos)
             self.R_camera = self.get_camera_acc_matrix(dist=dist)
-        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+
+        y = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y])
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_camera)
 
     def loop(self):
