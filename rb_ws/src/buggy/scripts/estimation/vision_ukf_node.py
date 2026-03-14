@@ -80,7 +80,7 @@ class VisionUKF(Node):
 
         y = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y])
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_camera)
-    
+
     def rk4_dynamics(cls, x_curr, u_curr, params, dt):
         """Approximately integrate dynamics over a timestep dt using RK4 to get a discrete update function."""
         k1 = cls.dynamics(x_curr, u_curr, params)
