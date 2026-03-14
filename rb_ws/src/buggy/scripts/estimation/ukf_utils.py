@@ -68,7 +68,7 @@ def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
 # apply the measurement function to sigma points,
 # calculate the mean and covariance in measurement space, then use this to calculate the Kalman gain,
 # then use the gain and measurement to calculate the updated state estimate and covariance.
-# returns updated x_hat, Sigma, and a debug dictionary for publish topics
+# returns updated x_hat, Sigma
 def ukf_update(x_hat, Sigma, y, R):
     Nx = len(x_hat)
     Ny = len(y)
@@ -103,8 +103,6 @@ def ukf_update(x_hat, Sigma, y, R):
 
     x_hat_next = x_hat + K @ (y - z_hat)
     Sigma_next = Sigma - K @ S @ np.transpose(K)
-    debug_info = {"S": S, "singular_flag": singular_flag}
-    _ = debug_info
 
     return x_hat_next, Sigma_next
 

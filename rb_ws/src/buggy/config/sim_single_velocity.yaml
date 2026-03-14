@@ -7,7 +7,7 @@
 SC:
   SC_sim_single:
     ros__parameters:
-      velocity: 12
+      velocity: 12.0
       pose: "Hill1_SC"
 
 SC:
@@ -26,5 +26,5 @@ SC:
 SC:
   SC_velocity_updater:
     ros__parameters:
-      init_vel: 12
+      init_vel: 12.0
       checkpoints_name : "buggycourse_safe_checkpoints_1.json"

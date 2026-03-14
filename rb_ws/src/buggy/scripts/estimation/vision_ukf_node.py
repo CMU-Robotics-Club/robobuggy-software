@@ -54,7 +54,7 @@ class VisionUKF(Node):
         if not self.start:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
-            dist = np.linalg.norm(self.x_hat)
+            dist = np.linalg.norm(self.x_hat[:2])
             self.R_lidar = self.get_lidar_acc_matrix(dist=dist)
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
@@ -65,7 +65,7 @@ class VisionUKF(Node):
         if not self.start:
             self.start = True
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
-            dist = np.linalg.norm(self.x_hat)
+            dist = np.linalg.norm(self.x_hat[:2])
             self.R_camera = self.get_camera_acc_matrix(dist=dist)
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         self.x_hat, self.Sigma = ukf_update(self.x_hat, self.Sigma, y, self.R_camera)
