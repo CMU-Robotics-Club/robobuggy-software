@@ -136,18 +136,18 @@ class NANDStateEstimator(Node):
         nand_ukf_msg.twist.twist.linear.x = self.x_hat[3]
 
         if self.debug is not None:
-          # y is 2 elements long
-          # S is a 2x2 matrix
-          # must be of length 36 to match Odometry specs
-          S = self.debug["S"]
-          singular_flag = self.debug["singular_flag"]
-          if S is not None:
-            data = np.pad(S.flatten(), (0, 32)).tolist()
-            nand_ukf_msg.pose.covariance = data
+            # y is 2 elements long
+            # S is a 2x2 matrix
+            # must be of length 36 to match Odometry specs
+            S = self.debug["S"]
+            singular_flag = self.debug["singular_flag"]
+            if S is not None:
+                data = np.pad(S.flatten(), (0, 32)).tolist()
+                nand_ukf_msg.pose.covariance = data
 
-          singular_flag_msg = Bool()
-          singular_flag_msg.data = singular_flag
-          self.singular_flag_publisher.publish(singular_flag_msg)
+            singular_flag_msg = Bool()
+            singular_flag_msg.data = singular_flag
+            self.singular_flag_publisher.publish(singular_flag_msg)
 
         self.nand_publisher.publish(nand_ukf_msg)
 
