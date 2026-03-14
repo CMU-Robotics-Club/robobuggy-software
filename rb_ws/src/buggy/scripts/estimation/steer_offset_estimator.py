@@ -119,7 +119,6 @@ class SteerOffsetEstimator(Node):
         self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/state", 1)
         self.state_covar_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/covariance", 1)
 
-
         self.steering = 0
 
         self.timer = self.create_timer(0.01, self.loop)
@@ -133,6 +132,7 @@ class SteerOffsetEstimator(Node):
         self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-2]) # state covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
+        self.debug = None   # not used currently, can be used to pass debug info from utils to publish topics
         self.last_time = None
 
     def firmware_debug_callback(self, msg):
@@ -212,7 +212,7 @@ class SteerOffsetEstimator(Node):
             return
 
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
-        self.x_hat, self.Sigma = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [self.wheelbase])
+        self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [self.wheelbase])
         self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
         self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
         self.last_time = time.time()

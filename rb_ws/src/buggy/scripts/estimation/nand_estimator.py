@@ -95,6 +95,8 @@ class NANDStateEstimator(Node):
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
+        self.debug = None
+
         self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
         self.create_subscription(StampedFloat64Msg, "other/steering", self.update_steering, 1)
         self.nand_publisher = self.create_publisher(Odometry, "other/state", 1)
@@ -120,13 +122,12 @@ class NANDStateEstimator(Node):
         """
         Predict loop callback, runs at 100 Hz.
 
-
         - Runs the predict step using the RK4-discretized dynamics.
         - Publishes filtered NAND state and singularity flag at 100 Hz.
         """
         if not self.start:
             return
-        self.x_hat, self.Sigma = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
+        self.x_hat, self.Sigma, self.debug = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
 
         nand_ukf_msg = Odometry()
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
@@ -134,18 +135,21 @@ class NANDStateEstimator(Node):
         nand_ukf_msg.pose.pose.orientation.z = self.x_hat[2]
         nand_ukf_msg.twist.twist.linear.x = self.x_hat[3]
 
-        # y is 2 elements long
-        # S is a 2x2 matrix
-        # must be of length 36 to match Odometry specs\
-        S = self.debug["S"]
-        singular_flag = self.debug["singular_flag"]
-        data = np.pad(S.flatten(), (0, 32)).tolist()
-        nand_ukf_msg.pose.covariance = data
+        if self.debug is not None:
+          # y is 2 elements long
+          # S is a 2x2 matrix
+          # must be of length 36 to match Odometry specs
+          S = self.debug["S"]
+          singular_flag = self.debug["singular_flag"]
+          if S is not None:
+            data = np.pad(S.flatten(), (0, 32)).tolist()
+            nand_ukf_msg.pose.covariance = data
 
-        singular_flag_msg = Bool()
-        singular_flag_msg.data = singular_flag
+          singular_flag_msg = Bool()
+          singular_flag_msg.data = singular_flag
+          self.singular_flag_publisher.publish(singular_flag_msg)
+
         self.nand_publisher.publish(nand_ukf_msg)
-        self.singular_flag_publisher.publish(singular_flag_msg)
 
     def accuracy_to_mat(self, accuracy):
         """

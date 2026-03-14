@@ -13,9 +13,11 @@ def generate_sigma_points(x_hat, Sigma):
     # Symmetrize Sigma to avoid creating complex values with sqrtm (S: Symmetric)
     Sigma = (Sigma + Sigma.T) / 2
     # Use Cholesky decomposition to get the square root of Sigma, needs SPD matrix; faster than scipy.linalg.sqrtm
+    singular_flag = False
     try:
         A = np.linalg.cholesky(Sigma)
     except np.linalg.LinAlgError:
+        singular_flag = True
         # Add a small hardcoded value 1e-9 to the diagonal to ensure PD (Positive Definite)
         jitter = 1e-9 * np.eye(Nx)
         try:
@@ -36,7 +38,7 @@ def generate_sigma_points(x_hat, Sigma):
 
     W[1:] = (1 - W[0]) / (2 * Nx)
 
-    return sigma, W
+    return sigma, W, singular_flag
 
 
 # maps vector in state space to vector in measurement space
@@ -50,7 +52,7 @@ def measurement(x):
 # and calculate a new state estimate and covariance
 def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
     Nx = len(x_hat_curr)
-    sigma, W = generate_sigma_points(x_hat_curr, Sigma_curr)
+    sigma, W, singular_flag = generate_sigma_points(x_hat_curr, Sigma_curr)
 
     for k in range(2 * Nx + 1):
         sigma[:, k] = dynamics(sigma[:, k], u_curr, params, dt)
@@ -67,8 +69,9 @@ def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
         )
 
     Sigma_next += Q * dt
+    debug_info = {"S": None, "singular_flag": singular_flag}
 
-    return x_hat_next, Sigma_next
+    return x_hat_next, Sigma_next, debug_info
 
 
 # Given a state estimate, covariance of the state estimate, measurement and covariance of the measurement,
@@ -90,7 +93,7 @@ def ukf_update(x_hat, Sigma, y, R):
     #         raise ValueError("Sigma is not positive definite, even after adding significant jitter.")
     #     singular_flag = True
 
-    sigma_points, W = generate_sigma_points(x_hat, Sigma)
+    sigma_points, W, singular_flag = generate_sigma_points(x_hat, Sigma)
 
     z = np.zeros((Ny, 2 * Nx + 1))
 
