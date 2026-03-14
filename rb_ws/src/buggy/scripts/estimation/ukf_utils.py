@@ -87,6 +87,8 @@ def ukf_update(x_hat, Sigma, y, R):
     while (abs(np.linalg.det(Sigma)) <= 1e-9):
         Sigma += np.eye(Sigma.shape[0]) * add_term
         add_term *= 2
+        if add_term > 1e-6:
+            raise ValueError("Sigma is not positive definite, even after adding significant jitter.")
         singular_flag = True
 
     sigma_points, W = generate_sigma_points(x_hat, Sigma)
