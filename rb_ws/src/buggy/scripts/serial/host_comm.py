@@ -100,6 +100,10 @@ class NANDUKF:
     easting: float # double
     northing: float # double
     theta: float # double
+    eastern_cov : float
+    northern_cov : float
+    heading_cov : float
+    speed_cov : float
     heading_rate: float # double
     velocity: float # double
     # 32 bits
@@ -270,7 +274,7 @@ class Comms:
             return NANDDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_NAND_UKF:
-            data = struct.unpack('<dddddIxxxx', payload)
+            data = struct.unpack('<dddddddddIxxxx', payload)
             return NANDUKF(*data)
 
         elif msg_type == MSG_TYPE_NAND_GPS:
