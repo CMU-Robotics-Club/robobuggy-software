@@ -1,6 +1,4 @@
 import numpy as np
-import scipy
-import scipy.linalg
 
 # Σ0 = diagm([1e-4; 1e-4; 1e-6])
 # R = diagm([1e-2; 1e-2]) # Sensor covariances (m^2, m^2) -- these should come from GPS reported accuracy
