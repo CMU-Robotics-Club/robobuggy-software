@@ -58,7 +58,7 @@ class Detector(Node):
 
         # Publishers
         self.observed_NAND_odom_publisher = self.create_publisher(
-            Odometry, "/SC/vision/other/state", 1
+            Odometry, "vision/other/state", 1
         )
         self.annotated_camera_frame_publisher = self.create_publisher(
                     CompressedImage, "debug/annotated_camera_frame", 1
