@@ -160,7 +160,7 @@ class NANDStateEstimator(Node):
         * has the same spread in x and y
         * has no correlation between x and y
 
-        The constant 0.848867684498 is a precomputed factor that relates
+        The constant CEP50_to_STD=0.8493218003 is a precomputed factor that relates
         this circular accuracy radius to the underlying standard deviation 
         of that Gaussian.
 
@@ -178,7 +178,7 @@ class NANDStateEstimator(Node):
         # accuracy is the circular error radius (meters)
         # k is the factor that maps between this radius and the Gaussian σ
         k = Constants.CEP50_to_STD
-        sigma = accuracy / k
+        sigma = accuracy * k
 
         # variance in each axis (assuming isotropic uncertainty)
         sigma_sq = sigma * sigma

@@ -12,14 +12,24 @@ import scipy.linalg
 # with the given weighted mean and weighted covariance
 def generate_sigma_points(x_hat, Sigma):
     Nx = len(x_hat)
-    A = scipy.linalg.sqrtm(Sigma)
+    # Symmetrize Sigma to avoid creating complex values with sqrtm (S: Symmetric)
+    Sigma = (Sigma + Sigma.T) / 2
+    # Use Cholesky decomposition to get the square root of Sigma, needs SPD matrix; faster than scipy.linalg.sqrtm
+    try:
+        A = np.linalg.cholesky(Sigma)
+    except np.linalg.LinAlgError:
+        # Add a small hardcoded value 1e-9 to the diagonal to ensure PD (Positive Definite)
+        jitter = 1e-9 * np.eye(Nx)
+        try:
+            A = np.linalg.cholesky(Sigma + jitter)
+        except np.linalg.LinAlgError:
+            raise ValueError("Sigma is not positive definite, even after adding jitter.")
     sigma = np.zeros((Nx, 2 * Nx + 1))
     W = np.zeros((2 * Nx + 1))
     W[0] = 1 / 3
 
     sigma[:, 0] = x_hat
 
-    # TODO: terms in A could be complex due to non-SPD Sigma, could handle that by symmetrizing R and using Choleskty
     for j in range(Nx):
         sigma[:, 1 + j] = x_hat + np.sqrt(Nx / (1 - W[0])) * A[:, j]
 
