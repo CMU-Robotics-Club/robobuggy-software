@@ -104,6 +104,8 @@ def ukf_update(x_hat, Sigma, y, R):
     x_hat_next = x_hat + K @ (y - z_hat)
     Sigma_next = Sigma - K @ S @ np.transpose(K)
 
+    _ = singular_flag
+
     return x_hat_next, Sigma_next
 
 # input our guess at 1 standard deviation, get the input for UKF covariance matrix
