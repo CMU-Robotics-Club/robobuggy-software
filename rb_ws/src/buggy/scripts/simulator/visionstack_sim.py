@@ -39,7 +39,8 @@ class VisionStack(Node):
         # Corrupt position with large gaussian noise
         corrupted.pose.pose.position.x += random.gauss(0, pos_noise)
         corrupted.pose.pose.position.y += random.gauss(0, pos_noise)
-        corrupted.pose.pose.position.z += random.gauss(0, angle_noise)  # z = heading in radians
+        # Corrupt heading (stored in orientation.z), keep altitude (position.z) unchanged
+        corrupted.pose.pose.orientation.z += random.gauss(0, angle_noise)
 
         # Corrupt velocity
         corrupted.twist.twist.linear.x  += random.gauss(0, pos_noise)
