@@ -29,7 +29,7 @@ class Controller(Node):
         self.declare_parameter("dist", 0.0) # Starting Distance along path
         start_dist = self.get_parameter("dist").value
         # initially set to a high value 
-        self.accuracy = 50
+        self.accuracy = 500
 
         self.declare_parameter("stateTopic", "self/state")
         self.declare_parameter("steeringTopic", "input/steering")
@@ -127,7 +127,7 @@ class Controller(Node):
             self.get_logger().warn("checking position estimate certainty | current covariance: " + str(odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 ))
             return False
 
-        if self.get_namespace() == "/NAND" and self.accuracy > 17:
+        if self.get_namespace() == "/NAND" and self.accuracy > 50:
             self.get_logger().warn("bad accuracy value on nand!")
             return False 
         
