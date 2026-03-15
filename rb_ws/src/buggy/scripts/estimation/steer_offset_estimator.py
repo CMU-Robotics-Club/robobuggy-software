@@ -129,7 +129,8 @@ class SteerOffsetEstimator(Node):
         self.x_hat: np.ndarray = np.zeros((5,))  # state vector
 
         # Offset variance extremely high out of caution and proof of convergence
-        self.Sigma: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-2]) # state covariance
+        self.Sigma_init: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-2]) # initial state covariance
+        self.Sigma: np.ndarray = self.Sigma_init  # state covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
         self.debug = None   # not used currently, can be used to pass debug info from utils to publish topics
@@ -192,7 +193,7 @@ class SteerOffsetEstimator(Node):
         # extract 2x2 position covariance from the 6x6 pose covariance
         self.R = np.reshape(np.stack((msg.pose.covariance[:2], msg.pose.covariance[6:8]), axis=0), (2, 2))
         # perform measurement update
-        self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_update(self.x_hat, self.Sigma, y, self.R)
+        self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_update(self.x_hat, self.Sigma, self.Sigma_init, y, self.R)
 
         self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
         self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
@@ -212,7 +213,7 @@ class SteerOffsetEstimator(Node):
             return
 
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
-        self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], time_delta, [self.wheelbase])
+        self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], time_delta, [self.wheelbase])
         self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
         self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
         self.last_time = time.time()

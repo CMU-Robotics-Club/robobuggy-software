@@ -91,7 +91,8 @@ class NANDStateEstimator(Node):
         self.start = False
 
         self.x_hat = None
-        self.Sigma = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) # state covariance
+        self.Sigma_init = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) # initial state covariance
+        self.Sigma = self.Sigma_init  # state covariance
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
@@ -116,7 +117,7 @@ class NANDStateEstimator(Node):
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-        self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, y, self.R)
+        self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, self.Sigma_init, y, self.R)
 
     def loop(self):
         """
@@ -127,7 +128,7 @@ class NANDStateEstimator(Node):
         """
         if not self.start:
             return
-        self.x_hat, self.Sigma, self.debug = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Q, [self.steering], 0.01, [1.3])
+        self.x_hat, self.Sigma, self.debug = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], 0.01, [1.3])
 
         nand_ukf_msg = Odometry()
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]

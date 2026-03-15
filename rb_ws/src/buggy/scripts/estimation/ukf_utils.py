@@ -8,7 +8,7 @@ import numpy as np
 
 # Given a mean and covariance in N-dimensional space, generate 2N+1 weighted points
 # with the given weighted mean and weighted covariance
-def generate_sigma_points(x_hat, Sigma):
+def generate_sigma_points(x_hat, Sigma, Sigma_init):
     Nx = len(x_hat)
     # Symmetrize Sigma to avoid creating complex values with sqrtm (S: Symmetric)
     Sigma = (Sigma + Sigma.T) / 2
@@ -23,7 +23,14 @@ def generate_sigma_points(x_hat, Sigma):
         try:
             A = np.linalg.cholesky(Sigma + jitter)
         except np.linalg.LinAlgError:
-            raise ValueError("Sigma is not positive definite, even after adding jitter.")
+            # Sigma is not positive definite, even after adding jitter
+            # Re-initialize Sigma to init_Sigma and compute A again
+            Sigma = Sigma_init
+            try:
+                A = np.linalg.cholesky(Sigma)
+            except np.linalg.LinAlgError:
+                raise ValueError("Failed to compute Cholesky decomposition even after re-initialization.")
+
     sigma = np.zeros((Nx, 2 * Nx + 1))
     W = np.zeros((2 * Nx + 1))
     W[0] = 1 / 3
@@ -50,9 +57,9 @@ def measurement(x):
 
 # Given a state estimate and covariance, apply nonlinear dynamics over dt to sigma points
 # and calculate a new state estimate and covariance
-def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
+def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Sigma_init, Q, u_curr, dt, params):
     Nx = len(x_hat_curr)
-    sigma, W, singular_flag = generate_sigma_points(x_hat_curr, Sigma_curr)
+    sigma, W, singular_flag = generate_sigma_points(x_hat_curr, Sigma_curr, Sigma_init)
 
     for k in range(2 * Nx + 1):
         sigma[:, k] = dynamics(sigma[:, k], u_curr, params, dt)
@@ -79,7 +86,7 @@ def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Q, u_curr, dt, params):
 # calculate the mean and covariance in measurement space, then use this to calculate the Kalman gain,
 # then use the gain and measurement to calculate the updated state estimate and covariance.
 # returns updated x_hat, Sigma, and a debug dictionary for publish topics
-def ukf_update(x_hat, Sigma, y, R):
+def ukf_update(x_hat, Sigma, Sigma_init, y, R):
     Nx = len(x_hat)
     Ny = len(y)
     singular_flag = False
@@ -93,7 +100,7 @@ def ukf_update(x_hat, Sigma, y, R):
     #         raise ValueError("Sigma is not positive definite, even after adding significant jitter.")
     #     singular_flag = True
 
-    sigma_points, W, singular_flag = generate_sigma_points(x_hat, Sigma)
+    sigma_points, W, singular_flag = generate_sigma_points(x_hat, Sigma, Sigma_init)
 
     z = np.zeros((Ny, 2 * Nx + 1))
 
