@@ -141,9 +141,6 @@ class NANDStateEstimator(Node):
         nand_ukf_msg.pose.pose.orientation.z = self.x_hat[2]
         nand_ukf_msg.twist.twist.linear.x = self.x_hat[3]
 
-        # y is 2 elements long
-        # S is a 2x2 matrix
-        # must be of length 36 to match Odometry specs
         Sigma = self.Sigma
         if Sigma is not None:
             # Pose covariance: 6x6 matrix for [x, y, z, roll, pitch, yaw]
