@@ -74,7 +74,9 @@ class Controller(Node):
         self.odom_subscriber = self.create_subscription(Odometry, self.get_parameter("stateTopic").value, self.odom_listener, 1)
         self.traj_subscriber = self.create_subscription(TrajectoryMsg, self.get_parameter("trajectoryTopic").value, self.traj_listener, 1)
         self.steer_offset_subscriber = self.create_subscription(Float64, self.get_parameter("steerOffsetTopic").value, self.offset_listener, 1)
-        self.accuracy_subscriber = self.create_subscription(NANDRawGPSMsg, "debug/raw_gps", self.set_acc, 1)
+        self.accuracy_subscriber = None
+        if self.get_namespace() == "/NAND":
+            self.accuracy_subscriber = self.create_subscription(NANDRawGPSMsg, "debug/raw_gps", self.set_acc, 1)
 
         self.odom = None
         self.passed_init = False
