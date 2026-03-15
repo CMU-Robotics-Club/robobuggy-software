@@ -93,7 +93,7 @@ def ukf_update(x_hat, Sigma, Sigma_init, y, R):
     # Decided against this check, per discussion: https://discord.com/channels/1114989213230825492/1482487961382686781/1482500228526506055
     # A determinant-based PD check is not realiable and depends on the size of the state space and the scale of the values in Sigma;
     # This approach inflates the diagonal values of Sigma much more than necessary, leading to worse estimation performance
-    # 1e-9 is a hardcoded threshhold, based on the fact that values around 1e-5 work
+    # 1e-9 is a hardcoded threshold, based on the fact that values around 1e-5 work
     # add_term = 1e-9
     # while (abs(np.linalg.det(Sigma)) <= 1e-9):
     #     Sigma += np.eye(Sigma.shape[0]) * add_term
