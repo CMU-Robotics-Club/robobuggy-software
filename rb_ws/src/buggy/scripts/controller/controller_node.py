@@ -84,7 +84,7 @@ class Controller(Node):
         self.timer = self.create_timer(timer_period, self.loop)
 
     def set_acc(self, msg: NANDRawGPSMsg):
-        self.accuracy = msg.gps_fix
+        self.accuracy = msg.accuracy
 
     def odom_listener(self, msg : Odometry):
         '''
