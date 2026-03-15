@@ -30,7 +30,6 @@ class Controller(Node):
         start_dist = self.get_parameter("dist").value
         # initially set to a high value 
         self.accuracy = 500
-
         self.declare_parameter("stateTopic", "self/state")
         self.declare_parameter("steeringTopic", "input/steering")
         self.declare_parameter("rawSteeringTopic", "input/steering_raw")
@@ -129,8 +128,7 @@ class Controller(Node):
 
         if self.get_namespace() == "/NAND" and self.accuracy > 50:
             self.get_logger().warn("bad accuracy value on nand!")
-            return False 
-        
+            return False
         current_heading = odom.pose.pose.orientation.z % (2 * np.pi)
         closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(odom.pose.pose.position.x, odom.pose.pose.position.y))) % (2 * np.pi)
 
