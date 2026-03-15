@@ -96,7 +96,7 @@ class NANDStateEstimator(Node):
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
 
-        self.debug = {"S": None, "singular_flag": False}
+        self.singular_flag = False
 
         self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
         self.create_subscription(StampedFloat64Msg, "other/steering", self.update_steering, 1)
@@ -117,11 +117,10 @@ class NANDStateEstimator(Node):
             self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-        self.x_hat, self.Sigma, self.debug = ukf_update(self.x_hat, self.Sigma, self.Sigma_init, y, self.R)
+        self.x_hat, self.Sigma, self.singular_flag = ukf_update(self.x_hat, self.Sigma, self.Sigma_init, y, self.R)
         
         # publish singular flag immediately after measurement update, because prediction also writes to the debug singular flag
-        singular_flag = self.debug["singular_flag"]
-        singular_flag_msg = Bool(data=singular_flag)
+        singular_flag_msg = Bool(data=self.singular_flag)
         self.singular_flag_publisher.publish(singular_flag_msg)
 
 
@@ -134,7 +133,7 @@ class NANDStateEstimator(Node):
         """
         if not self.start:
             return
-        self.x_hat, self.Sigma, self.debug["singular_flag"] = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], 0.01, [1.3])                
+        self.x_hat, self.Sigma, self.singular_flag = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], 0.01, [1.3])                
 
         nand_ukf_msg = Odometry()
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
@@ -145,13 +144,22 @@ class NANDStateEstimator(Node):
         # y is 2 elements long
         # S is a 2x2 matrix
         # must be of length 36 to match Odometry specs
-        S = self.debug["S"]
-        if S is not None:
-            data = np.pad(S.flatten(), (0, 32)).tolist()
-            nand_ukf_msg.pose.covariance = data
+        Sigma = self.Sigma
+        if Sigma is not None:
+            # Pose covariance: 6x6 matrix for [x, y, z, roll, pitch, yaw]
+            pose_cov = np.zeros((6, 6))
+            pose_cov[0:2, 0:2] = Sigma[0:2, 0:2]  # x, y variances & cross-covariances
+            pose_cov[5, 5] = Sigma[2, 2]          # heading (yaw) variance
+            pose_cov[0:2, 5] = Sigma[0:2, 2]      # cross-covariance x,y and yaw
+            pose_cov[5, 0:2] = Sigma[2, 0:2]      # cross-covariance yaw and x,y
+            nand_ukf_msg.pose.covariance = pose_cov.flatten().tolist()
 
-        singular_flag = self.debug["singular_flag"]
-        singular_flag_msg = Bool(data=singular_flag)
+            # Twist covariance: 6x6 matrix for [v_x, v_y, v_z, w_x, w_y, w_z]
+            twist_cov = np.zeros((6, 6))
+            twist_cov[0, 0] = Sigma[3, 3]         # linear velocity x variance
+            nand_ukf_msg.twist.covariance = twist_cov.flatten().tolist()
+
+        singular_flag_msg = Bool(data=self.singular_flag)
         self.singular_flag_publisher.publish(singular_flag_msg)
 
         self.nand_publisher.publish(nand_ukf_msg)
