@@ -213,7 +213,7 @@ class SteerOffsetEstimator(Node):
             return
 
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
-        self.x_hat, self.Sigma, self.debug = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], time_delta, [self.wheelbase])
+        self.x_hat, self.Sigma, self.debug["singular_flag"] = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], time_delta, [self.wheelbase])
         self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
         self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
         self.last_time = time.time()

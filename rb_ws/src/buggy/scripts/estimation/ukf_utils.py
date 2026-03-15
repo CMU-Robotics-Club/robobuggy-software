@@ -56,7 +56,7 @@ def measurement(x):
 
 
 # Given a state estimate and covariance, apply nonlinear dynamics over dt to sigma points
-# and calculate a new state estimate and covariance
+# and calculate a new state estimate and covariance, along with a singular flag
 def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Sigma_init, Q, u_curr, dt, params):
     Nx = len(x_hat_curr)
     sigma, W, singular_flag = generate_sigma_points(x_hat_curr, Sigma_curr, Sigma_init)
@@ -76,9 +76,8 @@ def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Sigma_init, Q, u_curr, dt, par
         )
 
     Sigma_next += Q * dt
-    debug_info = {"S": None, "singular_flag": singular_flag}
 
-    return x_hat_next, Sigma_next, debug_info
+    return x_hat_next, Sigma_next, singular_flag
 
 
 # Given a state estimate, covariance of the state estimate, measurement and covariance of the measurement,
