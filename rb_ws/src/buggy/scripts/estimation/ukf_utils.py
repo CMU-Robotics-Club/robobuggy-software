@@ -10,7 +10,7 @@ import numpy as np
 # with the given weighted mean and weighted covariance
 def generate_sigma_points(x_hat, Sigma, Sigma_init):
     Nx = len(x_hat)
-    # Symmetrize Sigma to avoid creating complex values with sqrtm (S: Symmetric)
+    # Symmetrize Sigma to ensure it is symmetric before Cholesky (S: Symmetric)
     Sigma = (Sigma + Sigma.T) / 2
     # Use Cholesky decomposition to get the square root of Sigma, needs SPD matrix; faster than scipy.linalg.sqrtm
     singular_flag = False
@@ -20,8 +20,9 @@ def generate_sigma_points(x_hat, Sigma, Sigma_init):
         singular_flag = True
         # Add a small hardcoded value 1e-9 to the diagonal to ensure PD (Positive Definite)
         jitter = 1e-9 * np.eye(Nx)
+        Sigma += jitter
         try:
-            A = np.linalg.cholesky(Sigma + jitter)
+            A = np.linalg.cholesky(Sigma)
         except np.linalg.LinAlgError:
             # Sigma is not positive definite, even after adding jitter
             # Re-initialize Sigma to init_Sigma and compute A again
@@ -45,7 +46,7 @@ def generate_sigma_points(x_hat, Sigma, Sigma_init):
 
     W[1:] = (1 - W[0]) / (2 * Nx)
 
-    return sigma, W, singular_flag
+    return sigma, Sigma, W, singular_flag
 
 
 # maps vector in state space to vector in measurement space
@@ -59,7 +60,7 @@ def measurement(x):
 # and calculate a new state estimate and covariance, along with a singular flag
 def ukf_predict(dynamics, x_hat_curr, Sigma_curr, Sigma_init, Q, u_curr, dt, params):
     Nx = len(x_hat_curr)
-    sigma, W, singular_flag = generate_sigma_points(x_hat_curr, Sigma_curr, Sigma_init)
+    sigma, _, W, singular_flag = generate_sigma_points(x_hat_curr, Sigma_curr, Sigma_init)
 
     for k in range(2 * Nx + 1):
         sigma[:, k] = dynamics(sigma[:, k], u_curr, params, dt)
@@ -90,6 +91,8 @@ def ukf_update(x_hat, Sigma, Sigma_init, y, R):
     Ny = len(y)
     singular_flag = False
     # Decided against this check, per discussion: https://discord.com/channels/1114989213230825492/1482487961382686781/1482500228526506055
+    # A determinant-based PD check is not realiable and depends on the size of the state space and the scale of the values in Sigma;
+    # This approach inflates the diagonal values of Sigma much more than necessary, leading to worse estimation performance
     # 1e-9 is a hardcoded threshhold, based on the fact that values around 1e-5 work
     # add_term = 1e-9
     # while (abs(np.linalg.det(Sigma)) <= 1e-9):
@@ -99,7 +102,7 @@ def ukf_update(x_hat, Sigma, Sigma_init, y, R):
     #         raise ValueError("Sigma is not positive definite, even after adding significant jitter.")
     #     singular_flag = True
 
-    sigma_points, W, singular_flag = generate_sigma_points(x_hat, Sigma, Sigma_init)
+    sigma_points, Sigma, W, singular_flag = generate_sigma_points(x_hat, Sigma, Sigma_init) # sets Sigma to generate_sigma_points's jittered/re-initialized Sigma
 
     z = np.zeros((Ny, 2 * Nx + 1))
 
