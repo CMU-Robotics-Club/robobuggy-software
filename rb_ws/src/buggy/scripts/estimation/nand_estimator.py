@@ -118,7 +118,7 @@ class NANDStateEstimator(Node):
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
         self.x_hat, self.Sigma, self.singular_flag = ukf_update(self.x_hat, self.Sigma, self.Sigma_init, y, self.R)
-        
+
         # publish singular flag immediately after measurement update, because prediction also writes to the debug singular flag
         singular_flag_msg = Bool(data=self.singular_flag)
         self.singular_flag_publisher.publish(singular_flag_msg)
@@ -133,7 +133,7 @@ class NANDStateEstimator(Node):
         """
         if not self.start:
             return
-        self.x_hat, self.Sigma, self.singular_flag = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], 0.01, [1.3])                
+        self.x_hat, self.Sigma, self.singular_flag = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], 0.01, [1.3])
 
         nand_ukf_msg = Odometry()
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
