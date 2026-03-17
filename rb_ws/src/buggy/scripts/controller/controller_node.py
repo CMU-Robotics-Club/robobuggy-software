@@ -7,7 +7,7 @@ from rclpy.node import Node
 
 from std_msgs.msg import Float32, Bool, Float64
 from nav_msgs.msg import Odometry
-from buggy.msg import TrajectoryMsg, StampedFloat64Msg, NANDRawGPSMsg
+from buggy.msg import TrajectoryMsg, StampedFloat64Msg
 
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
@@ -28,8 +28,6 @@ class Controller(Node):
         # Parameters
         self.declare_parameter("dist", 0.0) # Starting Distance along path
         start_dist = self.get_parameter("dist").value
-        # initially set to a high value
-        self.accuracy = 500
         self.declare_parameter("stateTopic", "self/state")
         self.declare_parameter("steeringTopic", "input/steering")
         self.declare_parameter("rawSteeringTopic", "input/steering_raw")
@@ -74,9 +72,6 @@ class Controller(Node):
         self.odom_subscriber = self.create_subscription(Odometry, self.get_parameter("stateTopic").value, self.odom_listener, 1)
         self.traj_subscriber = self.create_subscription(TrajectoryMsg, self.get_parameter("trajectoryTopic").value, self.traj_listener, 1)
         self.steer_offset_subscriber = self.create_subscription(Float64, self.get_parameter("steerOffsetTopic").value, self.offset_listener, 1)
-        self.accuracy_subscriber = None
-        if self.get_namespace() == "/NAND":
-            self.accuracy_subscriber = self.create_subscription(NANDRawGPSMsg, "debug/raw_gps", self.set_acc, 1)
 
         self.odom = None
         self.passed_init = False
@@ -84,9 +79,6 @@ class Controller(Node):
 
         timer_period = 0.01  # seconds (100 Hz)
         self.timer = self.create_timer(timer_period, self.loop)
-
-    def set_acc(self, msg: NANDRawGPSMsg):
-        self.accuracy = msg.accuracy
 
     def odom_listener(self, msg : Odometry):
         '''
@@ -128,9 +120,6 @@ class Controller(Node):
             self.get_logger().warn("checking position estimate certainty | current covariance: " + str(odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 ))
             return False
 
-        if self.get_namespace() == "/NAND" and self.accuracy > 50:
-            self.get_logger().warn("bad accuracy value on nand!")
-            return False
         current_heading = odom.pose.pose.orientation.z % (2 * np.pi)
         closest_heading = (self.cur_traj.get_heading_by_index(self.cur_traj.get_closest_index_on_path(odom.pose.pose.position.x, odom.pose.pose.position.y))) % (2 * np.pi)
 
