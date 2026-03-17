@@ -99,17 +99,22 @@ def euclidean_clustering(data, eps=0.35, min_points=20, min_height=0.0):
 
 # check if point is an ellipse of width and height
 # (move the ellipse's center forward by forward offset)
-def point_in_ellipse(point: np.ndarray, half_width, half_height, forward_offset=0.0):
-    y = point[0]
-    x = point[1]
-    return ((x / half_width)**2 + ((y-forward_offset) / half_height)**2) <= 1
+def point_in_ellipse(point: np.ndarray, half_width, half_depth, forward_offset):
+    """
+    Checks whether a point is in ellipse
+    forward direction is -x
+    left direction is -y
+    """
+    forward = -point[0]
+    lateral = point[1]
+    return ((lateral / half_width)**2 + ((forward+forward_offset) / half_depth)**2) <= 1
 
-def cluster_mean_in_ellipse (cluster, half_width, half_height, forward_offset):
+def cluster_mean_in_ellipse (cluster, half_width, half_depth, forward_offset):
     mean_point = np.mean(cluster, axis=0) # get the x,y,z mean
-    return point_in_ellipse(mean_point, half_width, half_height, forward_offset)
+    return point_in_ellipse(mean_point, half_width, half_depth, forward_offset)
 
-def filter_clusters (clusters, half_width=2, half_height=4.5, forward_offset=0.5):
-    return [c for c in clusters if cluster_mean_in_ellipse(c, half_width, half_height, forward_offset)]
+def filter_clusters (clusters, half_width, half_depth, forward_offset):
+    return [c for c in clusters if cluster_mean_in_ellipse(c, half_width, half_depth, forward_offset)]
 
 
 #TODO: create a function that creates points to show the ellipse we are bounding to
@@ -167,6 +172,19 @@ def create_grid(size=15, n=15, z=0.0):
     grid.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5]] * len(lines))
     return grid
 
+
+def create_ellipse_torus(half_width, half_depth, forward_offset=0.0, z=0.0,
+                         tube_radius=0.05, color=(0.0, 1.0, 0.0)):
+    torus = o3d.geometry.TriangleMesh.create_torus(torus_radius=1.0, tube_radius=tube_radius)
+    v = np.asarray(torus.vertices)
+    v[:, 0] *= half_depth  # forward axis
+    v[:, 1] *= half_width   # lateral axis
+    torus.vertices = o3d.utility.Vector3dVector(v)
+    torus.compute_vertex_normals()
+    torus.paint_uniform_color(color)
+    torus.translate([forward_offset, 0.0, z])
+    return torus
+
 def main():
     data = np.load('velodyne_points.npy', allow_pickle=True) # 'sc_feb_21_26_roll_1.npz' 'velodyne_points.npy'
     # data = np.vstack([file['frames'][600], file['frames'][601], file['frames'][602], file['frames'][603], file['frames'][604]])  # merge 5 frames for complete rotation
@@ -184,8 +202,14 @@ def main():
     ng_filtered = filter_points_in_circle(ng_clean, radius=8)
     # ng_filtered = filter_points_by_angle(ng_filtered, min_angle=17/16*np.pi, max_angle=0)   # filter out left side due to left-passing behavior; ignores pushers on left side
     clusters, boxes, labels = euclidean_clustering(ng_filtered)
-    clusters, labels = euclidean_clustering(ng_clean)
-    ranged_clusters = filter_clusters(clusters)
+
+    ellipse_half_width = 2
+    ellipse_half_depth = 5
+    ellipse_forward_offset = 1.5
+    ranged_clusters = filter_clusters(clusters,
+                                      half_width=ellipse_half_width,
+                                      half_depth=ellipse_half_depth,
+                                      forward_offset=ellipse_forward_offset)
 
     # simple coloring: each cluster gets a different color
     # create a list of every point present in the filtered clusters (in range)
@@ -229,7 +253,17 @@ def main():
 
     vis = o3d.visualization.Visualizer()
     vis.create_window()
-    for g in [pcd_ng, pcd_g, pcd_ranged_ng, axes, grid] + boxes:
+    vis.get_render_option().line_width = 100.0
+    # Match your filter_clusters call exactly
+    ellipse = create_ellipse_torus(
+        half_width=ellipse_half_width, 
+        half_depth=ellipse_half_depth, 
+        forward_offset=ellipse_forward_offset,
+        z=center[2],          # same z as your grid/axes
+        color=(0.0, 1.0, 0.0) # green
+    )
+
+    for g in [pcd_ng, pcd_g, pcd_ranged_ng, axes, grid, ellipse] + boxes:
         vis.add_geometry(g)
 
     ctr = vis.get_view_control()
@@ -241,12 +275,6 @@ def main():
     vis.run()
     vis.destroy_window()
 
-    # Combine ground, unclustered non-ground, clustered points, bounding boxes, grid, and axes into a single view
-    # o3d.visualization.draw_geometries([pcd_ranged_ng, axes, grid] + boxes)
-    # TODO: just to get a sense we will show the ellipse we are ranging lidar to
-    # ellipse_plane, _ = make_plane_and_in_ellipse ()
-
-    o3d.visualization.draw_geometries([pcd_ranged_ng, pcd_g] + boxes)
 
 if __name__ == '__main__':
     main()
