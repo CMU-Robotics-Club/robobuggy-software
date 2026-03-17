@@ -7,6 +7,62 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import pyproj
 from scipy.spatial.transform import Rotation
+import math
+
+def is_reasonable (value, minimum, maximum, nan_allowed=False):
+    if value is None:
+        return False
+    if math.is_nan(value):
+        return nan_allowed
+    if value >= minimum & value <= maximum:
+        return True
+    return False
+
+def is_reasonable_pos(position, minimum=1000, maximum=5000, nan_allowed=False):
+    return (
+        is_reasonable(position.x, minimum, maximum, nan_allowed)
+        and is_reasonable(position.y, minimum, maximum, nan_allowed)
+        and is_reasonable(position.z, minimum, maximum, nan_allowed)
+    )
+
+def is_reasonable_orientation(orientation, minimum=-1.0, maximum=1.0, nan_allowed=False):
+    return (
+        is_reasonable(orientation.x, minimum, maximum, nan_allowed)
+        and is_reasonable(orientation.y, minimum, maximum, nan_allowed)
+        and is_reasonable(orientation.z, minimum, maximum, nan_allowed)
+        and is_reasonable(orientation.w, minimum, maximum, nan_allowed)
+    )
+
+def is_reasonable_covariance(covariance, minimum=0.0, maximum=10.0, nan_allowed=False):
+    return all(
+        is_reasonable(value, minimum, maximum, nan_allowed)
+        for value in covariance
+    )
+
+
+def is_reasonable_linear_twist(linear, minimum=-20.0, maximum=20.0, nan_allowed=False):
+    return (
+        is_reasonable(linear.x, minimum, maximum, nan_allowed)
+        and is_reasonable(linear.y, minimum, maximum, nan_allowed)
+        and is_reasonable(linear.z, minimum, maximum, nan_allowed)
+    )
+
+def is_reasonable_angular_twist(angular, minimum=-10.0, maximum=10.0, nan_allowed=False):
+    return (
+        is_reasonable(angular.x, minimum, maximum, nan_allowed)
+        and is_reasonable(angular.y, minimum, maximum, nan_allowed)
+        and is_reasonable(angular.z, minimum, maximum, nan_allowed)
+    )
+
+def is_reasonable_msg(msg):
+    return (
+        is_reasonable_pos(msg.pose.pose.position)
+        and is_reasonable_orientation(msg.pose.pose.orientation)
+        and is_reasonable_covariance(msg.pose.covariance)
+        and is_reasonable_linear_twist(msg.twist.twist.linear)
+        and is_reasonable_angular_twist(msg.twist.twist.angular)
+        and is_reasonable_covariance(msg.twist.covariance)
+    )
 
 class BuggyStateConverter(Node):
     def __init__(self):
@@ -39,6 +95,7 @@ class BuggyStateConverter(Node):
         self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(
             "epsg:4978", "epsg:32617", always_xy=True
         )  # TODO: Confirm UTM EPSG code, using EPSG:32617 for UTM Zone 17N
+
 
     def convert_SC_state_callback(self, msg):
         """ Callback for processing SC/raw_state messages and publishing to self/state """
