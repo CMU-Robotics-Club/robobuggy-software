@@ -9,6 +9,7 @@ import numpy as np
 import utm
 import pyproj
 from scipy.spatial.transform import Rotation
+from util.constants import Constants
 
 class BuggyStateConverter(Node):
     def __init__(self):
@@ -55,7 +56,7 @@ class BuggyStateConverter(Node):
         try:
             y = msg.pose.pose.position.y
             x = msg.pose.pose.position.x
-            lat, long = utm.to_latlon(x, y, 17, "T")
+            lat, long = utm.to_latlon(x, y, Constants.UTM_ZONE_NUM, Constants.UTM_ZONE_LETTER)
             down = msg.pose.pose.position.z
             new_msg = NavSatFix()
             new_msg.header = msg.header
