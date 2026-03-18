@@ -72,19 +72,19 @@ class BuggyStateConverter(Node):
                 "Unable to convert buggy position to lat lon; Error: " + str(e)
             )
 
-    def convert_SC_state_callback(self, msg) -> Odometry:
+    def convert_SC_state_callback(self, msg) -> None:
         """ Callback for processing SC/raw_state messages and publishing to self/state """
         converted_msg = self.convert_SC_state(msg)
         self.self_state_publisher.publish(converted_msg)
         self.convert_buggystate(converted_msg, self.self_telem_publisher)
 
-    def convert_NAND_state_callback(self, msg) -> Odometry:
+    def convert_NAND_state_callback(self, msg) -> None:
         """ Callback for processing NAND/raw_state messages and publishing to self/state """
         converted_msg = self.convert_NAND_state(msg)
         self.self_state_publisher.publish(converted_msg)
         self.convert_buggystate(converted_msg, self.self_telem_publisher)
 
-    def convert_NAND_other_state_callback(self, msg) -> Odometry:
+    def convert_NAND_other_state_callback(self, msg) -> None:
         """ Callback for processing SC/NAND_raw_state messages and publishing to other/state """
         converted_msg = self.convert_NAND_other_state(msg)
         self.other_state_publisher.publish(converted_msg)
