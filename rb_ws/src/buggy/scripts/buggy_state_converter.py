@@ -3,8 +3,10 @@ import time
 
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 import numpy as np
+import utm
 import pyproj
 from scipy.spatial.transform import Rotation
 
@@ -24,6 +26,7 @@ class BuggyStateConverter(Node):
             )
 
             self.other_state_publisher = self.create_publisher(Odometry, "other/stateNoUKF", 1)
+            self.other_telem_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 1)
 
         elif namespace == "/NAND":
             self.NAND_raw_state_subscriber = self.create_subscription(
@@ -34,26 +37,58 @@ class BuggyStateConverter(Node):
             self.get_logger().warn(f"Namespace not recognized for buggy state conversion: {namespace}")
 
         self.self_state_publisher = self.create_publisher(Odometry, "self/state", 1)
+        self.self_telem_publisher = self.create_publisher(NavSatFix, "self/state_navsatfix", 1)
+
 
         # Initialize pyproj Transformer for ECEF -> UTM conversion for /SC
         self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(
             "epsg:4978", "epsg:32617", always_xy=True
         )  # TODO: Confirm UTM EPSG code, using EPSG:32617 for UTM Zone 17N
 
-    def convert_SC_state_callback(self, msg):
+    def convert_buggystate(self, msg, publisher):
+        """Converts BuggyState/Odometry message to NavSatFix and publishes to specified publisher
+        
+        Args:
+            msg (Odometry): Buggy state to convert
+            publisher (Publisher): Publisher to send NavSatFix message to
+        """
+        try:
+            y = msg.pose.pose.position.y
+            x = msg.pose.pose.position.x
+            lat, long = utm.to_latlon(x, y, 17, "T")
+            down = msg.pose.pose.position.z
+            new_msg = NavSatFix()
+            new_msg.header = msg.header
+            new_msg.latitude = lat
+            new_msg.longitude = long
+            new_msg.altitude = down
+            publisher.publish(new_msg)
+            # self.get_logger().info(
+            #     f"Converted other buggy estimate position to lat long for navsat: {lat}, {long}"
+            # )
+
+        except (ValueError, utm.error.OutOfRangeError) as e:
+            self.get_logger().debug(
+                "Unable to convert buggy position to lat lon; Error: " + str(e)
+            )
+
+    def convert_SC_state_callback(self, msg) -> Odometry:
         """ Callback for processing SC/raw_state messages and publishing to self/state """
         converted_msg = self.convert_SC_state(msg)
         self.self_state_publisher.publish(converted_msg)
+        self.convert_buggystate(converted_msg, self.self_telem_publisher)
 
-    def convert_NAND_state_callback(self, msg):
+    def convert_NAND_state_callback(self, msg) -> Odometry:
         """ Callback for processing NAND/raw_state messages and publishing to self/state """
         converted_msg = self.convert_NAND_state(msg)
         self.self_state_publisher.publish(converted_msg)
+        self.convert_buggystate(converted_msg, self.self_telem_publisher)
 
-    def convert_NAND_other_state_callback(self, msg):
+    def convert_NAND_other_state_callback(self, msg) -> Odometry:
         """ Callback for processing SC/NAND_raw_state messages and publishing to other/state """
         converted_msg = self.convert_NAND_other_state(msg)
         self.other_state_publisher.publish(converted_msg)
+        self.convert_buggystate(converted_msg, self.other_telem_publisher)
 
     def convert_SC_state(self, msg):
         """

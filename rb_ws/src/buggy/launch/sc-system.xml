@@ -21,6 +21,5 @@
         <arg name="model" value="VLP16"/>
     </include>
 
-    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
     <node name="watchdog" pkg="buggy" exec="watchdog_node.py" namespace="SC" output="screen"/>
 </launch>

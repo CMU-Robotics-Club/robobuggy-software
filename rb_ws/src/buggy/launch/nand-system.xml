@@ -8,6 +8,5 @@
     </node>
     <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen" namespace="NAND"/>
     
-    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="NAND" output="screen"/>
     <node name="watchdog" pkg="buggy" exec="watchdog_node.py" namespace="NAND" output="screen"/>
 </launch>
