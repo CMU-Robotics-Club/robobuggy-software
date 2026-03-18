@@ -11,10 +11,13 @@ import open3d.visualization.rendering as rendering
 
 from lidar_visualizer import (
     euclidean_clustering,
+    euclidean_clustering2,
     ground_plane_segmentation,
+    ground_plane_segmentation2,
     filter_points_in_circle,
     filter_points_by_angle,
-    create_grid
+    create_grid,
+    identify_best_cluster
 )
 
 # GLFW fallback key codes for arrow keys.
@@ -169,13 +172,13 @@ class LidarPlaybackApp:
         self.cluster_points_material = rendering.MaterialRecord()
         self.cluster_points_material.shader = "defaultUnlit"
         self.cluster_points_material.point_size = float(args.point_size) + 1.5
-        self.cluster_points_material.base_color = [0.1, 1.0, 0.1, 1.0]
+        self.cluster_points_material.base_color = [1.0, 1.0, 1.0, 1.0]
 
         self.cluster_box_material = rendering.MaterialRecord()
         self.cluster_box_material.shader = "unlitLine"
         if hasattr(self.cluster_box_material, "line_width"):
             self.cluster_box_material.line_width = 2.0
-        self.cluster_box_material.base_color = [0.1, 1.0, 0.1, 1.0]
+        self.cluster_box_material.base_color = [1.0, 1.0, 1.0, 1.0]
 
         self.axes_material = rendering.MaterialRecord()
         self.axes_material.shader = "defaultUnlit"
@@ -186,7 +189,7 @@ class LidarPlaybackApp:
             self.grid_material.line_width = 1.0
 
         initial_frame = self.merged_frame(0)
-        init_ground, init_non_ground = ground_plane_segmentation(initial_frame.copy())
+        init_ground, init_non_ground = ground_plane_segmentation2(initial_frame)
 
         self.g_pcd = o3d.geometry.PointCloud()
         self.g_pcd.points = o3d.utility.Vector3dVector(init_ground)
@@ -285,7 +288,7 @@ class LidarPlaybackApp:
             ng_clean = full_frame
 
         ng_filtered = filter_points_in_circle(ng_clean, radius=8)
-        # ng_filtered = filter_points_by_angle(ng_filtered, min_angle=17/16*np.pi, max_angle=0)   # filter out left side due to left-passing behavior; ignores pushers on left side
+        # ng_filtered = filter_points_by_angle(ng_filtered, min_angle=17/16*np.pi, max_angle=1/4*np.pi)   # filter out left side due to left-passing behavior; ignores pushers on left side
 
         clusters = []
         boxes = []
@@ -302,15 +305,32 @@ class LidarPlaybackApp:
                 clusters = []
                 boxes = []
         self.state["cluster_count"] = len(boxes)
+        
+        best_cluster = identify_best_cluster(clusters, boxes) if clusters and boxes else None
+        
         if clusters:
-            cluster_points = np.vstack(clusters)
+            cluster_points_list = []
+            cluster_colors_list = []
+            for c in clusters:
+                cluster_points_list.append(c)
+                if c is best_cluster:
+                    cluster_colors_list.append(np.tile(np.array([[0.1, 1.0, 0.1]]), (len(c), 1)))
+                else:
+                    cluster_colors_list.append(np.tile(np.array([[0.1, 0.1, 1.0]]), (len(c), 1)))
+            cluster_points = np.vstack(cluster_points_list)
+            cluster_colors = np.vstack(cluster_colors_list)
         else:
             cluster_points = np.empty((0, 3), dtype=np.float64)
+            cluster_colors = np.empty((0, 3), dtype=np.float64)
+        
         self.state["cluster_point_count"] = len(cluster_points)
 
         self.g_pcd.points = o3d.utility.Vector3dVector(g)
         self.ng_pcd.points = o3d.utility.Vector3dVector(ng_clean)
         self.cluster_pcd.points = o3d.utility.Vector3dVector(cluster_points)
+        if len(cluster_colors) > 0:
+            self.cluster_pcd.colors = o3d.utility.Vector3dVector(cluster_colors)
+
         self.scene_widget.scene.remove_geometry("ground_points")
         self.scene_widget.scene.remove_geometry("non_ground_points")
         self.scene_widget.scene.remove_geometry("cluster_points")
@@ -321,12 +341,18 @@ class LidarPlaybackApp:
         for name in self.cluster_box_names:
             self.scene_widget.scene.remove_geometry(name)
         self.cluster_box_names = []
-        for i, box in enumerate(boxes):
+        for i, (c, box) in enumerate(zip(clusters, boxes)):
             name = f"cluster_box_{i}"
             lines = o3d.geometry.LineSet.create_from_axis_aligned_bounding_box(box)
             line_count = len(lines.lines)
+            
+            if c is best_cluster:
+                color = np.array([[0.1, 1.0, 0.1]])
+            else:
+                color = np.array([[0.1, 0.1, 1.0]])
+                
             lines.colors = o3d.utility.Vector3dVector(
-                np.tile(np.array([[0.1, 1.0, 0.1]]), (line_count, 1))
+                np.tile(color, (line_count, 1))
             )
             self.scene_widget.scene.add_geometry(name, lines, self.cluster_box_material)
             self.cluster_box_names.append(name)
