@@ -9,60 +9,75 @@ import pyproj
 from scipy.spatial.transform import Rotation
 import math
 
-def is_reasonable (value, minimum, maximum, nan_allowed=False):
+def is_reasonable(value, minimum, maximum, nan_allowed=False):
+    """
+    Takes in a floating point value (either normal maths or numpy)
+    And checks whether its in the range
+    If nan_allowed is true, and the value is nan, it returns true, else false
+    """
     if value is None:
         return False
-    if math.is_nan(value):
+    if math.isnan(value):
         return nan_allowed
-    if value >= minimum & value <= maximum:
+    if minimum <= value <= maximum:
         return True
     return False
 
-def is_reasonable_pos(position, minimum=1000, maximum=5000, nan_allowed=False):
+
+def is_reasonable_msg(
+    msg,
+    POSITION_MIN=(-1.0e7, -1.0e7, -1.0e7),
+    POSITION_MAX=(1.0e7, 1.0e7, 1.0e7),
+    ORIENTATION_MIN=(-2.0 * math.pi, -2.0 * math.pi, -2.0 * math.pi, -1.1),
+    ORIENTATION_MAX=(2.0 * math.pi, 2.0 * math.pi, 2.0 * math.pi, 1.1),
+    COVARIANCE_VAL_MIN=0.0,
+    COVARIANCE_VAL_MAX=1.0e6,
+    LINEAR_TWIST_MIN=(-100.0, -100.0, -100.0),
+    LINEAR_TWIST_MAX=(100.0, 100.0, 100.0),
+    ANGULAR_TWIST_MIN=(-20.0, -20.0, -20.0),
+    ANGULAR_TWIST_MAX=(20.0, 20.0, 20.0),
+    NAN_ALLOWED=False,
+):
+    """
+    Check whether an Odometry message stays within configured sanity bounds.
+    Position, orientation, linear twist, and angular twist limits are passed as
+    per-axis tuples. Covariance limits are scalar bounds applied to every
+    covariance entry. The defaults are intentionally broad and meant to catch
+    obvious corruption; individual callers should override them with tighter
+    ranges that match their message units.
+    """
     return (
-        is_reasonable(position.x, minimum, maximum, nan_allowed)
-        and is_reasonable(position.y, minimum, maximum, nan_allowed)
-        and is_reasonable(position.z, minimum, maximum, nan_allowed)
+        # Check pose position values.
+        is_reasonable(msg.pose.pose.position.x, POSITION_MIN[0], POSITION_MAX[0], NAN_ALLOWED)
+        and is_reasonable(msg.pose.pose.position.y, POSITION_MIN[1], POSITION_MAX[1], NAN_ALLOWED)
+        and is_reasonable(msg.pose.pose.position.z, POSITION_MIN[2], POSITION_MAX[2], NAN_ALLOWED)
+        # Check pose orientation values.
+        and is_reasonable(msg.pose.pose.orientation.x, ORIENTATION_MIN[0], ORIENTATION_MAX[0], NAN_ALLOWED)
+        and is_reasonable(msg.pose.pose.orientation.y, ORIENTATION_MIN[1], ORIENTATION_MAX[1], NAN_ALLOWED)
+        and is_reasonable(msg.pose.pose.orientation.z, ORIENTATION_MIN[2], ORIENTATION_MAX[2], NAN_ALLOWED)
+        and is_reasonable(msg.pose.pose.orientation.w, ORIENTATION_MIN[3], ORIENTATION_MAX[3], NAN_ALLOWED)
+        # Check pose covariance values.
+        and all(
+            is_reasonable(value, COVARIANCE_VAL_MIN, COVARIANCE_VAL_MAX, NAN_ALLOWED)
+            for value in msg.pose.covariance
+        )
+        # Check linear twist values.
+        and is_reasonable(msg.twist.twist.linear.x, LINEAR_TWIST_MIN[0], LINEAR_TWIST_MAX[0], NAN_ALLOWED)
+        and is_reasonable(msg.twist.twist.linear.y, LINEAR_TWIST_MIN[1], LINEAR_TWIST_MAX[1], NAN_ALLOWED)
+        and is_reasonable(msg.twist.twist.linear.z, LINEAR_TWIST_MIN[2], LINEAR_TWIST_MAX[2], NAN_ALLOWED)
+        # Check angular twist values.
+        and is_reasonable(msg.twist.twist.angular.x, ANGULAR_TWIST_MIN[0], ANGULAR_TWIST_MAX[0], NAN_ALLOWED)
+        and is_reasonable(msg.twist.twist.angular.y, ANGULAR_TWIST_MIN[1], ANGULAR_TWIST_MAX[1], NAN_ALLOWED)
+        and is_reasonable(msg.twist.twist.angular.z, ANGULAR_TWIST_MIN[2], ANGULAR_TWIST_MAX[2], NAN_ALLOWED)
+        # Check twist covariance values.
+        and all(
+            is_reasonable(value, COVARIANCE_VAL_MIN, COVARIANCE_VAL_MAX, NAN_ALLOWED)
+            for value in msg.twist.covariance
+        )
     )
 
-def is_reasonable_orientation(orientation, minimum=-1.0, maximum=1.0, nan_allowed=False):
-    return (
-        is_reasonable(orientation.x, minimum, maximum, nan_allowed)
-        and is_reasonable(orientation.y, minimum, maximum, nan_allowed)
-        and is_reasonable(orientation.z, minimum, maximum, nan_allowed)
-        and is_reasonable(orientation.w, minimum, maximum, nan_allowed)
-    )
-
-def is_reasonable_covariance(covariance, minimum=0.0, maximum=10.0, nan_allowed=False):
-    return all(
-        is_reasonable(value, minimum, maximum, nan_allowed)
-        for value in covariance
-    )
 
 
-def is_reasonable_linear_twist(linear, minimum=-20.0, maximum=20.0, nan_allowed=False):
-    return (
-        is_reasonable(linear.x, minimum, maximum, nan_allowed)
-        and is_reasonable(linear.y, minimum, maximum, nan_allowed)
-        and is_reasonable(linear.z, minimum, maximum, nan_allowed)
-    )
-
-def is_reasonable_angular_twist(angular, minimum=-10.0, maximum=10.0, nan_allowed=False):
-    return (
-        is_reasonable(angular.x, minimum, maximum, nan_allowed)
-        and is_reasonable(angular.y, minimum, maximum, nan_allowed)
-        and is_reasonable(angular.z, minimum, maximum, nan_allowed)
-    )
-
-def is_reasonable_msg(msg):
-    return (
-        is_reasonable_pos(msg.pose.pose.position)
-        and is_reasonable_orientation(msg.pose.pose.orientation)
-        and is_reasonable_covariance(msg.pose.covariance)
-        and is_reasonable_linear_twist(msg.twist.twist.linear)
-        and is_reasonable_angular_twist(msg.twist.twist.angular)
-        and is_reasonable_covariance(msg.twist.covariance)
-    )
 
 class BuggyStateConverter(Node):
     def __init__(self):
@@ -119,7 +134,24 @@ class BuggyStateConverter(Node):
         Takes in ROS message in nav_msgs/Odometry format
         Assumes that the SC namespace is using ECEF coordinates and quaternion orientation
         """
-
+        if not is_reasonable_msg(
+            msg,
+            # approx range of pittsburgh in ECEF
+            POSITION_MIN=(0.8e6, -4.9e6, 4.0e6),
+            POSITION_MAX=(0.9e6, -4.7e6, 4.2e6),
+            # quaternion orientation of xyzw
+            ORIENTATION_MIN=(-1.1, -1.1, -1.1, -1.1),
+            ORIENTATION_MAX=(1.1, 1.1, 1.1, 1.1),
+            COVARIANCE_VAL_MIN=0.0,
+            COVARIANCE_VAL_MAX=1.0e6,
+            # m/s
+            LINEAR_TWIST_MIN=(-100.0, -100.0, -100.0),
+            LINEAR_TWIST_MAX=(100.0, 100.0, 100.0),
+            # rad/s
+            ANGULAR_TWIST_MIN=(-20.0, -20.0, -20.0),
+            ANGULAR_TWIST_MAX=(20.0, 20.0, 20.0),
+        ):
+            return
         converted_msg = Odometry()
         converted_msg.header = msg.header
 
@@ -170,6 +202,24 @@ class BuggyStateConverter(Node):
         Converts self/raw_state in NAND namespace to clean state units and structure
         Takes in ROS message in nav_msgs/Odometry format
         """
+        if not is_reasonable_msg(
+            msg,
+            # UTM (easting, northing, altitude) for Pittsburgbh
+            POSITION_MIN=(5.0e5, 4.4e6, -250),
+            POSITION_MAX=(6.1e5, 4.6e6, 2000),
+            # -2pi to 2 pi for x,y,z, -1, 1 for w
+            ORIENTATION_MIN=(-2.0 * math.pi, -2.0 * math.pi, -2.0 * math.pi, -1.0),
+            ORIENTATION_MAX=(2.0 * math.pi, 2.0 * math.pi, 2.0 * math.pi, 1.0),
+            COVARIANCE_VAL_MIN=0.0,
+            COVARIANCE_VAL_MAX=1.0e6,
+            # -100 to 100 m/s
+            LINEAR_TWIST_MIN=(-100.0, -100.0, -100.0),
+            LINEAR_TWIST_MAX=(100.0, 100.0, 100.0),
+            # -20 to 20 radians per second
+            ANGULAR_TWIST_MIN=(-20.0, -20.0, -20.0),
+            ANGULAR_TWIST_MAX=(20.0, 20.0, 20.0),
+        ):
+            return
 
         converted_msg = Odometry()
         converted_msg.header = msg.header
