@@ -13,10 +13,11 @@ SC:
       stateTopic: "self/state"
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
+      rawSteeringTopic: "input/steering_raw"
       steerOffsetTopic: "self/steering_offset/filtered"
+      useSteerOffset: false 
       useHeadingRate: true
       controllerName: "controller"
-      useSteerOffset: false 
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
       useSteerOffset: false 
@@ -33,6 +34,7 @@ SC:
       stateTopic: "other/state"
       trajectoryTopic: "other/cur_traj"
       steeringTopic: "other/steering"
+      rawSteeringTopic: "other/steering_raw"
       useHeadingRate: false
       controllerName: "NAND_controller"
       traj_name: "buggycourse_safe.json"

@@ -12,7 +12,6 @@
         <param from="$(var config_file)"/>
     </node>
 
-    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
 
 
     <node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC"/>

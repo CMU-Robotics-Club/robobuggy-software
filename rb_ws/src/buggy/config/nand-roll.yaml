@@ -13,7 +13,9 @@ NAND:
       stateTopic: "self/state"
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
+      rawSteeringTopic: "input/steering_raw"
       steerOffsetTopic: "self/steering_offset/filtered"
+      useSteerOffset: false 
       useHeadingRate: true
       controllerName: "controller"
       useSteerOffset: false

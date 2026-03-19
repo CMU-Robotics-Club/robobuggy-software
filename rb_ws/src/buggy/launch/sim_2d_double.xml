@@ -36,6 +36,5 @@
     </node>
 
     <node name="estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
-    <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
 
 </launch>

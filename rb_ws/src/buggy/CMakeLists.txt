@@ -35,7 +35,6 @@ install(PROGRAMS
   scripts/simulator/velocity_updater.py
   scripts/buggy_state_converter.py
   scripts/serial/ros_to_bnyahaj.py
-  scripts/telemetry/telematics.py
   scripts/debug/debug_steer.py
   scripts/vision/detector_node.py
   scripts/debug/set_steer.py
