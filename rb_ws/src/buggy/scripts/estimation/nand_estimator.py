@@ -85,27 +85,27 @@ class NANDStateEstimator(Node):
         - Subscribes to noUKF state (other/stateNoUKF) and steering topics.
         - Publishes filtered state and a singularity flag.
         """
-        super().__init__("NAND_state_estimator")
-        self.get_logger().info('Initialized')
-
-        self.start = False
-
-        self.x_hat = None
-        self.Sigma_init = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) # initial state covariance
-        self.Sigma = self.Sigma_init  # state covariance
-        self.R = self.accuracy_to_mat(50)
-        self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
-
-        self.singular_flag = False
-
+        self.reinit()
         self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
         self.create_subscription(StampedFloat64Msg, "other/steering", self.update_steering, 1)
         self.nand_publisher = self.create_publisher(Odometry, "other/state", 1)
         self.singular_flag_publisher = self.create_publisher(Bool, "debug/NANDSingularFlag", 1)
 
-        self.steering = 0
-
         self.timer = self.create_timer(0.01, self.loop)
+
+    def reinit(self):
+        super().__init__("NAND_state_estimator")
+        self.get_logger().info('Initialized')
+        self.start = False
+        self.x_hat = None
+        self.Sigma_init = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) # initial state covariance
+        self.Sigma = self.Sigma_init  # state covariance
+        self.R = self.accuracy_to_mat(50)
+        self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
+        self.threshold = 1 # minimum value for "good" covariance
+        self.singular_flag = False
+        self.converged = False
+        self.steering = 0
 
     def update_steering(self, msg):
         self.steering = np.deg2rad(msg.data)
@@ -130,6 +130,8 @@ class NANDStateEstimator(Node):
 
         - Runs the predict step using the RK4-discretized dynamics.
         - Publishes filtered NAND state and singularity flag at 100 Hz.
+        - Checks covariance of NAND ukf and reinitializes if its supposed to be converged
+             and is below a certain threshhold 
         """
         if not self.start:
             return
@@ -150,6 +152,8 @@ class NANDStateEstimator(Node):
             pose_cov[0:2, 5] = Sigma[0:2, 2]      # cross-covariance x,y and yaw
             pose_cov[5, 0:2] = Sigma[2, 0:2]      # cross-covariance yaw and x,y
             nand_ukf_msg.pose.covariance = pose_cov.flatten().tolist()
+            if max(pose_cov) < self.threshold:
+                self.converged = True
 
             # Twist covariance: 6x6 matrix for [v_x, v_y, v_z, w_x, w_y, w_z]
             twist_cov = np.zeros((6, 6))
@@ -160,6 +164,10 @@ class NANDStateEstimator(Node):
         self.singular_flag_publisher.publish(singular_flag_msg)
 
         self.nand_publisher.publish(nand_ukf_msg)
+
+        if self.converged and max(pose_cov) > self.threshold:
+            self.reinit()
+            
 
     def accuracy_to_mat(self, accuracy):
         """
