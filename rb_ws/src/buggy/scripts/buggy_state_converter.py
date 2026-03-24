@@ -27,11 +27,11 @@ class BuggyStateConverter(Node):
             )
 
             self.other_state_publisher = self.create_publisher(Odometry, "other/stateNoUKF", 1)
-            self.other_raw_telem_publisher = self.create_publisher(NavSatFix, "other/stateNoUKF_navsatfix", 1)
-            self.other_telem_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 1)
+            self.other_telem_publisher = self.create_publisher(NavSatFix, "other/stateNoUKF_navsatfix", 1)
+            self.other_ukf_telem_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 1)
 
             self.other_filtered_state_subscriber = self.create_subscription(
-                Odometry, "other/state", lambda msg: self.publish_telematics(msg, self.other_telem_publisher), 1
+                Odometry, "other/state", lambda msg: self.publish_telematics(msg, self.other_ukf_telem_publisher), 1
             )
 
         elif namespace == "/NAND":
