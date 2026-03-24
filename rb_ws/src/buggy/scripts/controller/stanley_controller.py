@@ -32,10 +32,10 @@ class StanleyController(Controller):
             ROSPose, controllerName + "/debug/stanley_error", 1
         )
         self.debug_yaw_rate_publisher = self.node.create_publisher(
-            Float64, "controller/debug/yaw", 1
+            Float64, controllerName + "/controller/debug/yaw", 1
         )
         self.debug_error_heading_publisher = self.node.create_publisher(
-            Float64, "controller/debug/heading", 1
+            Float64, controllerName + "/controller/debug/heading", 1
         )
 
         self.usingHeadingRateError = usingHeadingRateError
