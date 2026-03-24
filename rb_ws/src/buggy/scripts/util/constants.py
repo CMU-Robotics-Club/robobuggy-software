@@ -1,4 +1,6 @@
+from enum import Enum
 import math
+
 
 class Constants:
     UTM_EAST_ZERO = 589702.87
@@ -12,3 +14,11 @@ class Constants:
     CEP50_to_STD = 1 / math.sqrt(-2 * math.log(0.5)) #0.8493218003
 
     OFFSET_THRESHOLD = ((1 * 3) * math.pi/180)**2 # Convert 1 deg std dev to 3sigma variance (rad)
+
+
+class TracingEvent(Enum):
+    SERIAL_RXTX = 1
+    STATECONV_RXTX = 2
+    CTRL_RX = 3
+    CTRL_TX = 4
+    SETSTEER_RXTX = 5

@@ -8,6 +8,8 @@ execution is implicitly mutually exclusive. Hence, we don't need locks here.
 import time
 
 import rclpy
+
+from util.constants import TracingEvent
 from host_comm import *
 from rclpy.node import Node
 
@@ -16,7 +18,7 @@ from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
 
-from buggy.msg import StampedFloat64Msg
+from buggy.msg import StampedFloat64Msg, TraceEventMsg
 
 # max number of packets to read from the buffer in each loop iteration
 PACKET_READ_LIMIT = 20
@@ -100,6 +102,11 @@ class Translator(Node):
             Float64, "debug/control_latency", 1
         )
 
+        # Control Stack Event Tracing
+        self.ctrl_evt_publisher = self.create_publisher(
+            TraceEventMsg, "debug/trace_events", 1
+        )
+
     def set_alarm(self, msg):
         """
         alarm ros topic reader
@@ -120,6 +127,16 @@ class Translator(Node):
         except ValueError:
             fw_stamp = 0
 
+        evt = TraceEventMsg(
+            header=msg.header, evt_type=TracingEvent.SETSTEER_RXTX
+        )
+
+        ns = time.time_ns()
+        evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        evt.header.stamp.nanosec = ns % int(1e9)
+
+        self.ctrl_evt_publisher.publish(evt)
+
         sw_stamp = msg.header.stamp.sec * int(1e9) + msg.header.stamp.nanosec
 
         self.steer_angle = msg.data
@@ -127,7 +144,7 @@ class Translator(Node):
         self.steer_sw_timestamp = sw_stamp
 
         self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
-        sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
+        sw_dt = (ns - self.steer_sw_timestamp) * 1e-9
         self.control_latency_publisher.publish(Float64(data=sw_dt))
 
         self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
@@ -180,7 +197,16 @@ class Translator(Node):
 
                 odom.header.frame_id = str(packet.timestamp)
 
+                evt = TraceEventMsg(
+                    header=odom.header, evt_type=TracingEvent.SERIAL_RXTX
+                )
+
+                ns = time.time_ns()
+                evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+                evt.header.stamp.nanosec = ns % int(1e9)
+
                 self.nand_ukf_odom_publisher.publish(odom)
+                self.ctrl_evt_publisher.publish(evt)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
 
 

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
 import os
+import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import Float32, Bool, Float64
 from nav_msgs.msg import Odometry
-from buggy.msg import TrajectoryMsg, StampedFloat64Msg
+from buggy.msg import TrajectoryMsg, StampedFloat64Msg, TraceEventMsg
 
+from util.constants import TracingEvent
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
 
@@ -68,6 +70,11 @@ class Controller(Node):
             Float32, "debug/heading", 1
         )
 
+        # Control Stack Event Tracing
+        self.ctrl_evt_publisher = self.create_publisher(
+            TraceEventMsg, "debug/trace_events", 1
+        )
+
         # Subscribers
         self.odom_subscriber = self.create_subscription(Odometry, self.get_parameter("stateTopic").value, self.odom_listener, 1)
         self.traj_subscriber = self.create_subscription(TrajectoryMsg, self.get_parameter("trajectoryTopic").value, self.traj_listener, 1)
@@ -86,6 +93,16 @@ class Controller(Node):
         msg, should be a CLEAN state as defined in the wiki
         '''
         self.odom = msg
+
+        evt = TraceEventMsg(
+            header=msg.header, evt_type=TracingEvent.CTRL_RX
+        )
+
+        ns = time.time_ns()
+        evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        evt.header.stamp.nanosec = ns % int(1e9)
+
+        self.ctrl_evt_publisher.publish(evt)
 
     def traj_listener(self, msg):
         '''
@@ -149,6 +166,17 @@ class Controller(Node):
                 return
 
         odom = self.odom
+
+        evt = TraceEventMsg(
+            header=odom.header, evt_type=TracingEvent.CTRL_TX
+        )
+
+        ns = time.time_ns()
+        evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        evt.header.stamp.nanosec = ns % int(1e9)
+
+        self.ctrl_evt_publisher.publish(evt)
+        
         self.heading_publisher.publish(Float32(data=np.rad2deg(odom.pose.pose.orientation.z)))
 
         steering_angle = self.controller.compute_control(odom, self.cur_traj)

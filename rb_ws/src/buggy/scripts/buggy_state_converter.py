@@ -5,11 +5,12 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
+from buggy.msg import TraceEventMsg
 import numpy as np
 import utm
 import pyproj
 from scipy.spatial.transform import Rotation
-from util.constants import Constants
+from util.constants import Constants, TracingEvent
 
 class BuggyStateConverter(Node):
     def __init__(self):
@@ -45,7 +46,10 @@ class BuggyStateConverter(Node):
         self.self_state_publisher = self.create_publisher(Odometry, "self/state", 1)
         self.self_telem_publisher = self.create_publisher(NavSatFix, "self/state_navsatfix", 1)
 
-
+        # Control Stack Event Tracing
+        self.ctrl_evt_publisher = self.create_publisher(
+            TraceEventMsg, "debug/trace_events", 1
+        )
 
         # Initialize pyproj Transformer for ECEF -> UTM conversion for /SC
         self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(
@@ -85,7 +89,14 @@ class BuggyStateConverter(Node):
     def convert_NAND_state_callback(self, msg) -> None:
         """ Callback for processing NAND/raw_state messages and publishing to self/state """
         converted_msg = self.convert_NAND_state(msg)
+
+        # header from converted_msg is initialized with current timestamp
+        evt = TraceEventMsg(
+            header=converted_msg.header, evt_type=TracingEvent.STATECONV_RXTX
+        )
+
         self.self_state_publisher.publish(converted_msg)
+        self.ctrl_evt_publisher.publish(evt)
         self.publish_telematics(converted_msg, self.self_telem_publisher)
 
     def convert_NAND_other_state_callback(self, msg) -> None:
