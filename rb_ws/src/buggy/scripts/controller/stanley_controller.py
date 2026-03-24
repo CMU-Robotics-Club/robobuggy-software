@@ -12,6 +12,8 @@ from util.pose import Pose
 
 import utm
 
+from tf_transformations import euler_from_quaternion #t orientation.z isn't the yaw angle because orientation is stored as a quaterion- making it only z only accounts for one component
+
 
 class StanleyController(Controller):
     """
@@ -32,13 +34,15 @@ class StanleyController(Controller):
             ROSPose, controllerName + "/debug/stanley_error", 1
         )
         self.debug_yaw_rate_publisher = self.node.create_publisher(
-            Float64, "controller/debug/yaw", 1
+            Float64, "controller/debug/yaw_rate_error", 1
         )
         self.debug_error_heading_publisher = self.node.create_publisher(
-            Float64, "controller/debug/heading", 1
+            Float64, "controller/debug/heading_error", 1
         )
 
         self.usingHeadingRateError = usingHeadingRateError
+
+        self.cross_track_pub = self.node.create_publisher( Float64, "controller/debug/cross_track_error", 1)
 
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
         """Computes the steering angle determined by Stanley controller.
@@ -60,7 +64,9 @@ class StanleyController(Controller):
             state_msg.twist.twist.linear.x**2 + state_msg.twist.twist.linear.y**2
         )
         yaw_rate = state_msg.twist.twist.angular.z
-        heading = current_rospose.orientation.z
+        
+        q = current_rospose.orientation
+        _, _, heading = euler_from_quaternion([q.x, q.y, q.z, q.w])
         x, y = current_rospose.position.x, current_rospose.position.y #(Easting, Northing)
 
         front_x = x + StanleyController.WHEELBASE * np.cos(heading)
@@ -85,19 +91,20 @@ class StanleyController(Controller):
         # the reference trajectory
         closest_position = trajectory.get_position_by_index(self.current_traj_index)
         next_position = trajectory.get_position_by_index(
-            self.current_traj_index + 0.0001
+            self.current_traj_index + 0.0001 #we should replace this decimal with 1 if the code supports fractional intropolation or else it'll just round down to original point
         )
         x1 = closest_position[0]
         y1 = closest_position[1]
         x2 = next_position[0]
         y2 = next_position[1]
-        error_dist = -((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) / np.sqrt(
-            (y2 - y1) ** 2 + (x2 - x1) ** 2
-        )
+        error_dist = ((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) / np.sqrt( (y2 - y1) ** 2 + (x2 - x1) ** 2
+        )# signed cross-track error (sign indicates which side of path)
 
-        cross_track_component = -np.arctan2(
-            StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
-        )
+        v = max(current_speed, 0.1) #adds speed floor to prevent error when speed is 0
+
+        cross_track_component = np.arctan2(
+            StanleyController.CROSS_TRACK_GAIN * error_dist, v + StanleyController.K_SOFT
+        ) #np.arctan2 isn't supposed to be negative
 
         # Compute expected yaw rate from trajectory curvature and current speed
         # r_traj = curvature * speed (rad/s)
@@ -107,15 +114,14 @@ class StanleyController(Controller):
         # Calculate yaw rate error
         r_meas = yaw_rate
 
-        yaw = float(StanleyController.K_D_YAW * (r_traj - r_meas))
+        yaw_rate_error = r_traj - r_meas #actual tracking error
+        yaw_correction = StanleyController.K_D_YAW * yaw_rate_error #control term
+
         # Determine steering_command
         steering_cmd = error_heading + cross_track_component
         if self.usingHeadingRateError:
-            steering_cmd += yaw
+            steering_cmd += yaw_correction
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
-
-        self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
-        self.debug_yaw_rate_publisher.publish(Float64(data=yaw))
 
         # Calculate error, where x is in orientation of buggy, y is cross track error
         current_pose = Pose(current_rospose.position.x, current_rospose.position.y, heading)
@@ -139,5 +145,9 @@ class StanleyController(Controller):
                 "[Stanley] Unable to convert closest track position lat lon; Error: "
                 + str(e)
             )
+        
+        self.cross_track_pub.publish(Float64(data=float(error_dist)))
+        self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
+        self.debug_yaw_rate_publisher.publish(Float64(data=float(yaw_rate_error)))
 
         return steering_cmd
