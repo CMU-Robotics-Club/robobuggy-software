@@ -149,7 +149,7 @@ class Translator(Node):
             if isinstance(packet, NANDDebugInfo):
                 rospacket = NANDDebugInfoMsg()
                 rospacket.heading_rate = packet.heading_rate
-                rospacket.encoder_angle = packet.encoder_angle
+                rospacket.encoder_speed = packet.encoder_speed
                 rospacket.rc_steering_angle = packet.rc_steering_angle
                 rospacket.software_steering_angle = packet.software_steering_angle
                 rospacket.true_steering_angle = packet.true_steering_angle

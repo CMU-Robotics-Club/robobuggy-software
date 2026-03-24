@@ -79,7 +79,7 @@ MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
 class NANDDebugInfo:
     # 64 bits
     heading_rate: float # double
-    encoder_angle: float # double
+    encoder_speed: float # double
     # 32 bits
     timestamp: int
     rc_steering_angle: float
