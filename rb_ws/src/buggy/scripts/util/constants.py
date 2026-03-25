@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import IntEnum
 import math
 
 
@@ -16,7 +16,7 @@ class Constants:
     OFFSET_THRESHOLD = ((1 * 3) * math.pi/180)**2 # Convert 1 deg std dev to 3sigma variance (rad)
 
 
-class TracingEvent(Enum):
+class TracingEvent(IntEnum):
     SERIAL_RXTX = 1
     STATECONV_RXTX = 2
     CTRL_RX = 3

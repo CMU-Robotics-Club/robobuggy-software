@@ -1,2 +1,2 @@
 std_msgs/Header header
-byte evt_type
+int32 evt_type
