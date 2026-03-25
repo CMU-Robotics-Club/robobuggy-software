@@ -85,6 +85,8 @@ class NANDStateEstimator(Node):
         - Subscribes to noUKF state (other/stateNoUKF) and steering topics.
         - Publishes filtered state and a singularity flag.
         """
+        super().__init__("NAND_state_estimator")
+
         self.reinit()
         self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
         self.create_subscription(StampedFloat64Msg, "other/steering", self.update_steering, 1)
@@ -94,7 +96,6 @@ class NANDStateEstimator(Node):
         self.timer = self.create_timer(0.01, self.loop)
 
     def reinit(self):
-        super().__init__("NAND_state_estimator")
         self.get_logger().info('Initialized')
         self.start = False
         self.x_hat = None
