@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 buggy_lidar.py
 --------------

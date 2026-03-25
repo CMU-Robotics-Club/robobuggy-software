@@ -42,6 +42,7 @@ install(PROGRAMS
   scripts/estimation/nand_estimator.py
   scripts/estimation/steer_offset_estimator.py
   scripts/vision/detector_node.py
+  scripts/lidar/buggy_lidar.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

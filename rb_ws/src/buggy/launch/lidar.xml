@@ -1,0 +1,6 @@
+<launch>
+    <arg name="config_file" default="src/buggy/config/lidar.yaml"/>
+    <node pkg="buggy" exec="buggy_lidar.py" name="Lidar_Detector" output = "screen" namespace="SC">
+            <param from="$(var config_file)"/>
+    </node>
+</launch>
