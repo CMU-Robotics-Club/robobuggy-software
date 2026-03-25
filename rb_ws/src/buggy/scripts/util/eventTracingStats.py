@@ -15,17 +15,17 @@ class MsgTimes:
     stateconv: int
     ctrl_rx: int
     ctrl_tx_min: int
-    setsteer_min: int
     ctrl_tx_max: int
+    setsteer_min: int
     setsteer_max: int
 
-    def set_ctrl_rx(self, t):
+    def set_ctrl_tx(self, t):
         if self.ctrl_tx_min is None:
-            self.ctrl_rx_min = t
-            self.ctrl_rx_max = t
+            self.ctrl_tx_min = t
+            self.ctrl_tx_max = t
         else:
-            self.ctrl_rx_min = min(self.ctrl_rx_min, t)
-            self.ctrl_rx_max = max(self.ctrl_rx_max, t)
+            self.ctrl_tx_min = min(self.ctrl_tx_min, t)
+            self.ctrl_tx_max = max(self.ctrl_tx_max, t)
     
     def set_setsteer(self, t):
         if self.setsteer_min is None:
@@ -36,7 +36,13 @@ class MsgTimes:
             self.setsteer_max = max(self.setsteer_max, t)
 
     def is_complete(self):
-        return self.serial is not None and self.stateconv is not None and self.ctrl_rx is not None and self.setsteer_min is not None and self.setsteer_max is not None
+        return self.serial is not None and\
+                self.stateconv is not None and\
+                self.ctrl_rx is not None and\
+                self.ctrl_tx_min is not None and\
+                self.ctrl_tx_max is not None and\
+                self.setsteer_min is not None and\
+                self.setsteer_max is not None
 
 
 
@@ -87,7 +93,7 @@ def main():
             elif msg.evt_type == TracingEvent.CTRL_RX:
                 msgs[frame].set_ctrl_rx(t)
             elif msg.evt_type == TracingEvent.CTRL_TX:
-                msgs[frame].set_setsteer(t)
+                msgs[frame].set_ctrl_tx(t)
             elif msg.evt_type == TracingEvent.SETSTEER_RXTX:
                 msgs[frame].set_setsteer(t)
 
