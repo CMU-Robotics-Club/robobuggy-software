@@ -127,11 +127,10 @@ class Translator(Node):
         except ValueError:
             fw_stamp = 0
 
-        evt = TraceEventMsg(
-            header=msg.header, evt_type=TracingEvent.SETSTEER_RXTX
-        )
+        evt = TraceEventMsg(evt_type=TracingEvent.SETSTEER_RXTX)
 
         ns = time.time_ns()
+        evt.header.frame_id = msg.header.frame_id
         evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
         evt.header.stamp.nanosec = ns % int(1e9)
 
@@ -197,11 +196,10 @@ class Translator(Node):
 
                 odom.header.frame_id = str(packet.timestamp)
 
-                evt = TraceEventMsg(
-                    header=odom.header, evt_type=TracingEvent.SERIAL_RXTX
-                )
+                evt = TraceEventMsg(evt_type=TracingEvent.SERIAL_RXTX)
 
                 ns = time.time_ns()
+                evt.header.frame_id = odom.header.frame_id
                 evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
                 evt.header.stamp.nanosec = ns % int(1e9)
 

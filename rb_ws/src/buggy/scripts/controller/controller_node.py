@@ -94,11 +94,10 @@ class Controller(Node):
         '''
         self.odom = msg
 
-        evt = TraceEventMsg(
-            header=msg.header, evt_type=TracingEvent.CTRL_RX
-        )
+        evt = TraceEventMsg(evt_type=TracingEvent.CTRL_RX)
 
         ns = time.time_ns()
+        evt.header.frame_id = msg.header.frame_id
         evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
         evt.header.stamp.nanosec = ns % int(1e9)
 
@@ -155,23 +154,22 @@ class Controller(Node):
         return True
 
     def loop(self):
-        if not self.passed_init:
-            self.passed_init = self.init_check()
-            msg = Bool()
-            msg.data = self.passed_init
-            self.init_check_publisher.publish(msg)
-            if self.passed_init:
-                self.get_logger().info("Passed Initialization Check")
-            else:
-                return
+        # if not self.passed_init:
+        #     self.passed_init = self.init_check()
+        #     msg = Bool()
+        #     msg.data = self.passed_init
+        #     self.init_check_publisher.publish(msg)
+        #     if self.passed_init:
+        #         self.get_logger().info("Passed Initialization Check")
+        #     else:
+        #         return
 
         odom = self.odom
 
-        evt = TraceEventMsg(
-            header=odom.header, evt_type=TracingEvent.CTRL_TX
-        )
+        evt = TraceEventMsg(evt_type=TracingEvent.CTRL_TX)
 
         ns = time.time_ns()
+        evt.header.frame_id = odom.header.frame_id
         evt.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
         evt.header.stamp.nanosec = ns % int(1e9)
 

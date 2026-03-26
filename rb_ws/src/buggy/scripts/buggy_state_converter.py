@@ -91,9 +91,7 @@ class BuggyStateConverter(Node):
         converted_msg = self.convert_NAND_state(msg)
 
         # header from converted_msg is initialized with current timestamp
-        evt = TraceEventMsg(
-            header=converted_msg.header, evt_type=TracingEvent.STATECONV_RXTX
-        )
+        evt = TraceEventMsg(header=converted_msg.header, evt_type=TracingEvent.STATECONV_RXTX)
 
         self.self_state_publisher.publish(converted_msg)
         self.ctrl_evt_publisher.publish(evt)

@@ -67,7 +67,7 @@ def main():
     reader.open(storage_options, converter_options)
 
     # Get topic and message type
-    evt_topic = "debug/trace_events"
+    evt_topic = "/NAND/debug/trace_events"
 
     topic_types = {t.name: t.type for t in reader.get_all_topics_and_types()}
     evt_type = get_message(topic_types[evt_topic])
@@ -109,9 +109,7 @@ def main():
         if not msg.is_complete():
             del msgs[frame]
 
-    t = np.array(sorted(msgs.keys()))
-    t -= t[0]
-    t /= 1e-6
+    frames = sorted(msgs.keys())
 
     # Construct series for each tracingevent
     serial_to_stateconv = []
@@ -120,7 +118,7 @@ def main():
     ctrlrx_to_ctrltx_max = []
     ctrltx_to_setsteer = []
 
-    for frame in t:
+    for frame in frames:
         msg = msgs[frame]
         serial_to_stateconv.append((msg.stateconv - msg.serial) * 1e-9)
         stateconv_to_ctrlrx.append((msg.ctrl_rx - msg.stateconv) * 1e-9)
@@ -139,6 +137,10 @@ def main():
     ctrlrx_to_ctrltx_min = np.array(ctrlrx_to_ctrltx_min)
     ctrlrx_to_ctrltx_max = np.array(ctrlrx_to_ctrltx_max)
     ctrltx_to_setsteer = np.array(ctrltx_to_setsteer)
+
+    t = np.array(frames, dtype=np.float64)
+    t -= t[0]
+    t /= 1e6
 
     # Plotting
     plt.figure(figsize=(12, 8))
@@ -248,22 +250,22 @@ def main():
                 solid_capstyle="butt",
             )
 
-            # Plot tiny event markers to see the exact bounds
-            plt.scatter(
-                [
-                    t_serial,
-                    t_stateconv,
-                    t_ctrlrx,
-                    t_ctrltx_min,
-                    t_ctrltx_max,
-                    t_setsteer_min,
-                    t_setsteer_max,
-                ],
-                [y] * 7,
-                color="black",
-                s=10,
-                zorder=3,
-            )
+            # # Plot tiny event markers to see the exact bounds
+            # plt.scatter(
+            #     [
+            #         t_serial,
+            #         t_stateconv,
+            #         t_ctrlrx,
+            #         t_ctrltx_min,
+            #         t_ctrltx_max,
+            #         t_setsteer_min,
+            #         t_setsteer_max,
+            #     ],
+            #     [y] * 7,
+            #     color="black",
+            #     s=0.2,
+            #     zorder=3,
+            # )
 
         plt.ylabel("Relative Firmware Time (s)")
         plt.xlabel("Software Time (s)")
@@ -293,7 +295,7 @@ def main():
         plt.grid(True, axis="both", linestyle="--", alpha=0.7)
         plt.gca().invert_yaxis()  # Invert so time flows down the chart
         plt.tight_layout()
-        plt.savefig("latency_timeline.png")
+        plt.savefig("latency_timeline.png", dpi=600, bbox_inches='tight')
 
 
 if __name__ == "__main__":
