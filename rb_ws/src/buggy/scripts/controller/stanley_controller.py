@@ -12,7 +12,7 @@ from util.pose import Pose
 
 import utm
 
-from tf_transformations import euler_from_quaternion #t orientation.z isn't the yaw angle because orientation is stored as a quaterion- making it only z only accounts for one component
+#we don't need quartenions because we already do a conversion in another branch
 
 
 class StanleyController(Controller):
@@ -42,7 +42,7 @@ class StanleyController(Controller):
 
         self.usingHeadingRateError = usingHeadingRateError
 
-        self.cross_track_pub = self.node.create_publisher( Float64, "controller/debug/cross_track_error", 1)
+        self.cross_track_publisher = self.node.create_publisher( Float64, "controller/debug/cross_track_error", 1)
 
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
         """Computes the steering angle determined by Stanley controller.
@@ -65,8 +65,7 @@ class StanleyController(Controller):
         )
         yaw_rate = state_msg.twist.twist.angular.z
         
-        q = current_rospose.orientation
-        _, _, heading = euler_from_quaternion([q.x, q.y, q.z, q.w])
+        heading = current_rospose.orientation.z
         x, y = current_rospose.position.x, current_rospose.position.y #(Easting, Northing)
 
         front_x = x + StanleyController.WHEELBASE * np.cos(heading)
@@ -91,7 +90,7 @@ class StanleyController(Controller):
         # the reference trajectory
         closest_position = trajectory.get_position_by_index(self.current_traj_index)
         next_position = trajectory.get_position_by_index(
-            self.current_traj_index + 0.0001 #we should replace this decimal with 1 if the code supports fractional intropolation or else it'll just round down to original point
+            self.current_traj_index + 0.0001
         )
         x1 = closest_position[0]
         y1 = closest_position[1]
@@ -146,7 +145,7 @@ class StanleyController(Controller):
                 + str(e)
             )
         
-        self.cross_track_pub.publish(Float64(data=float(error_dist)))
+        self.cross_track_publisher.publish(Float64(data=float(error_dist)))
         self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
         self.debug_yaw_rate_publisher.publish(Float64(data=float(yaw_rate_error)))
 
