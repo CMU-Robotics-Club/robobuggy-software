@@ -12,8 +12,6 @@ from util.pose import Pose
 
 import utm
 
-#we don't need quartenions because we already do a conversion in another branch
-
 
 class StanleyController(Controller):
     """
@@ -64,9 +62,8 @@ class StanleyController(Controller):
             state_msg.twist.twist.linear.x**2 + state_msg.twist.twist.linear.y**2
         )
         yaw_rate = state_msg.twist.twist.angular.z
-        
         heading = current_rospose.orientation.z
-        x, y = current_rospose.position.x, current_rospose.position.y #(Easting, Northing)
+        x, y = current_rospose.position.x, current_rospose.position.y # (Easting, Northing)
 
         front_x = x + StanleyController.WHEELBASE * np.cos(heading)
         front_y = y + StanleyController.WHEELBASE * np.sin(heading)
@@ -84,7 +81,7 @@ class StanleyController(Controller):
         ref_heading = trajectory.get_heading_by_index(self.current_traj_index)
 
         error_heading = ref_heading - heading
-        error_heading = np.arctan2(np.sin(error_heading), np.cos(error_heading)) #Bounds error_heading
+        error_heading = np.arctan2(np.sin(error_heading), np.cos(error_heading)) # Bounds error_heading
 
         # Calculate cross track error by finding the distance from the front axle to the tangent line of
         # the reference trajectory
@@ -96,14 +93,13 @@ class StanleyController(Controller):
         y1 = closest_position[1]
         x2 = next_position[0]
         y2 = next_position[1]
-        error_dist = ((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) / np.sqrt( (y2 - y1) ** 2 + (x2 - x1) ** 2
-        )# signed cross-track error (sign indicates which side of path)
+        # signed cross-track error (sign indicates which side of path)
+        error_dist = ((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) / np.sqrt( (y2 - y1) ** 2 + (x2 - x1) ** 2)
 
-        v = max(current_speed, 0.1) #adds speed floor to prevent error when speed is 0
 
         cross_track_component = np.arctan2(
-            StanleyController.CROSS_TRACK_GAIN * error_dist, v + StanleyController.K_SOFT
-        ) #np.arctan2 isn't supposed to be negative
+            StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
+        )
 
         # Compute expected yaw rate from trajectory curvature and current speed
         # r_traj = curvature * speed (rad/s)
@@ -112,9 +108,8 @@ class StanleyController(Controller):
 
         # Calculate yaw rate error
         r_meas = yaw_rate
-
-        yaw_rate_error = r_traj - r_meas #actual tracking error
-        yaw_correction = StanleyController.K_D_YAW * yaw_rate_error #control term
+        yaw_rate_error = r_traj - r_meas
+        yaw_correction = StanleyController.K_D_YAW * yaw_rate_error     # control term for yaw rate error
 
         # Determine steering_command
         steering_cmd = error_heading + cross_track_component
@@ -144,7 +139,7 @@ class StanleyController(Controller):
                 "[Stanley] Unable to convert closest track position lat lon; Error: "
                 + str(e)
             )
-        
+
         self.cross_track_publisher.publish(Float64(data=float(error_dist)))
         self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
         self.debug_yaw_rate_publisher.publish(Float64(data=float(yaw_rate_error)))
