@@ -15,7 +15,7 @@ NAND:
       steeringTopic: "input/steering"
       rawSteeringTopic: "input/steering_raw"
       steerOffsetTopic: "self/steering_offset/filtered"
-      useSteerOffset: true 
+      useSteerOffset: false 
       useHeadingRate: true
       controllerName: "controller"
       controller: "stanley"

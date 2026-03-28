@@ -129,7 +129,7 @@ class SteerOffsetEstimator(Node):
         self.x_hat: np.ndarray = np.zeros((5,))  # state vector
 
         # Offset variance extremely high out of caution and proof of convergence
-        self.Sigma_init: np.ndarray = np.diag([1e-4, 1e-4, 1e-2, 1e-2, 5e-2]) # initial state covariance
+        self.Sigma_init: np.ndarray = np.diag([1e-2, 1e-2, 1e-2, 1e-2, 5e-2]) # initial state covariance
         self.Sigma: np.ndarray = self.Sigma_init  # state covariance
         self.Q = np.diag([1e-4, 1e-4, 1e-4, 2.4e-1, 1e-6]) # init process covariance values (2.4e-1 for velocity based on 3 x std dev of 0.16)
         self.R = np.diag([1e-2, 1e-2])  # init sensor covariance values
