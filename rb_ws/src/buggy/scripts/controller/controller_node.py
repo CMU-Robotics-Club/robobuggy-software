@@ -41,16 +41,16 @@ class Controller(Node):
         self.cur_traj = Trajectory(json_filepath=os.environ["TRAJPATH"] + traj_name)
         start_index = self.cur_traj.get_index_from_distance(start_dist)
         self.declare_parameter("useHeadingRate", True)
+        self.declare_parameter("debugHeadingTopic", "debug/heading")
 
         self.declare_parameter("controllerName", "controller")
         self.declare_parameter("controller", "stanley")
         controller_name = self.get_parameter("controller").value
         print(controller_name.lower())
-        name = self.get_parameter("controllerName").value
         if (controller_name.lower() == "stanley"):
             self.controller = StanleyController(start_index = start_index, namespace = self.get_namespace(),
                                                 node=self, usingHeadingRateError=self.get_parameter("useHeadingRate").value,
-                                                controllerName=name) #IMPORT STANLEY
+                                                controllerName=self.get_parameter("controllerName").value) #IMPORT STANLEY
         else:
             self.get_logger().error("Invalid Controller Name: " + controller_name.lower())
             raise Exception("Invalid Controller Argument")
@@ -66,7 +66,7 @@ class Controller(Node):
             StampedFloat64Msg, self.get_parameter("rawSteeringTopic").value, 1
         )
         self.heading_publisher = self.create_publisher(
-            Float32, name + "/debug/heading", 1
+            Float32, self.get_parameter("debugHeadingTopic").value, 1
         )
 
         # Subscribers

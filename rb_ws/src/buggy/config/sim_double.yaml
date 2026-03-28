@@ -9,6 +9,7 @@ NAND:
       stateTopic: "self/state"
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
+      debugHeadingTopic: "debug/heading"
       useHeadingRate: true
       controllerName: "controller"
       useSteerOffset: false
@@ -28,18 +29,20 @@ SC:
       stateTopic: "self/state"
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
+      debugHeadingTopic: "debug/heading"
       useHeadingRate: true
       controllerName: "controller"
       useSteerOffset: false
       traj_name: "buggycourse_sc.json"
       controller: "stanley"
-  
+
   SC_NAND_controller:
     ros__parameters:
       dist: 0.0
       stateTopic: "other/state"
       trajectoryTopic: "other/cur_traj"
       steeringTopic: "other/steering"
+      debugHeadingTopic: "other/debug/heading"
       useHeadingRate: true
       controllerName: "NAND_controller"
       traj_name: "buggycourse_nand.json"

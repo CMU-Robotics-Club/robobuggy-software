@@ -17,6 +17,7 @@ SC:
       dist: 0.0
       traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
+      debugHeadingTopic: "debug/heading"
       useSteerOffset: true
 
   SC_offset_estimator:
