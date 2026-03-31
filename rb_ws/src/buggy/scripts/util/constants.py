@@ -7,6 +7,7 @@ class Constants:
     UTM_ZONE_LETTER = "T"
     WHEELBASE_SC = 1.104
     WHEELBASE_NAND = 1.3
+    NAND_UKF_MAX_ALLOWABLE_COVARIANCE = 100
 
     # https://en.wikipedia.org/wiki/Circular_error_probable
     CEP50_to_STD = 1 / math.sqrt(-2 * math.log(0.5)) #0.8493218003
