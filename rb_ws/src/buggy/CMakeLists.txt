@@ -34,10 +34,8 @@ install(PROGRAMS
   scripts/simulator/radio_sim.py
   scripts/simulator/visionstack_sim.py
   scripts/simulator/velocity_updater.py
-  scripts/watchdog/watchdog_node.py
   scripts/buggy_state_converter.py
   scripts/serial/ros_to_bnyahaj.py
-  scripts/telemetry/telematics.py
   scripts/debug/debug_steer.py
   scripts/debug/set_steer.py
   scripts/estimation/nand_estimator.py

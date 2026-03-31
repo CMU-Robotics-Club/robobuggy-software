@@ -13,19 +13,18 @@ SC:
       stateTopic: "self/state"
       trajectoryTopic: "self/cur_traj"
       steeringTopic: "input/steering"
+      rawSteeringTopic: "input/steering_raw"
       steerOffsetTopic: "self/steering_offset/filtered"
+      useSteerOffset: true 
       useHeadingRate: true
       controllerName: "controller"
-      useSteerOffset: false 
-      # traj_name: "buggycourse_safe.json"
       controller: "stanley"
-      useSteerOffset: false 
 
   SC_offset_estimator:
     ros__parameters:
       steerOffsetRawTopic: "self/steering_offset/raw"
       steerOffsetFilteredTopic: "self/steering_offset/filtered"
-      steerOffsetFilterTimeConstant: 50   # in timesteps; smoothing factor alpha for low pass filter is 1 / steerOffsetFilterTimeConstant
+      steerOffsetFilterTimeConstant: 1   # in timesteps; smoothing factor alpha for low pass filter is 1 / steerOffsetFilterTimeConstant
 
   SC_NAND_controller:
     ros__parameters:
@@ -33,6 +32,8 @@ SC:
       stateTopic: "other/state"
       trajectoryTopic: "other/cur_traj"
       steeringTopic: "other/steering"
+      rawSteeringTopic: "other/steering_raw"
+      useSteerOffset: false
       useHeadingRate: false
       controllerName: "NAND_controller"
       traj_name: "buggycourse_nand.json"
@@ -40,7 +41,6 @@ SC:
 
   SC_path_planner:
     ros__parameters:
-      # traj_name: "buggycourse_safe.json"
       curb_name: "buggycourse_curb.json"
 
   SC_vision:

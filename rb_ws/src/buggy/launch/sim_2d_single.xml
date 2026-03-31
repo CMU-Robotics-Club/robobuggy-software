@@ -7,6 +7,12 @@
     <node pkg="buggy" exec="engine.py" name="SC_sim_single" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
+    <!-- To enable the ros2b node for measuring control latency, run this command in an ssh'd terminal:
+    $ sudo socat -d -d PTY,raw,echo=0,link=/dev/ttyVirtual0,user=nand,mode=777 GOPEN:/dev/null,ignoreeof
+    -->
+    <!-- <node pkg="buggy" exec="ros_to_bnyahaj.py" name="SC_ros_to_bnyahaj" respawn="true" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node> -->
     <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" namespace="SC"/>
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
         <param from="$(var config_file)"/>
@@ -14,18 +20,4 @@
     <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
-
-    <!-- # This is the new velocity-updated code (commented out for now in case it broke something)
-
-    <node pkg="buggy" exec="hello_world" name="hello_world" namespace="SC" />
-    <node pkg="buggy" exec="sim_single" name="SC_sim_single" namespace="SC">
-        <param name="velocity" value="12"/>
-        <param name="pose" value="Hill1_SC"/>
-    </node>
-    <node pkg="buggy" exec="sim_single" name="NAND_sim_single" namespace="NAND">
-        <param name="velocity" value="12"/>
-        <param name="pose" value="Hill1_NAND"/>
-    </node> -->
-
-    <node pkg="buggy" exec="watchdog_node.py" name="SC_watchdog" namespace="SC"/>
 </launch>

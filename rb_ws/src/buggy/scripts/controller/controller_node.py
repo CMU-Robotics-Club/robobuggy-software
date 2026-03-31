@@ -28,7 +28,6 @@ class Controller(Node):
         # Parameters
         self.declare_parameter("dist", 0.0) # Starting Distance along path
         start_dist = self.get_parameter("dist").value
-
         self.declare_parameter("stateTopic", "self/state")
         self.declare_parameter("steeringTopic", "input/steering")
         self.declare_parameter("rawSteeringTopic", "input/steering_raw")

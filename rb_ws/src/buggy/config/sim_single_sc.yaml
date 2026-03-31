@@ -24,3 +24,7 @@ SC:
       steerOffsetRawTopic: "self/steering_offset/raw"
       steerOffsetFilteredTopic: "self/steering_offset/filtered"
       steerOffsetFilterTimeConstant: 50
+
+  SC_ros_to_bnyahaj:
+    ros__parameters:
+      teensy_name: "ttyVirtual0"

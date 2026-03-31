@@ -41,4 +41,6 @@
     <!-- <node name="estimator" pkg="buggy" exec="ukf_node.py" output="screen" namespace="SC"/> -->
     <node name="telematics" pkg="buggy" exec="telematics.py" namespace="SC" output="screen"/>
     <node name="vision_sensor_fusion" pkg="buggy" exec="vision_ukf_node.py"  namespace="SC" output="screen"/>
+    <node name="estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
+
 </launch>

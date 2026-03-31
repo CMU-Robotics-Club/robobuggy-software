@@ -79,7 +79,7 @@ MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
 class NANDDebugInfo:
     # 64 bits
     heading_rate: float # double
-    encoder_angle: float # double
+    encoder_speed: float # double
     # 32 bits
     timestamp: int
     rc_steering_angle: float
@@ -100,6 +100,10 @@ class NANDUKF:
     easting: float # double
     northing: float # double
     theta: float # double
+    eastern_cov : float
+    northern_cov : float
+    heading_cov : float
+    speed_cov : float
     heading_rate: float # double
     velocity: float # double
     # 32 bits
@@ -112,12 +116,14 @@ class NANDRawGPS:
     northing: float # double
     # this is a 2D accuracy value
     accuracy: float # double
-    gps_time: int # uint64
     # 32 bits
     gps_seqnum: int
     timestamp: int
     # 8 bits
+    gps_SIV: int #uint8
     gps_fix: int # uint8
+    rtk_fix: int
+
 
 @dataclass
 class Radio:
@@ -130,7 +136,7 @@ class Radio:
 @dataclass
 class SCDebugInfo:
      # 64 bits
-    encoder_angle: float # double
+    encoder_speed: float # double
     # 32 bits
     rc_steering_angle: float
     software_steering_angle: float
@@ -270,11 +276,11 @@ class Comms:
             return NANDDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_NAND_UKF:
-            data = struct.unpack('<dddddIxxxx', payload)
+            data = struct.unpack('<dddddddddIxxxx', payload)
             return NANDUKF(*data)
 
         elif msg_type == MSG_TYPE_NAND_GPS:
-            data = struct.unpack('<dddQIIBxxxxxxx', payload)
+            data = struct.unpack('<dddIIBBBxxxxx', payload)
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
