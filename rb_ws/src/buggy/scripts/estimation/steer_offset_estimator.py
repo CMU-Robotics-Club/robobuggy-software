@@ -137,6 +137,8 @@ class SteerOffsetEstimator(Node):
         self.last_time = None
 
         self.ukf_converged = False
+        if hasattr(self, "lowPassFilter"):
+            self.lowPassFilter.reset()
 
     def firmware_debug_callback(self, msg):
         """
@@ -256,7 +258,8 @@ class SteerOffsetEstimator(Node):
             # apply low-pass filter to steering offset
             steer_offset_filtered = self.lowPassFilter.update(steer_offset)
             self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
-        else:
+        elif self.ukf_converged:
+            self.get_logger().info("Reinitializing UKF")
             self.reset_filter()
 
 

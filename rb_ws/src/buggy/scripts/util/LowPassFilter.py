@@ -18,5 +18,8 @@ class LowPassFilter:
         self.filter_value = self.alpha * new_value + (1 - self.alpha) * self.filter_value
         return self.filter_value
 
+    def reset(self, value: float = 0.0) -> None:
+        self.filter_value = value
+
     def value(self) -> float:
         return self.filter_value

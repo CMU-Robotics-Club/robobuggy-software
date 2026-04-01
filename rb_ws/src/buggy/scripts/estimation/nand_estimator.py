@@ -178,6 +178,7 @@ class NANDStateEstimator(Node):
                     or np.any(twist_cov > Constants.NAND_UKF_MAX_ALLOWABLE_COVARIANCE)):
                 if self.ukf_converged:
                     self.ukf_converged = False
+                    self.get_logger().info("Reinitializing UKF")
                     self.init_ukf()
                     return
             elif not self.ukf_converged:
