@@ -112,9 +112,6 @@ class NANDStateEstimator(Node):
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
 
-        if not self.ukf_ready:
-            return
-
         self.x_hat, self.Sigma, self.singular_flag = ukf_update(
             self.x_hat, self.Sigma, self.Sigma_init, y, self.R
         )
@@ -125,8 +122,6 @@ class NANDStateEstimator(Node):
 
     def init_ukf(self):
         """Reset the UKF and wait for the next measurement to initialize state."""
-        self.ukf_ready = False
-
         self.start = False
         self.x_hat = None
         self.Sigma_init = np.diag([1e-4, 1e-4, 1e-2, 1e-2])  # initial state covariance
@@ -134,8 +129,6 @@ class NANDStateEstimator(Node):
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
         self.singular_flag = False
-
-        self.ukf_ready = True
         self.ukf_converged = False
 
 
@@ -146,7 +139,7 @@ class NANDStateEstimator(Node):
         - Runs the predict step using the RK4-discretized dynamics.
         - Publishes filtered NAND state and singularity flag at 100 Hz.
         """
-        if (not self.start) or (not self.ukf_ready):
+        if not self.start:
             return
 
         self.x_hat, self.Sigma, self.singular_flag = ukf_predict(
