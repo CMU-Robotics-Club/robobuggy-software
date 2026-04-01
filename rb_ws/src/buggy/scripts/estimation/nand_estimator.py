@@ -88,10 +88,6 @@ class NANDStateEstimator(Node):
         super().__init__("NAND_state_estimator")
         self.get_logger().info('Initialized')
 
-        self.start = False
-        self.ukf_ready = False
-        self.x_hat = None
-        self.singular_flag = False
         self.init_ukf()
 
         self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
@@ -140,6 +136,7 @@ class NANDStateEstimator(Node):
         self.singular_flag = False
 
         self.ukf_ready = True
+        self.ukf_converged = False
 
 
     def loop(self):
@@ -185,8 +182,14 @@ class NANDStateEstimator(Node):
 
             if (np.any(pose_cov > Constants.NAND_UKF_MAX_ALLOWABLE_COVARIANCE)
                     or np.any(twist_cov > Constants.NAND_UKF_MAX_ALLOWABLE_COVARIANCE)):
-                self.init_ukf()
-                return
+                if self.ukf_converged:
+                    self.ukf_converged = False
+                    self.init_ukf()
+                    return
+            elif not self.ukf_converged:
+                # in this branch, guaranteed that the covariances haven't exploded
+                # set ukf_converged flag to true
+                self.ukf_converged = True
 
             nand_ukf_msg.pose.covariance = pose_cov.flatten().tolist()
             nand_ukf_msg.twist.covariance = twist_cov.flatten().tolist()
