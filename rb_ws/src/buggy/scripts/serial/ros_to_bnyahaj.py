@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """
-This is the only file that uses host_comm to read/write packets to firmware.
-Further, it runs on the (default) SingleThreadedExecutor, so callback/loop
-execution is implicitly mutually exclusive. Hence, we don't need locks here.
+Translates the output from bnyahaj serial (interpreted from host_comm) to ROS topics and vice versa.
+
+This node uses a MultiThreadedExecutor. Reads and writes occur asynchronously across different threads.
+A standard Python threading.Lock is also used to ensure sends from timer loop and topic subscribers to 
+the firmware are strictly  mutually exclusive to prevent serial collisions. Topic subscribers share a
+MutuallyExclusiveCallbackGroup so only one subscriber callback executes at a time.
 """
 
 import time
+from threading import Lock
 
 import rclpy
-from host_comm import *
 from rclpy.node import Node
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 
+from host_comm import *
 from std_msgs.msg import Float64, Int8
 from nav_msgs.msg import Odometry
 from buggy.msg import *
@@ -18,17 +24,7 @@ import numpy as np
 
 from buggy.msg import StampedFloat64Msg
 
-# max number of packets to read from the buffer in each loop iteration
-PACKET_READ_LIMIT = 20
-
 class Translator(Node):
-    """
-    Translates the output from bnyahaj serial (interpreted from host_comm) to ROS topics and vice versa.
-
-    When used with the default SingleThreadedExecutor, all callbacks and the main loop run in the same
-    thread, so access to shared state in this class is implicitly serialized and no explicit locking is
-    required.
-    """
 
     def __init__(self):
         """
@@ -40,10 +36,25 @@ class Translator(Node):
         super().__init__('ROS_serial_translator')
         self.get_logger().info('INITIALIZED.')
 
+        # Threading lock to protect the serial transmission lines
+        self.tx_lock = Lock()
+
+        # Callback Groups to allow parallel execution of orthogonal tasks
+        # Timer loop and subscribers are in separate groups to prevent starvation issues since there is more overhead
+        # in enforcing mutual exclusion at ros level than via basic lock
+
+        # Subscribers
+        self.sub_cb_group = MutuallyExclusiveCallbackGroup()
+
+        # Serial read loop
+        self.read_cb_group = MutuallyExclusiveCallbackGroup()
+
+        # Timer (write) loop
+        self.misc_cb_group = MutuallyExclusiveCallbackGroup()
+
         #Parameters
         self.declare_parameter("teensy_name", "ttyUSB0") #Default is SC's port
         teensy_name = self.get_parameter("teensy_name").value
-
 
         self.comms = Comms("/dev/" + teensy_name)
         namespace = self.get_namespace()
@@ -59,16 +70,21 @@ class Translator(Node):
 
         self.alarm = 0
 
+        # Assigned to the shared subscriber callback group
         self.create_subscription(
-            StampedFloat64Msg, "input/steering", self.set_steering, 1
+            StampedFloat64Msg, "input/steering", self.set_steering, 1,
+            callback_group=self.sub_cb_group
         )
-        self.create_subscription(Int8, "input/sanity_warning", self.set_alarm, 1)
+        self.create_subscription(
+            Int8, "input/sanity_warning", self.set_alarm, 1,
+            callback_group=self.sub_cb_group
+        )
 
-        # upper bound of reading data from Bnyahaj Serial, at 1ms
-        self.timer = self.create_timer(0.001, self.loop)
+        # High-frequency read loop, assigned to its own group so it never blocks writers
+        self.timer = self.create_timer(0.001, self.loop, callback_group=self.read_cb_group)
 
-        # slower loop to send timestamp to teensy, at 10ms
-        self.timestamp_timer = self.create_timer(0.01, self.send_timestamp)
+        # Slower loop to send timestamp to teensy, at 10ms. Assigned to misc group.
+        self.timestamp_timer = self.create_timer(0.01, self.send_timestamp, callback_group=self.misc_cb_group)
 
         # DEBUG MESSAGE PUBLISHERS:
         if self.self_name == "SC":
@@ -106,7 +122,9 @@ class Translator(Node):
         """
         self.get_logger().debug(f"Reading alarm of {msg.data}")
         self.alarm = msg.data
-        self.comms.send_alarm(self.alarm)
+        
+        with self.tx_lock:
+            self.comms.send_alarm(self.alarm)
 
     def set_steering(self, msg: StampedFloat64Msg):
         """
@@ -126,25 +144,28 @@ class Translator(Node):
         self.steer_fw_timestamp = fw_stamp
         self.steer_sw_timestamp = sw_stamp
 
-        self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
+        with self.tx_lock:
+            self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
+            
         sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
         self.control_latency_publisher.publish(Float64(data=sw_dt))
 
         self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
 
     def loop(self):
-        packet_on_buffer = True
-        # 20 packet limit to prevent starvation of write operations if there are too many packets on the buffer
-        packets_processed = 0
-        while packet_on_buffer and packets_processed < PACKET_READ_LIMIT:
+        """
+        Continuously drain the OS serial buffer until empty. 
+        Runs on its own thread and does not require the tx_lock.
+        """
+        while True:
             packet = self.comms.read_packet()
-            if (packet is None):
-                packet_on_buffer = False
+            
+            if packet is None:
+                # Buffer is empty, yield the thread until the next 1ms timer tick
                 self.get_logger().debug("NO PACKET")
-                continue
-            else:
-                self.get_logger().debug("PACKET")
-                packets_processed += 1
+                break
+
+            self.get_logger().debug("PACKET")
 
             if isinstance(packet, NANDDebugInfo):
                 rospacket = NANDDebugInfoMsg()
@@ -163,6 +184,7 @@ class Translator(Node):
                 self.nand_debug_info_publisher.publish(rospacket)
 
                 self.get_logger().debug(f'NAND Debug Timestamp: {packet.timestamp}')
+                
             elif isinstance(packet, NANDUKF):
                 odom = Odometry()
                 odom.pose.pose.position.x = packet.easting
@@ -183,7 +205,6 @@ class Translator(Node):
                 self.nand_ukf_odom_publisher.publish(odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
 
-
             elif isinstance(packet, NANDRawGPS):
                 rospacket = NANDRawGPSMsg()
                 rospacket.easting = packet.easting
@@ -198,10 +219,8 @@ class Translator(Node):
 
                 self.get_logger().debug(f'NAND Raw GPS Timestamp: {packet.timestamp}')
 
-
             # this packet is received on Short Circuit
             elif isinstance(packet, Radio):
-
                 # Publish to odom topic x and y coord
                 self.get_logger().debug("GOT RADIO PACKET")
                 odom = Odometry()
@@ -225,7 +244,6 @@ class Translator(Node):
                 self.sc_debug_info_publisher.publish(rospacket)
                 self.get_logger().debug(f'SC Debug Timestamp: {packet.timestamp}')
 
-
             elif isinstance(packet, SCSensors):
                 rospacket = SCSensorMsg()
                 rospacket.velocity = packet.velocity
@@ -234,7 +252,6 @@ class Translator(Node):
 
                 self.get_logger().debug(f'SC Sensors Timestamp: {packet.timestamp}')
 
-
             elif isinstance(packet, RoundtripTimestamp):
                 rtt = (time.time_ns() - packet.returned_time) * 1e-9
                 self.get_logger().debug(f'Roundtrip Timestamp: {packet.returned_time}, RTT: {rtt}')
@@ -242,17 +259,22 @@ class Translator(Node):
                 self.teensycycle_time_publisher.publish(Float64(data=packet.teensy_cycle_time * 1e-6))
 
     def send_timestamp(self):
-        self.comms.send_timestamp(time.time_ns())
+        with self.tx_lock:
+            self.comms.send_timestamp(time.time_ns())
 
 
 def main(args=None):
     rclpy.init(args=args)
 
     translator = Translator()
-    rclpy.spin(translator)
-
+    
+    # Initialize MultiThreadedExecutor to allow callback groups to run concurrently
+    executor = MultiThreadedExecutor()
+    executor.add_node(translator)
+    
+    executor.spin()
     translator.destroy_node()
-    rclpy.shutdown()
+    rclpy.try_shutdown()
 
 if __name__ == "__main__":
     main()
