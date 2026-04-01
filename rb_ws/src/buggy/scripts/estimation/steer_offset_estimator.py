@@ -136,6 +136,8 @@ class SteerOffsetEstimator(Node):
         self.debug = None   # not used currently, can be used to pass debug info from utils to publish topics
         self.last_time = None
 
+        self.ukf_converged = False
+
     def firmware_debug_callback(self, msg):
         """
         Handle debug/firmware messages to enable/disable and re-init the estimator.
@@ -213,7 +215,18 @@ class SteerOffsetEstimator(Node):
             return
 
         time_delta = 0.01 if not self.last_time else time.time() - self.last_time
-        self.x_hat, self.Sigma, self.singular_flag = ukf_utils.ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], time_delta, [self.wheelbase])
+        self.x_hat, self.Sigma, self.singular_flag = (
+            ukf_utils.ukf_predict(
+                self.rk4_dynamics,
+                self.x_hat,
+                self.Sigma,
+                self.Sigma_init,
+                self.Q,
+                [self.steering],
+                time_delta,
+                [self.wheelbase]
+            )
+        )
         self.x_hat[2] = self.wrap_angle(self.x_hat[2], np.pi)     # wrap heading
         self.x_hat[4] = self.wrap_angle(self.x_hat[4], np.pi/2)   # wrap steer offset
         self.last_time = time.time()
@@ -233,6 +246,8 @@ class SteerOffsetEstimator(Node):
 
         # Checks the offset variance is reasonable, corresponds to 6 deg std deviation.
         if offset_variance < Constants.OFFSET_THRESHOLD:
+            if not self.ukf_converged:
+                self.ukf_converged = True
 
             # wrap the steering offset to (-pi/2, pi/2]
             steer_offset = np.rad2deg(self.wrap_angle(self.x_hat[4], np.pi/2))
@@ -241,6 +256,8 @@ class SteerOffsetEstimator(Node):
             # apply low-pass filter to steering offset
             steer_offset_filtered = self.lowPassFilter.update(steer_offset)
             self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
+        else:
+            self.reset_filter()
 
 
 

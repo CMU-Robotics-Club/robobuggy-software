@@ -105,6 +105,7 @@ class NANDStateEstimator(Node):
     def update_measurement(self, msg):
         """Perform UKF measurement update using pose from other/stateNoUKF."""
         if not self.start:
+            self.get_logger().info("STARTED")
             self.start = True
             self.x_hat = np.array(
                 [msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi / 2, 0.0]
