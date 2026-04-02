@@ -72,7 +72,7 @@ class BuggyStateConverter(Node):
             publisher.publish(new_msg)
 
         except (ValueError, utm.error.OutOfRangeError) as e:
-            self.get_logger().debug(
+            self.get_logger().error(
                 "Unable to convert buggy position to lat lon; Error: " + str(e)
             )
 

@@ -38,9 +38,10 @@ class StanleyController(Controller):
             Float64, controllerName + "/controller/debug/heading_error", 1
         )
 
-        self.usingHeadingRateError = usingHeadingRateError
+        self.cross_track_publisher = self.node.create_publisher(
+            Float64, "controller/debug/cross_track_error", 1)
 
-        self.cross_track_publisher = self.node.create_publisher( Float64, "controller/debug/cross_track_error", 1)
+        self.usingHeadingRateError = usingHeadingRateError
 
     def compute_control(self, state_msg : Odometry, trajectory : Trajectory):
         """Computes the steering angle determined by Stanley controller.
@@ -94,7 +95,8 @@ class StanleyController(Controller):
         x2 = next_position[0]
         y2 = next_position[1]
         # signed cross-track error (sign indicates which side of path)
-        error_dist = ((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) / np.sqrt( (y2 - y1) ** 2 + (x2 - x1) ** 2)
+        error_dist = ((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) \
+            / np.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
 
 
         cross_track_component = np.arctan2(
