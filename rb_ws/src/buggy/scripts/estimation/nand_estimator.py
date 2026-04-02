@@ -125,7 +125,7 @@ class NANDStateEstimator(Node):
         """Reset the UKF and wait for the next measurement to initialize state."""
         self.start = False
         self.x_hat = None
-        self.Sigma_init = np.diag([1e-4, 1e-4, 1e-2, 1e-2])  # initial state covariance
+        self.Sigma_init = np.diag([1e-2, 1e-2, 1e-2, 1e-1])  # initial state covariance
         self.Sigma = self.Sigma_init.copy()  # state covariance
         self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
@@ -151,7 +151,7 @@ class NANDStateEstimator(Node):
             self.Q,
             [self.steering],
             0.01,
-            [1.3],
+            [Constants.WHEELBASE_NAND],
         )
 
         nand_ukf_msg = Odometry()
@@ -174,16 +174,18 @@ class NANDStateEstimator(Node):
             # Twist covariance: 6x6 matrix for [v_x, v_y, v_z, w_x, w_y, w_z]
             twist_cov[0, 0] = Sigma[3, 3]         # linear velocity x variance
 
-            if (np.any(pose_cov > Constants.NAND_UKF_MAX_ALLOWABLE_COVARIANCE)
-                    or np.any(twist_cov > Constants.NAND_UKF_MAX_ALLOWABLE_COVARIANCE)):
+            pose_var = np.diag(pose_cov)
+            twist_var = twist_cov[0, 0]
+
+            if (pose_var > Constants.NAND_UKF_POSE_DIVERGENCE_THRESHOLD
+                    or twist_var > Constants.NAND_UKF_TWIST_DIVERGENCE_THRESHOLD):
                 if self.ukf_converged:
                     self.ukf_converged = False
                     self.get_logger().info("Reinitializing UKF")
                     self.init_ukf()
                     return
-            elif not self.ukf_converged:
-                # in this branch, guaranteed that the covariances haven't exploded
-                # set ukf_converged flag to true
+            elif (pose_var < Constants.NAND_UKF_POSE_CONVERGENCE_THRESHOLD
+                    or twist_var < Constants.NAND_UKF_TWIST_CONVERGENCE_THRESHOLD):
                 self.ukf_converged = True
 
             nand_ukf_msg.pose.covariance = pose_cov.flatten().tolist()
