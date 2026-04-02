@@ -15,4 +15,5 @@
     </node>
 
     <node name="NAND_estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
+    <node name="vision_sensor_fusion" pkg="buggy" exec="vision_ukf_node.py"  namespace="SC" output="screen"/>
 </launch>

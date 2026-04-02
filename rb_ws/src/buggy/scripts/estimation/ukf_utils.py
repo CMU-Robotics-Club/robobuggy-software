@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 # Σ0 = diagm([1e-4; 1e-4; 1e-6])
@@ -126,4 +127,14 @@ def ukf_update(x_hat, Sigma, Sigma_init, y, R):
     x_hat_next = x_hat + K @ (y - z_hat)
     Sigma_next = Sigma - K @ S @ np.transpose(K)
 
+    _ = singular_flag
+
     return x_hat_next, Sigma_next, singular_flag
+
+# input our guess at 1 standard deviation, get the input for UKF covariance matrix
+def stddev_to_variance(stddev):
+    return (3.0 * stddev)**2
+
+# input the UKF variance, output expected 1 standard deviation
+def variance_to_stddev(variance):
+    return math.sqrt(variance) / 3.0

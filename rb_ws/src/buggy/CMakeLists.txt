@@ -32,15 +32,16 @@ install(PROGRAMS
   scripts/path_planner/path_planner.py
   scripts/simulator/engine.py
   scripts/simulator/radio_sim.py
+  scripts/simulator/visionstack_sim.py
   scripts/simulator/velocity_updater.py
   scripts/buggy_state_converter.py
   scripts/serial/ros_to_bnyahaj.py
   scripts/debug/debug_steer.py
-  scripts/vision/detector_node.py
   scripts/debug/set_steer.py
   scripts/estimation/nand_estimator.py
   scripts/estimation/steer_offset_estimator.py
   scripts/vision/detector_node.py
+  scripts/estimation/vision_ukf_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

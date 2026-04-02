@@ -26,6 +26,9 @@
     <node pkg="buggy" exec="radio_sim.py" name="SC_radio" output = "screen" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
+    <node pkg="buggy" exec="visionstack_sim.py" name="SC_visionstack" output = "screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
 
     <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen">
         <param from="$(var config_file)"/>
@@ -35,6 +38,8 @@
         <param from="$(var config_file)"/>
     </node>
 
+    <!-- <node name="estimator" pkg="buggy" exec="ukf_node.py" output="screen" namespace="SC"/> -->
+    <node name="vision_sensor_fusion" pkg="buggy" exec="vision_ukf_node.py"  namespace="SC" output="screen"/>
     <node name="estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
 
 </launch>
