@@ -5,12 +5,14 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import Bool
+from std_msgs.msg import Float32
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 
 from util.odomToNavsatFix import odom_to_navsat
 
 from ukf_utils import *
+from util.constants import Constants
 
 
 class VisionUKF(Node):
@@ -101,6 +103,7 @@ class VisionUKF(Node):
 
         self.vision_publisher = self.create_publisher(NavSatFix, "other/vision_fusion", 10)
         self.singular_flag_publisher = self.create_publisher(Bool, "debug/VisionSingularFlag", 1)
+        self.horiz_std_publisher = self.create_publisher(Float32, "debug/horiz_std", 10)
 
         self.steering = 0.0
         self.self_pos = None
@@ -197,10 +200,15 @@ class VisionUKF(Node):
             twist_cov[0, 0] = Sigma[3, 3]
             new_msg.twist.covariance = twist_cov.flatten().tolist()
 
+            horiz_std = np.sqrt(Sigma[0, 0] + Sigma[1, 1])
+            msg = Float32()
+            msg.data = float(horiz_std)
+            self.horiz_std_publisher.publish(msg)
+            if horiz_std <= Constants.VISION_UKF_PUBLISH_THRESH:
+                self.vision_publisher.publish(odom_to_navsat(new_msg))
+
         singular_flag_msg = Bool(data=self.singular_flag)
         self.singular_flag_publisher.publish(singular_flag_msg)
-
-        self.vision_publisher.publish(odom_to_navsat(new_msg))
 
     def get_lidar_acc_matrix(self, dist=1):
         _ = dist

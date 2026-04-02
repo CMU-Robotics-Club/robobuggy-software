@@ -12,3 +12,5 @@ class Constants:
     CEP50_to_STD = 1 / math.sqrt(-2 * math.log(0.5)) #0.8493218003
 
     OFFSET_THRESHOLD = ((1 * 3) * math.pi/180)**2 # Convert 1 deg std dev to 3sigma variance (rad)
+
+    VISION_UKF_PUBLISH_THRESH = 0.5 # meters
