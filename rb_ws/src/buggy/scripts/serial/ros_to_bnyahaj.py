@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
+"""
+This is the only file that uses host_comm to read/write packets to firmware.
+Further, it runs on the (default) SingleThreadedExecutor, so callback/loop
+execution is implicitly mutually exclusive. Hence, we don't need locks here.
+"""
 
-# import random
-from threading import Lock
+import time
+
 import rclpy
 from host_comm import *
 from rclpy.node import Node
@@ -10,11 +15,19 @@ from std_msgs.msg import Float64, Int8
 from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
+
+from buggy.msg import StampedFloat64Msg
+
+# max number of packets to read from the buffer in each loop iteration
+PACKET_READ_LIMIT = 20
+
 class Translator(Node):
     """
-    Translates the output from bnyahaj serial (interpreted from host_comm) to ros topics and vice versa.
-    Performs reading (from Bnya Serial) and writing (from Ros Topics) on different python threads, so
-    be careful of multithreading synchronizaiton issues.
+    Translates the output from bnyahaj serial (interpreted from host_comm) to ROS topics and vice versa.
+
+    When used with the default SingleThreadedExecutor, all callbacks and the main loop run in the same
+    thread, so access to shared state in this class is implicitly serialized and no explicit locking is
+    required.
     """
 
     def __init__(self):
@@ -31,6 +44,7 @@ class Translator(Node):
         self.declare_parameter("teensy_name", "ttyUSB0") #Default is SC's port
         teensy_name = self.get_parameter("teensy_name").value
 
+
         self.comms = Comms("/dev/" + teensy_name)
         namespace = self.get_namespace()
         if namespace == "/SC":
@@ -40,18 +54,21 @@ class Translator(Node):
         self.get_logger().info("BUGGY" + self.self_name)
 
         self.steer_angle = 0
+        self.steer_fw_timestamp = 0
+        self.steer_sw_timestamp = 0
+
         self.alarm = 0
-        self.fresh_steer = False
-        self.lock = Lock()
 
         self.create_subscription(
-            Float64, "input/steering", self.set_steering, 1
+            StampedFloat64Msg, "input/steering", self.set_steering, 1
         )
         self.create_subscription(Int8, "input/sanity_warning", self.set_alarm, 1)
 
         # upper bound of reading data from Bnyahaj Serial, at 1ms
         self.timer = self.create_timer(0.001, self.loop)
 
+        # slower loop to send timestamp to teensy, at 10ms
+        self.timestamp_timer = self.create_timer(0.01, self.send_timestamp)
 
         # DEBUG MESSAGE PUBLISHERS:
         if self.self_name == "SC":
@@ -79,33 +96,55 @@ class Translator(Node):
         self.teensycycle_time_publisher = self.create_publisher(
             Float64, "debug/teensycycle_time", 1
         )
+        self.control_latency_publisher = self.create_publisher(
+            Float64, "debug/control_latency", 1
+        )
 
     def set_alarm(self, msg):
         """
-        alarm ros topic reader, locked so that only one of the setters runs at once
+        alarm ros topic reader
         """
-        with self.lock:
-            self.get_logger().debug(f"Reading alarm of {msg.data}")
-            self.alarm = msg.data
+        self.get_logger().debug(f"Reading alarm of {msg.data}")
+        self.alarm = msg.data
+        self.comms.send_alarm(self.alarm)
 
-    def set_steering(self, msg):
+    def set_steering(self, msg: StampedFloat64Msg):
         """
-        Steering Angle Updater, updates the steering angle locally if updated on ros stopic
+        Steering Angle Updater, updates the steering angle and software/firmware timestamps locally
+        if updated on rostopic
         """
         self.get_logger().debug(f"Read steering angle of: {msg.data}")
-        with self.lock:
-            self.steer_angle = msg.data
-            self.fresh_steer = True
+
+        try:
+            fw_stamp = int(msg.header.frame_id)
+        except ValueError:
+            fw_stamp = 0
+
+        sw_stamp = msg.header.stamp.sec * int(1e9) + msg.header.stamp.nanosec
+
+        self.steer_angle = msg.data
+        self.steer_fw_timestamp = fw_stamp
+        self.steer_sw_timestamp = sw_stamp
+
+        self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
+        sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
+        self.control_latency_publisher.publish(Float64(data=sw_dt))
+
+        self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
 
     def loop(self):
         packet_on_buffer = True
-        while packet_on_buffer:
+        # 20 packet limit to prevent starvation of write operations if there are too many packets on the buffer
+        packets_processed = 0
+        while packet_on_buffer and packets_processed < PACKET_READ_LIMIT:
             packet = self.comms.read_packet()
             if (packet is None):
                 packet_on_buffer = False
                 self.get_logger().debug("NO PACKET")
+                continue
             else:
                 self.get_logger().debug("PACKET")
+                packets_processed += 1
 
             if isinstance(packet, NANDDebugInfo):
                 rospacket = NANDDebugInfoMsg()
@@ -130,10 +169,16 @@ class Translator(Node):
                 odom.pose.pose.position.y = packet.northing
                 odom.pose.pose.orientation.z = packet.theta
 
+                # Updated the eastern, northing, and heading (yaw) index of variance
+                # Important note: covariance operates on (x, y, z, pitch, roll, yaw)
+                odom.pose.covariance = np.diag([packet.eastern_cov, packet.northern_cov, 0, 0, 0, packet.heading_cov]).reshape(-1).tolist()
+
                 self.nandCircArray[self.nandIndex] = packet.velocity
                 self.nandIndex = (self.nandIndex + 1) % self.CIRCLEN
                 odom.twist.twist.linear.x = np.mean(self.nandCircArray)
                 odom.twist.twist.angular.z = packet.heading_rate
+
+                odom.header.frame_id = str(packet.timestamp)
 
                 self.nand_ukf_odom_publisher.publish(odom)
                 self.get_logger().debug(f'NAND UKF Timestamp: {packet.timestamp}')
@@ -171,7 +216,7 @@ class Translator(Node):
                 rospacket.true_steering_angle = packet.true_steering_angle
                 rospacket.operator_ready = packet.operator_ready
                 rospacket.brake_status = packet.brake_status
-                rospacket.use_auton_steer = packet.auton_steer
+                rospacket.auton_steer = packet.auton_steer
                 rospacket.tx12_state = packet.tx12_state
                 rospacket.stepper_alarm = packet.stepper_alarm
                 rospacket.rc_uplink_qual = packet.rc_uplink_quality
@@ -194,16 +239,8 @@ class Translator(Node):
                 self.roundtrip_time_publisher.publish(Float64(data=rtt))
                 self.teensycycle_time_publisher.publish(Float64(data=packet.teensy_cycle_time * 1e-6))
 
-        if self.fresh_steer:
-            with self.lock:
-                self.comms.send_steering(self.steer_angle)
-                self.get_logger().debug(f"Sent steering angle of: {self.steer_angle}")
-                self.fresh_steer = False
-
-        with self.lock:
-            self.comms.send_alarm(self.alarm)
-        with self.lock:
-            self.comms.send_timestamp(time.time_ns())
+    def send_timestamp(self):
+        self.comms.send_timestamp(time.time_ns())
 
 
 def main(args=None):

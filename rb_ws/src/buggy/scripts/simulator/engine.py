@@ -3,6 +3,7 @@ import threading
 import time
 from collections import deque
 import rclpy
+from buggy.msg import StampedFloat64Msg
 from rclpy.node import Node
 from geometry_msgs.msg import Pose, Twist, PoseWithCovariance, TwistWithCovariance
 from std_msgs.msg import Float64
@@ -30,27 +31,52 @@ class Simulator(Node):
             "TRACK_EAST_END": (589953, 4477465, 90),
             "TRACK_RESNICK": (589906, 4477437, -20),
             "GARAGE": (589846, 4477580, 180),
-            "PASS_PT": (589491, 4477003, -160),
             "FREW_ST": (589646, 4477359, -20),
             "FREW_ST_PASS": (589644, 4477368, -20),
             "RACELINE_PASS": (589468.02, 4476993.07, -160),
         }
 
-        self.declare_parameter('velocity', 12)
         if (self.get_namespace() == "/SC"):
             self.buggy_name = "SC"
             self.declare_parameter('pose', "Hill1_SC")
             self.wheelbase = Constants.WHEELBASE_SC
 
-        if (self.get_namespace() == "/NAND"):
+        elif (self.get_namespace() == "/NAND"):
             self.buggy_name = "NAND"
             self.declare_parameter('pose', "Hill1_NAND")
             self.wheelbase = Constants.WHEELBASE_NAND
 
+        self.declare_parameter('velocity', 12.0)
         self.velocity = self.get_parameter("velocity").value
-        init_pose_name = self.get_parameter("pose").value
-        self.navsat_noise_std = self.declare_parameter("navsat_noise_std", 1e-6).value
 
+        self.declare_parameter('steering_offset', 0.0)
+        self.declare_parameter('steering_offset_func', 'constant')
+        self.declare_parameter('steering_offset_period', 10.0)
+
+        self.steering_offset = self.get_parameter("steering_offset").value
+        self.steering_offset_func = str(self.get_parameter("steering_offset_func").value).lower()
+        self.steering_offset_period = self.get_parameter("steering_offset_period").value
+
+        if self.steering_offset_func not in {"constant", "sin"}:
+            self.get_logger().warning(
+                f"Unknown steering_offset_func '{self.steering_offset_func}'. Falling back to 'constant'."
+            )
+            self.steering_offset_func = "constant"
+
+        if self.steering_offset_func == "sin" and self.steering_offset_period <= 0:
+            self.get_logger().warning(
+                "steering_offset_period must be positive. Using default of 10s."
+            )
+            self.steering_offset_period = 10.0
+
+        self.sim_time = 0.0
+
+        self.declare_parameter("process_noise_std", 0.0)
+        self.process_noise_std = self.get_parameter("process_noise_std").value
+        self.declare_parameter("measurement_noise_std", 1e-2)
+        self.measurement_noise_std = self.get_parameter("measurement_noise_std").value
+
+        init_pose_name = self.get_parameter("pose").value
         self.init_pose = self.starting_poses[init_pose_name]
 
         self.e_utm, self.n_utm, self.heading = self.init_pose
@@ -78,16 +104,13 @@ class Simulator(Node):
         self.timer = self.create_timer(timer_period, self.loop)
 
         self.steering_subscriber = self.create_subscription(
-            Float64, "input/steering", self.update_steering_angle, 1
+            StampedFloat64Msg, "input/steering", self.update_steering_angle, 1
         )
 
         # To read from velocity
         self.velocity_subscriber = self.create_subscription(
             Float64, "sim/velocity", self.update_velocity, 1
         )
-
-        # for X11 matplotlib (direction included)
-        self.plot_publisher = self.create_publisher(Pose, "sim_2d/utm", 1)
 
         # simulate the INS's outputs (noise included)
         # this is published as a BuggyState (UTM and radians)
@@ -96,8 +119,11 @@ class Simulator(Node):
         self.navsatfix_noisy_publisher = self.create_publisher(
                 NavSatFix, "self/pose_navsat_noisy", 1
         )
+        self.offset_publisher = self.create_publisher(
+                Float64, "sim/true_offset", 1
+        )
 
-    def update_steering_angle(self, data: Float64):
+    def update_steering_angle(self, data: StampedFloat64Msg):
         with self.lock:
             # add new steering command to buffer
             self.steering_buffer.append(data.data)
@@ -107,18 +133,24 @@ class Simulator(Node):
         # the delayed steering is at the front of the buffer
         self.current_steering = self.steering_buffer[0]
 
+    def steering_offset_value(self, sim_time: float) -> float:
+        if self.steering_offset_func == "sin":
+            phase = 2 * np.pi * sim_time / self.steering_offset_period
+            return self.steering_offset * np.sin(phase)
+        return self.steering_offset
+
     def update_velocity(self, data: Float64):
         with self.lock:
             self.velocity = data.data
 
     def dynamics(self, state, v):
         l = self.wheelbase
-        _, _, theta, delta = state
+        _, _, theta, delta, delta0 = state
 
         return np.array([v * np.cos(theta),
                          v * np.sin(theta),
-                         v / l * np.tan(delta),
-                         0])
+                         v / l * np.tan(delta + delta0),
+                         0, 0])
 
     def step(self):
 
@@ -130,68 +162,82 @@ class Simulator(Node):
 
             self.apply_delayed_steering()
             steering_angle = self.current_steering
+            sim_time = self.sim_time
+            steering_offset_deg = self.steering_offset_value(sim_time)
+            self.offset_publisher.publish(Float64(data=steering_offset_deg))
 
         h = 1/self.rate
-        state = np.array([e_utm, n_utm, np.deg2rad(heading), np.deg2rad(steering_angle)])
+        state = np.array([
+            e_utm,
+            n_utm,
+            np.deg2rad(heading),
+            np.deg2rad(steering_angle),
+            np.deg2rad(steering_offset_deg),
+        ])
         k1 = self.dynamics(state, velocity)
         k2 = self.dynamics(state + h/2 * k1, velocity)
         k3 = self.dynamics(state + h/2 * k2, velocity)
-        k4 = self.dynamics(state + h/2 * k3, velocity)
+        k4 = self.dynamics(state + h * k3, velocity)
 
         final_state = state + h/6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        final_state[0] += np.random.normal(0, self.process_noise_std)
+        final_state[1] += np.random.normal(0, self.process_noise_std)
 
-        e_utm_new, n_utm_new, heading_new, _ = final_state
+        e_utm_new, n_utm_new, heading_new, _, _ = final_state
         heading_new = np.rad2deg(heading_new)
 
         with self.lock:
             self.e_utm = e_utm_new
             self.n_utm = n_utm_new
             self.heading = heading_new
+            self.sim_time = sim_time + h
 
     def publish(self):
-        p = Pose()
+        odom_pose = Pose()
         time_stamp = self.get_clock().now().to_msg()
         with self.lock:
-            p.position.x = self.e_utm
-            p.position.y = self.n_utm
-            p.position.z = float(self.heading)
+            odom_pose.position.x = self.e_utm
+            odom_pose.position.y = self.n_utm
             velocity = self.velocity
 
-        self.plot_publisher.publish(p)
+        odom_pose.position.x += np.random.normal(0, self.measurement_noise_std)
+        odom_pose.position.y += np.random.normal(0, self.measurement_noise_std)
 
         (lat, long) = utm.to_latlon(
-            p.position.x,
-            p.position.y,
+            odom_pose.position.x,
+            odom_pose.position.y,
             Constants.UTM_ZONE_NUM,
             Constants.UTM_ZONE_LETTER,
         )
 
-        lat_noisy = lat + np.random.normal(0, self.navsat_noise_std)
-        long_noisy = long + np.random.normal(0, self.navsat_noise_std)
-
         nsf_noisy = NavSatFix()
-        nsf_noisy.latitude = lat_noisy
-        nsf_noisy.longitude = long_noisy
+        nsf_noisy.latitude = lat
+        nsf_noisy.longitude = long
         nsf_noisy.header.stamp = time_stamp
         self.navsatfix_noisy_publisher.publish(nsf_noisy)
 
         odom = Odometry()
         odom.header.stamp = time_stamp
 
-        odom_pose = Pose()
-        east, north, _, _ = utm.from_latlon(lat_noisy, long_noisy)
-        odom_pose.position.x = float(east)
-        odom_pose.position.y = float(north)
         odom_pose.position.z = float(260)
-
         odom_pose.orientation.z = np.deg2rad(self.heading)
+
+        # variance on x and y from measurement_noise_std
+        odom_pose_covariance = [0.0] * 36
+        measure_noise_var = self.measurement_noise_std ** 2
+        odom_pose_covariance[0] = measure_noise_var   # x
+        odom_pose_covariance[7] = measure_noise_var   # y
 
         # NOTE: autonsystem only cares about magnitude of velocity, so we don't need to split into components
         odom_twist = Twist()
         odom_twist.linear.x = float(velocity)
 
-        odom.pose = PoseWithCovariance(pose=odom_pose)
+        odom.pose = PoseWithCovariance(pose=odom_pose, covariance=odom_pose_covariance)
         odom.twist = TwistWithCovariance(twist=odom_twist)
+
+        ns = time.time_ns()
+        odom.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        odom.header.stamp.nanosec = ns % int(1e9)
 
         self.pose_publisher.publish(odom)
 

@@ -1,0 +1,6 @@
+<launch>
+<arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
+<node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC">
+    <param from="$(var config_file)"/>
+</node>
+</launch>

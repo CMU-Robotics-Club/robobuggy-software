@@ -63,8 +63,8 @@ class PathPlanner(Node):
             self.left_curb = Trajectory(json_filepath=os.environ["TRAJPATH"] + curb_name)
 
         #Publishers
-        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 10)
-        self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 10)
+        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 1)
+        self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 1)
 
         #Subscribers
         self.self_pose_subscriber = self.create_subscription(Odometry, 'self/state', self.self_pose_callback, 1)
