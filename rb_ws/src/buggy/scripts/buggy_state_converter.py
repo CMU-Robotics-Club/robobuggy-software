@@ -30,8 +30,6 @@ def is_reasonable_msg(
     POSITION_MAX=(1.0e7, 1.0e7, 1.0e7),
     ORIENTATION_MIN=(-2.0 * math.pi, -2.0 * math.pi, -2.0 * math.pi, -1.1),
     ORIENTATION_MAX=(2.0 * math.pi, 2.0 * math.pi, 2.0 * math.pi, 1.1),
-    COVARIANCE_VAL_MIN=0.0,
-    COVARIANCE_VAL_MAX=1.0e6,
     LINEAR_TWIST_MIN=(-100.0, -100.0, -100.0),
     LINEAR_TWIST_MAX=(100.0, 100.0, 100.0),
     ANGULAR_TWIST_MIN=(-20.0, -20.0, -20.0),
@@ -56,11 +54,6 @@ def is_reasonable_msg(
         and is_reasonable(msg.pose.pose.orientation.y, ORIENTATION_MIN[1], ORIENTATION_MAX[1], NAN_ALLOWED)
         and is_reasonable(msg.pose.pose.orientation.z, ORIENTATION_MIN[2], ORIENTATION_MAX[2], NAN_ALLOWED)
         and is_reasonable(msg.pose.pose.orientation.w, ORIENTATION_MIN[3], ORIENTATION_MAX[3], NAN_ALLOWED)
-        # Check pose covariance values.
-        and all(
-            is_reasonable(value, COVARIANCE_VAL_MIN, COVARIANCE_VAL_MAX, NAN_ALLOWED)
-            for value in msg.pose.covariance
-        )
         # Check linear twist values.
         and is_reasonable(msg.twist.twist.linear.x, LINEAR_TWIST_MIN[0], LINEAR_TWIST_MAX[0], NAN_ALLOWED)
         and is_reasonable(msg.twist.twist.linear.y, LINEAR_TWIST_MIN[1], LINEAR_TWIST_MAX[1], NAN_ALLOWED)
@@ -69,11 +62,6 @@ def is_reasonable_msg(
         and is_reasonable(msg.twist.twist.angular.x, ANGULAR_TWIST_MIN[0], ANGULAR_TWIST_MAX[0], NAN_ALLOWED)
         and is_reasonable(msg.twist.twist.angular.y, ANGULAR_TWIST_MIN[1], ANGULAR_TWIST_MAX[1], NAN_ALLOWED)
         and is_reasonable(msg.twist.twist.angular.z, ANGULAR_TWIST_MIN[2], ANGULAR_TWIST_MAX[2], NAN_ALLOWED)
-        # Check twist covariance values.
-        and all(
-            is_reasonable(value, COVARIANCE_VAL_MIN, COVARIANCE_VAL_MAX, NAN_ALLOWED)
-            for value in msg.twist.covariance
-        )
     )
 
 
@@ -142,8 +130,6 @@ class BuggyStateConverter(Node):
             # quaternion orientation of xyzw
             ORIENTATION_MIN=(-1.1, -1.1, -1.1, -1.1),
             ORIENTATION_MAX=(1.1, 1.1, 1.1, 1.1),
-            COVARIANCE_VAL_MIN=0.0,
-            COVARIANCE_VAL_MAX=1.0e6,
             # m/s
             LINEAR_TWIST_MIN=(-100.0, -100.0, -100.0),
             LINEAR_TWIST_MAX=(100.0, 100.0, 100.0),
@@ -210,8 +196,6 @@ class BuggyStateConverter(Node):
             # -2pi to 2 pi for x,y,z, -1, 1 for w
             ORIENTATION_MIN=(-2.0 * math.pi, -2.0 * math.pi, -2.0 * math.pi, -1.0),
             ORIENTATION_MAX=(2.0 * math.pi, 2.0 * math.pi, 2.0 * math.pi, 1.0),
-            COVARIANCE_VAL_MIN=0.0,
-            COVARIANCE_VAL_MAX=1.0e6,
             # -100 to 100 m/s
             LINEAR_TWIST_MIN=(-100.0, -100.0, -100.0),
             LINEAR_TWIST_MAX=(100.0, 100.0, 100.0),
