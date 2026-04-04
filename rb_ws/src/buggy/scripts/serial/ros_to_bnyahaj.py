@@ -3,8 +3,8 @@
 Translates the output from bnyahaj serial (interpreted from host_comm) to ROS topics and vice versa.
 
 This node uses a MultiThreadedExecutor. Reads and writes occur asynchronously across different threads.
-A standard Python threading.Lock is also used to ensure sends from timer loop and topic subscribers to 
-the firmware are strictly  mutually exclusive to prevent serial collisions. Topic subscribers share a
+A standard Python threading.Lock is also used to ensure sends from timer loop and topic subscribers to
+the firmware are strictly mutually exclusive to prevent serial collisions. Topic subscribers share a
 MutuallyExclusiveCallbackGroup so only one subscriber callback executes at a time.
 """
 
