@@ -181,11 +181,18 @@ class NANDStateEstimator(Node):
                     or twist_var > Constants.NAND_UKF_TWIST_DIVERGENCE_THRESHOLD):
                 if self.ukf_converged:
                     self.ukf_converged = False
+                    self.get_logger().warn(
+                        f"WARNING: NAND State UKF diverged! "
+                        f"Current Pose Covariance: {pose_cov}, "
+                        f"Current Twist Covariance: {twist_cov}"
+                    )
                     self.get_logger().info("Reinitializing UKF")
                     self.init_ukf()
                     return
+
             elif (pose_var < Constants.NAND_UKF_POSE_CONVERGENCE_THRESHOLD
                     or twist_var < Constants.NAND_UKF_TWIST_CONVERGENCE_THRESHOLD):
+                self.get_logger().info("NAND State UKF converged!")
                 self.ukf_converged = True
 
             nand_ukf_msg.pose.covariance = pose_cov.flatten().tolist()

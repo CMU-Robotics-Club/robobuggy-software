@@ -190,7 +190,8 @@ class SteerOffsetEstimator(Node):
                 msg.pose.pose.position.y,
                 msg.pose.pose.orientation.z,
                 msg.twist.twist.linear.x,
-                0])
+                0
+            ])
 
         # measurement vector
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
@@ -249,6 +250,7 @@ class SteerOffsetEstimator(Node):
         # Checks the offset variance is reasonable, corresponds to 6 deg std deviation.
         if offset_variance < Constants.OFFSET_THRESHOLD:
             if not self.ukf_converged:
+                self.get_logger().info("Steer Offset UKF converged!")
                 self.ukf_converged = True
 
             # wrap the steering offset to (-pi/2, pi/2]
@@ -258,7 +260,12 @@ class SteerOffsetEstimator(Node):
             # apply low-pass filter to steering offset
             steer_offset_filtered = self.lowPassFilter.update(steer_offset)
             self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
+
         elif self.ukf_converged:
+            self.get_logger().warn(
+                f"WARNING: Steer Offset Esitmator UKF diverged! "
+                f"Current Covariance: {self.Sigma} "
+            )
             self.get_logger().info("Reinitializing UKF")
             self.reset_filter()
 
