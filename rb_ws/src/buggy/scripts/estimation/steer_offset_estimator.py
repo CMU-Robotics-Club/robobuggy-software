@@ -248,8 +248,9 @@ class SteerOffsetEstimator(Node):
         offset_variance = self.Sigma[-1, -1]
 
         # Checks the offset variance is reasonable, corresponds to 6 deg std deviation.
-        if offset_variance < Constants.OFFSET_THRESHOLD:
-            if not self.ukf_converged:
+        if not offset_variance < Constants.OFFSET_DIVERGENCE_THRESHOLD:
+            if (not self.ukf_converged and
+                    offset_variance < Constants.OFFSET_CONVERGENCE_THRESHOLD):
                 self.get_logger().info("Steer Offset UKF converged!")
                 self.ukf_converged = True
 
