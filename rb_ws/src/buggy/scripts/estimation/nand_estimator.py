@@ -174,10 +174,15 @@ class NANDStateEstimator(Node):
             # Twist covariance: 6x6 matrix for [v_x, v_y, v_z, w_x, w_y, w_z]
             twist_cov[0, 0] = Sigma[3, 3]         # linear velocity x variance
 
-            pose_var = np.diag(pose_cov)
+            pose_var = np.array([
+                    pose_cov[0, 0],  # x
+                    pose_cov[1, 1],  # y
+                    pose_cov[5, 5],  # yaw
+                ])
+
             twist_var = twist_cov[0, 0]
 
-            if (pose_var > Constants.NAND_UKF_POSE_DIVERGENCE_THRESHOLD
+            if (np.any(pose_var > Constants.NAND_UKF_POSE_DIVERGENCE_THRESHOLD)
                     or twist_var > Constants.NAND_UKF_TWIST_DIVERGENCE_THRESHOLD):
                 if self.ukf_converged:
                     self.ukf_converged = False
@@ -190,8 +195,8 @@ class NANDStateEstimator(Node):
                     self.init_ukf()
                     return
 
-            elif (pose_var < Constants.NAND_UKF_POSE_CONVERGENCE_THRESHOLD
-                    or twist_var < Constants.NAND_UKF_TWIST_CONVERGENCE_THRESHOLD):
+            elif (np.any(pose_var < Constants.NAND_UKF_POSE_CONVERGENCE_THRESHOLD)
+                    or twist_var < Constants.NAND_UKF_TWIST_CONVERGENCE_THRESHOLD) and not self.ukf_converged:
                 self.get_logger().info("NAND State UKF converged!")
                 self.ukf_converged = True
 
