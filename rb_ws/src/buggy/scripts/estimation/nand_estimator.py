@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-
 import numpy as np
+
 import rclpy
 from rclpy.node import Node
 
@@ -88,7 +88,15 @@ class NANDStateEstimator(Node):
         super().__init__("NAND_state_estimator")
         self.get_logger().info('Initialized')
 
-        self.init_ukf()
+        self.start = False
+
+        self.x_hat = None
+        self.Sigma_init = np.diag([1e-4, 1e-4, 1e-2, 1e-2]) # initial state covariance
+        self.Sigma = self.Sigma_init  # state covariance
+        self.R = self.accuracy_to_mat(50)
+        self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
+
+        self.singular_flag = False
 
         self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
         self.create_subscription(StampedFloat64Msg, "other/steering", self.update_steering, 1)
@@ -105,32 +113,15 @@ class NANDStateEstimator(Node):
     def update_measurement(self, msg):
         """Perform UKF measurement update using pose from other/stateNoUKF."""
         if not self.start:
-            self.get_logger().info("STARTED")
             self.start = True
-            self.x_hat = np.array(
-                [msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi / 2, 0.0]
-            )
+            self.x_hat = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi/2, 0])
 
         y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
-
-        self.x_hat, self.Sigma, self.singular_flag = ukf_update(
-            self.x_hat, self.Sigma, self.Sigma_init, y, self.R
-        )
+        self.x_hat, self.Sigma, self.singular_flag = ukf_update(self.x_hat, self.Sigma, self.Sigma_init, y, self.R)
 
         # publish singular flag immediately after measurement update, because prediction also writes to the debug singular flag
         singular_flag_msg = Bool(data=self.singular_flag)
         self.singular_flag_publisher.publish(singular_flag_msg)
-
-    def init_ukf(self):
-        """Reset the UKF and wait for the next measurement to initialize state."""
-        self.start = False
-        self.x_hat = None
-        self.Sigma_init = np.diag([1e-2, 1e-2, 1e-2, 1e-1])  # initial state covariance
-        self.Sigma = self.Sigma_init.copy()  # state covariance
-        self.R = self.accuracy_to_mat(50)
-        self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
-        self.singular_flag = False
-        self.ukf_converged = False
 
 
     def loop(self):
@@ -142,17 +133,7 @@ class NANDStateEstimator(Node):
         """
         if not self.start:
             return
-
-        self.x_hat, self.Sigma, self.singular_flag = ukf_predict(
-            self.rk4_dynamics,
-            self.x_hat,
-            self.Sigma,
-            self.Sigma_init,
-            self.Q,
-            [self.steering],
-            0.01,
-            [Constants.WHEELBASE_NAND],
-        )
+        self.x_hat, self.Sigma, self.singular_flag = ukf_predict(self.rk4_dynamics, self.x_hat, self.Sigma, self.Sigma_init, self.Q, [self.steering], 0.01, [1.3])
 
         nand_ukf_msg = Odometry()
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
@@ -162,45 +143,17 @@ class NANDStateEstimator(Node):
 
         Sigma = self.Sigma
         if Sigma is not None:
-            pose_cov = np.zeros((6, 6))
-            twist_cov = np.zeros((6, 6))
-
             # Pose covariance: 6x6 matrix for [x, y, z, roll, pitch, yaw]
+            pose_cov = np.zeros((6, 6))
             pose_cov[0:2, 0:2] = Sigma[0:2, 0:2]  # x, y variances & cross-covariances
             pose_cov[5, 5] = Sigma[2, 2]          # heading (yaw) variance
             pose_cov[0:2, 5] = Sigma[0:2, 2]      # cross-covariance x,y and yaw
             pose_cov[5, 0:2] = Sigma[2, 0:2]      # cross-covariance yaw and x,y
+            nand_ukf_msg.pose.covariance = pose_cov.flatten().tolist()
 
             # Twist covariance: 6x6 matrix for [v_x, v_y, v_z, w_x, w_y, w_z]
+            twist_cov = np.zeros((6, 6))
             twist_cov[0, 0] = Sigma[3, 3]         # linear velocity x variance
-
-            pose_var = np.array([
-                    pose_cov[0, 0],  # x
-                    pose_cov[1, 1],  # y
-                    pose_cov[5, 5],  # yaw
-                ])
-
-            twist_var = twist_cov[0, 0]
-
-            if (np.any(pose_var > Constants.NAND_UKF_POSE_DIVERGENCE_THRESHOLD)
-                    or twist_var > Constants.NAND_UKF_TWIST_DIVERGENCE_THRESHOLD):
-                if self.ukf_converged:
-                    self.ukf_converged = False
-                    self.get_logger().warn(
-                        f"WARNING: NAND State UKF diverged! "
-                        f"Current Pose Covariance: {pose_cov}, "
-                        f"Current Twist Covariance: {twist_cov}"
-                    )
-                    self.get_logger().info("Reinitializing UKF")
-                    self.init_ukf()
-                    return
-
-            elif (np.any(pose_var < Constants.NAND_UKF_POSE_CONVERGENCE_THRESHOLD)
-                    or twist_var < Constants.NAND_UKF_TWIST_CONVERGENCE_THRESHOLD) and not self.ukf_converged:
-                self.get_logger().info("NAND State UKF converged!")
-                self.ukf_converged = True
-
-            nand_ukf_msg.pose.covariance = pose_cov.flatten().tolist()
             nand_ukf_msg.twist.covariance = twist_cov.flatten().tolist()
 
         singular_flag_msg = Bool(data=self.singular_flag)
