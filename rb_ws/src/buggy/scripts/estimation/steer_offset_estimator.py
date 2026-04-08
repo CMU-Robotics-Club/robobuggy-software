@@ -264,7 +264,7 @@ class SteerOffsetEstimator(Node):
 
         elif self.ukf_converged:
             self.get_logger().warn(
-                f"WARNING: Steer Offset Esitmator UKF diverged! "
+                f"WARNING: Steer Offset Estimator UKF diverged! "
                 f"Current Covariance: {self.Sigma} "
             )
             self.get_logger().info("Reinitializing UKF")
