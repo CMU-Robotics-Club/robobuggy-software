@@ -122,7 +122,7 @@ class Translator(Node):
         """
         self.get_logger().debug(f"Reading alarm of {msg.data}")
         self.alarm = msg.data
-        
+
         with self.tx_lock:
             self.comms.send_alarm(self.alarm)
 
@@ -146,7 +146,7 @@ class Translator(Node):
 
         with self.tx_lock:
             self.comms.send_steering(self.steer_angle, self.steer_fw_timestamp)
-            
+
         sw_dt = (time.time_ns() - self.steer_sw_timestamp) * 1e-9
         self.control_latency_publisher.publish(Float64(data=sw_dt))
 
@@ -159,7 +159,7 @@ class Translator(Node):
         """
         while True:
             packet = self.comms.read_packet()
-            
+
             if packet is None:
                 # Buffer is empty, yield the thread until the next 1ms timer tick
                 self.get_logger().debug("NO PACKET")
@@ -184,7 +184,7 @@ class Translator(Node):
                 self.nand_debug_info_publisher.publish(rospacket)
 
                 self.get_logger().debug(f'NAND Debug Timestamp: {packet.timestamp}')
-                
+
             elif isinstance(packet, NANDUKF):
                 odom = Odometry()
                 odom.pose.pose.position.x = packet.easting
@@ -267,11 +267,11 @@ def main(args=None):
     rclpy.init(args=args)
 
     translator = Translator()
-    
+
     # Initialize MultiThreadedExecutor to allow callback groups to run concurrently
     executor = MultiThreadedExecutor()
     executor.add_node(translator)
-    
+
     executor.spin()
     translator.destroy_node()
     rclpy.try_shutdown()
