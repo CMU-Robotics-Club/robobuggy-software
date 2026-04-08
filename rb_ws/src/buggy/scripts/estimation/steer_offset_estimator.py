@@ -248,7 +248,7 @@ class SteerOffsetEstimator(Node):
         offset_variance = self.Sigma[-1, -1]
 
         # Checks the offset variance is reasonable, corresponds to 6 deg std deviation.
-        if not offset_variance < Constants.OFFSET_DIVERGENCE_THRESHOLD:
+        if offset_variance < Constants.OFFSET_DIVERGENCE_THRESHOLD:
             if (not self.ukf_converged and
                     offset_variance < Constants.OFFSET_CONVERGENCE_THRESHOLD):
                 self.get_logger().info("Steer Offset UKF converged!")
@@ -261,7 +261,6 @@ class SteerOffsetEstimator(Node):
             # apply low-pass filter to steering offset
             steer_offset_filtered = self.lowPassFilter.update(steer_offset)
             self.offset_publisher_filtered.publish(Float64(data=steer_offset_filtered))
-
         elif self.ukf_converged:
             self.get_logger().warn(
                 f"WARNING: Steer Offset Estimator UKF diverged! "
