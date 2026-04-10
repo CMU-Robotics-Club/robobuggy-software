@@ -12,12 +12,12 @@
     <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen" namespace="SC"/>
     <!-- <node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC"/> -->
 
-    <include file="$(find-pkg-share velodyne)/launch/velodyne-all-nodes-VLP16-launch.py">
+    <!-- <include file="$(find-pkg-share velodyne)/launch/velodyne-all-nodes-VLP16-launch.py">
         <arg name="frame_id" value="velodyne"/>
         <arg name="port" value="2368"/>
         <arg name="rpm" value="300.0"/>
         <arg name="cut_angle" value="6.28"/>
         <arg name="model" value="VLP16"/>
-    </include>
+    </include> -->
 
 </launch>
