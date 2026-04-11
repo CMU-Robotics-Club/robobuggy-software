@@ -39,7 +39,7 @@ class StanleyController(Controller):
         )
 
         self.cross_track_publisher = self.node.create_publisher(
-            Float64, "controller/debug/cross_track_error", 1)
+            Float64, controllerName + "controller/debug/cross_track_error", 1)
 
         self.usingHeadingRateError = usingHeadingRateError
 
