@@ -13,9 +13,20 @@ SC:
       stateTopic: 'self/state'
       trajectoryTopic: 'self/cur_traj'
       steeringTopic: 'input/steering'
+      rawSteeringTopic: "input/steering_raw"
+      steerOffsetTopic: "self/steering_offset/filtered"
+      debugHeadingTopic: "debug/heading"
+      useSteerOffset: false
       useHeadingRate: true
       controllerName: 'controller'
       controller: 'stanley'
+
+  SC_offset_estimator:
+    ros__parameters:
+      steerOffsetRawTopic: "self/steering_offset/raw"
+      steerOffsetFilteredTopic: "self/steering_offset/filtered"
+      steerOffsetFilterTimeConstant: 50   # in timesteps; smoothing factor alpha for low pass filter is 1 / steerOffsetFilterTimeConstant
+
 
   SC_NAND_controller:
     ros__parameters:
@@ -23,11 +34,20 @@ SC:
       stateTopic: 'other/state'
       trajectoryTopic: 'other/cur_traj'
       steeringTopic: 'other/steering'
+      rawSteeringTopic: "other/steering_raw"
+      steerOffsetTopic: "other/steering_offset/filtered"
+      debugHeadingTopic: "other/debug/heading"
+      useSteerOffset: false
       useHeadingRate: false
       controllerName: 'NAND_controller'
       traj_name: 'cut_square.json'
       controller: 'stanley'
 
+
   SC_path_planner:
     ros__parameters:
       curb_name: ''
+
+  SC_vision:
+    ros__parameters:
+      model_name: "01-15-25_no_pushbar_yolov11n.pt"

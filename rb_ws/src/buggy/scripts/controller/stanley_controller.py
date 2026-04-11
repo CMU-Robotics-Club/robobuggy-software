@@ -20,6 +20,7 @@ class StanleyController(Controller):
     """
 
     CROSS_TRACK_GAIN = 1.3
+    CROSS_TRACK_GAIN_SPEED = 0.08
     K_SOFT = 1.0 # m/s
     K_D_YAW = 0.012 # rad / (rad/s)
 
@@ -32,11 +33,14 @@ class StanleyController(Controller):
             ROSPose, controllerName + "/debug/stanley_error", 1
         )
         self.debug_yaw_rate_publisher = self.node.create_publisher(
-            Float64, "controller/debug/yaw", 1
+            Float64, controllerName + "/controller/debug/yaw_rate_error", 1
         )
         self.debug_error_heading_publisher = self.node.create_publisher(
-            Float64, "controller/debug/heading", 1
+            Float64, controllerName + "/controller/debug/heading_error", 1
         )
+
+        self.cross_track_publisher = self.node.create_publisher(
+            Float64, controllerName + "/controller/debug/cross_track_error", 1)
 
         self.usingHeadingRateError = usingHeadingRateError
 
@@ -49,7 +53,7 @@ class StanleyController(Controller):
             trajectory (Trajectory): reference trajectory
 
         Returns:
-            float (desired steering angle)
+            steering_cmd (float): desired steering angle, in radians
         """
         if self.current_traj_index >= trajectory.get_num_points() - 1:
             self.node.get_logger().error("[Stanley]: Ran out of path to follow!")
@@ -61,7 +65,7 @@ class StanleyController(Controller):
         )
         yaw_rate = state_msg.twist.twist.angular.z
         heading = current_rospose.orientation.z
-        x, y = current_rospose.position.x, current_rospose.position.y #(Easting, Northing)
+        x, y = current_rospose.position.x, current_rospose.position.y # (Easting, Northing)
 
         front_x = x + StanleyController.WHEELBASE * np.cos(heading)
         front_y = y + StanleyController.WHEELBASE * np.sin(heading)
@@ -79,9 +83,9 @@ class StanleyController(Controller):
         ref_heading = trajectory.get_heading_by_index(self.current_traj_index)
 
         error_heading = ref_heading - heading
-        error_heading = np.arctan2(np.sin(error_heading), np.cos(error_heading)) #Bounds error_heading
+        error_heading = (error_heading + np.pi) % (2 * np.pi) - np.pi # Bound error_heading
 
-        # Calculate cross track error by finding the distance from the buggy to the tangent line of
+        # Calculate cross track error by finding the distance from the front axle to the tangent line of
         # the reference trajectory
         closest_position = trajectory.get_position_by_index(self.current_traj_index)
         next_position = trajectory.get_position_by_index(
@@ -91,35 +95,31 @@ class StanleyController(Controller):
         y1 = closest_position[1]
         x2 = next_position[0]
         y2 = next_position[1]
-        error_dist = -((x - x1) * (y2 - y1) - (y - y1) * (x2 - x1)) / np.sqrt(
-            (y2 - y1) ** 2 + (x2 - x1) ** 2
+        # signed cross-track error (sign indicates which side of path)
+        error_dist = ((front_x - x1) * (y2 - y1) - (front_y - y1) * (x2 - x1)) \
+            / np.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
+
+
+        cross_track_component = np.arctan2(
+            (StanleyController.CROSS_TRACK_GAIN + StanleyController.CROSS_TRACK_GAIN_SPEED * current_speed) * error_dist, 
+            current_speed + StanleyController.K_SOFT
         )
 
-        cross_track_component = -np.arctan2(
-            StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
-        )
-
-        # Use acceleration at the closest index
-        accel_x, accel_y = trajectory.get_acceleration_by_index(self.current_traj_index)
-        # this works because tan(heading) = dydt/dxdt (do the math)
-        dxdt, dydt = np.cos(ref_heading), np.sin(ref_heading)
-
-        # this was dervied by doing the chain rule on the target derivative of theta.
-        # dtheta/dt = d/dt (arctan (dydt/dxdt)) << do math.
-        r_traj = (1/(1 + (dydt/dxdt)**2)) * (accel_y/dxdt - (dydt * accel_x)/(dxdt ** 2))
+        # Compute expected yaw rate from trajectory curvature and current speed
+        # r_traj = curvature * speed (rad/s)
+        curvature = trajectory.get_curvature_by_index(self.current_traj_index)
+        r_traj = curvature * current_speed
 
         # Calculate yaw rate error
         r_meas = yaw_rate
+        yaw_rate_error = r_traj - r_meas
+        yaw_correction = StanleyController.K_D_YAW * yaw_rate_error     # control term for yaw rate error
 
-        yaw = float(StanleyController.K_D_YAW * (r_traj - r_meas))
         # Determine steering_command
         steering_cmd = error_heading + cross_track_component
         if self.usingHeadingRateError:
-            steering_cmd += yaw
+            steering_cmd += yaw_correction
         steering_cmd = np.clip(steering_cmd, -np.pi / 9, np.pi / 9)
-
-        self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
-        self.debug_yaw_rate_publisher.publish(Float64(data=yaw))
 
         # Calculate error, where x is in orientation of buggy, y is cross track error
         current_pose = Pose(current_rospose.position.x, current_rospose.position.y, heading)
@@ -138,10 +138,14 @@ class StanleyController(Controller):
             reference_navsat.latitude = lat
             reference_navsat.longitude = lon
             self.debug_reference_pos_publisher.publish(reference_navsat)
-        except Exception as e:
+        except (ValueError, utm.error.OutOfRangeError) as e:
             self.node.get_logger().warn(
                 "[Stanley] Unable to convert closest track position lat lon; Error: "
                 + str(e)
             )
+
+        self.cross_track_publisher.publish(Float64(data=float(error_dist)))
+        self.debug_error_heading_publisher.publish(Float64(data=float(error_heading)))
+        self.debug_yaw_rate_publisher.publish(Float64(data=float(yaw_rate_error)))
 
         return steering_cmd

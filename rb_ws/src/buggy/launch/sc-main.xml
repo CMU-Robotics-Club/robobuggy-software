@@ -6,10 +6,13 @@
     <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen">
         <param from="$(var config_file)"/>
     </node>
+    <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
 
     <node pkg="buggy" exec="controller_node.py" name="SC_NAND_controller" output = "screen" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
 
-    <node name="estimator" pkg="buggy" exec="ukf_node.py" output="screen" namespace="SC"/>
+    <node name="NAND_estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
 </launch>
