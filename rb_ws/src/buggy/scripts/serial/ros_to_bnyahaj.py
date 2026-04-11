@@ -92,15 +92,12 @@ class Translator(Node):
             self.sc_sensor_publisher = self.create_publisher(SCSensorMsg, "debug/sensor", 1)
 
             # RADIO DATA PUBLISHER
-            self.observed_nand_odom_publisher = self.create_publisher(
-                    Odometry, "NAND_raw_state", 1
-                )
+            self.nand_radio_publisher = self.create_publisher(SCRadioNANDMsg, "debug/NAND_radio", 1)
+            self.observed_nand_odom_publisher = self.create_publisher(Odometry, "NAND_raw_state", 1)
         else:
             self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
             self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
-            self.nand_ukf_odom_publisher = self.create_publisher(
-                Odometry, "raw_state", 1
-            )
+            self.nand_ukf_odom_publisher = self.create_publisher(Odometry, "raw_state", 1)
             self.CIRCLEN = 20
             self.nandCircArray = np.zeros(self.CIRCLEN)
             self.nandIndex = 0
@@ -225,11 +222,20 @@ class Translator(Node):
             elif isinstance(packet, Radio):
                 # Publish to odom topic x and y coord
                 self.get_logger().debug("GOT RADIO PACKET")
-                odom = Odometry()
 
+                odom = Odometry()
                 odom.pose.pose.position.x = packet.nand_east_gps
                 odom.pose.pose.position.y = packet.nand_north_gps
                 self.observed_nand_odom_publisher.publish(odom)
+
+                rospacket = SCRadioNANDMsg()
+                rospacket.easting = packet.nand_east_gps
+                rospacket.northing = packet.nand_north_gps
+                rospacket.gps_seqnum = packet.gps_seqnum
+                rospacket.rx_rssi = packet.rx_rssi
+                rospacket.gps_fix = packet.nand_gps_fix
+                rospacket.auton_steer = packet.nand_auton
+                self.nand_radio_publisher.publish(rospacket)
 
             elif isinstance(packet, SCDebugInfo):
                 self.get_logger().debug("GOT DEBUG PACKET")

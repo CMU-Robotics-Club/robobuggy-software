@@ -129,11 +129,12 @@ class NANDRawGPS:
 
 @dataclass
 class Radio:
-    nand_east_gps: float
-    nand_north_gps: float
-    gps_seqnum: int
+    nand_east_gps: float # double
+    nand_north_gps: float # double
+    gps_seqnum: int # uint32
+    rx_rssi: int # uint16
     nand_gps_fix: int # uint8
-    nand_auton: bool
+    nand_auton: bool # uint8
 
 @dataclass
 class SCDebugInfo:
@@ -286,7 +287,7 @@ class Comms:
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            data = struct.unpack('<ddIB?xx', payload)
+            data = struct.unpack('<ddIHB?', payload)
             return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:
