@@ -20,6 +20,7 @@ class StanleyController(Controller):
     """
 
     CROSS_TRACK_GAIN = 1.3
+    CROSS_TRACK_GAIN_SPEED = 0.08
     K_SOFT = 1.0 # m/s
     K_D_YAW = 0.012 # rad / (rad/s)
 
@@ -39,7 +40,7 @@ class StanleyController(Controller):
         )
 
         self.cross_track_publisher = self.node.create_publisher(
-            Float64, controllerName + "controller/debug/cross_track_error", 1)
+            Float64, controllerName + "/controller/debug/cross_track_error", 1)
 
         self.usingHeadingRateError = usingHeadingRateError
 
@@ -82,7 +83,7 @@ class StanleyController(Controller):
         ref_heading = trajectory.get_heading_by_index(self.current_traj_index)
 
         error_heading = ref_heading - heading
-        error_heading = np.arctan2(np.sin(error_heading), np.cos(error_heading)) # Bounds error_heading
+        error_heading = (error_heading + np.pi) % (2 * np.pi) - np.pi # Bound error_heading
 
         # Calculate cross track error by finding the distance from the front axle to the tangent line of
         # the reference trajectory
@@ -100,7 +101,8 @@ class StanleyController(Controller):
 
 
         cross_track_component = np.arctan2(
-            StanleyController.CROSS_TRACK_GAIN * error_dist, current_speed + StanleyController.K_SOFT
+            (StanleyController.CROSS_TRACK_GAIN + StanleyController.CROSS_TRACK_GAIN_SPEED * current_speed) * error_dist, 
+            current_speed + StanleyController.K_SOFT
         )
 
         # Compute expected yaw rate from trajectory curvature and current speed
