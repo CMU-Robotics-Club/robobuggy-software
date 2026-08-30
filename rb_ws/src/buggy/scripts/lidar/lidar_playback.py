@@ -2,6 +2,7 @@ import argparse
 from contextlib import redirect_stdout
 from datetime import datetime
 import io
+from pathlib import Path
 import time
 
 import numpy as np
@@ -9,6 +10,7 @@ import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 
+from lidar_deskew import PoseTimeline, deskew_displacement_stats, deskew_frame_block
 from lidar_visualizer import (
     euclidean_clustering,
     euclidean_clustering2,
@@ -23,6 +25,10 @@ from lidar_visualizer import (
 # GLFW fallback key codes for arrow keys.
 KEY_LEFT = 263
 KEY_RIGHT = 262
+# LiDAR points in this stack use "forward = -X / left = -Y", while SC pose
+# consumers use a forward-facing body frame. Deskew in body coordinates, then
+# convert back so the downstream lidar heuristics keep their existing frame.
+SC_LIDAR_TO_BODY_ROTATION = np.diag([-1.0, -1.0, 1.0])
 
 
 def parse_args():
@@ -76,6 +82,16 @@ def parse_args():
         default=0.5,
         help="Reject clusters whose bounding-box height is below this value (meters).",
     )
+    parser.add_argument(
+        "--no-deskew",
+        action="store_true",
+        help="Disable motion compensation even when timestamps and state metadata are present.",
+    )
+    parser.add_argument(
+        "--deskew-metrics-prefix",
+        default="",
+        help="Output prefix for deskew metric CSV/PNG logs. Defaults to the input stem.",
+    )
     return parser.parse_args()
 
 
@@ -83,7 +99,26 @@ def ensure_xyz(frame):
     arr = np.asarray(frame)
     if arr.ndim != 2 or arr.shape[1] < 3:
         raise ValueError(f"Expected frame with shape (N, >=3), got {arr.shape}")
-    return arr[:, :3].astype(np.float64, copy=False)
+    xyz = arr[:, :3]
+    mask = np.isfinite(xyz).all(axis=1)
+    return xyz[mask].astype(np.float64, copy=False)
+
+
+def extract_points_and_times(frame, point_times=None):
+    arr = np.asarray(frame)
+    if arr.ndim != 2 or arr.shape[1] < 3:
+        raise ValueError(f"Expected frame with shape (N, >=3), got {arr.shape}")
+    xyz = arr[:, :3]
+    mask = np.isfinite(xyz).all(axis=1)
+    filtered_points = xyz[mask].astype(np.float64, copy=False)
+
+    filtered_times = None
+    if point_times is not None:
+        point_times_arr = np.asarray(point_times, dtype=np.float64).reshape(-1)
+        if point_times_arr.shape[0] != xyz.shape[0]:
+            raise ValueError("Point-time array does not match frame point count.")
+        filtered_times = point_times_arr[mask]
+    return filtered_points, filtered_times
 
 
 def get_key_down_constant():
@@ -132,6 +167,28 @@ class LidarPlaybackApp:
         if "timestamps" in self.file_data and len(self.file_data["timestamps"]) == len(self.frames):
             self.timestamps = np.asarray(self.file_data["timestamps"], dtype=np.float64)
 
+        self.point_times = None
+        if "point_times" in self.file_data and len(self.file_data["point_times"]) == len(self.frames):
+            self.point_times = self.file_data["point_times"]
+
+        self.pose_timeline = None if args.no_deskew else PoseTimeline.from_npz(self.file_data)
+        self.deskew_mode = "OFF"
+        if self.pose_timeline is not None and self.timestamps is not None:
+            if self.point_times is not None:
+                self.deskew_mode = "POINT"
+            else:
+                self.deskew_mode = "FRAME"
+
+        metrics_prefix = str(args.deskew_metrics_prefix).strip()
+        if metrics_prefix:
+            self.metrics_prefix = Path(metrics_prefix).expanduser()
+        else:
+            self.metrics_prefix = Path(args.input).expanduser().with_suffix("")
+        self.metrics_csv_path = self.metrics_prefix.parent / f"{self.metrics_prefix.name}_deskew_metrics.csv"
+        self.metrics_png_path = self.metrics_prefix.parent / f"{self.metrics_prefix.name}_deskew_metrics.png"
+        self.metric_log = {}
+        self.metrics_dirty = False
+
         self.merge_size = int(args.merge_size)
         self.skip_size = int(args.skip_size)
         self.cluster_eps = float(args.cluster_eps)
@@ -139,12 +196,15 @@ class LidarPlaybackApp:
         self.cluster_min_height = float(args.cluster_min_height)
         self.merged_frame_count = (len(self.frames) + self.merge_size - 1) // self.merge_size
         self.merged_cache = {}
+        self.merged_reference_times = {}
         self.state = {
             "idx": 0,
             "paused": False,
             "direction": 1,
             "cluster_count": 0,
             "cluster_point_count": 0,
+            "deskew_mean_cm": 0.0,
+            "deskew_std_cm": 0.0,
         }
 
         app = gui.Application.instance
@@ -246,9 +306,97 @@ class LidarPlaybackApp:
             return self.merged_cache[block_idx]
         start = block_idx * self.merge_size
         end = min(start + self.merge_size, len(self.frames))
-        merged = np.vstack([ensure_xyz(self.frames[i]) for i in range(start, end)])
+        frames = []
+        point_times_seq = [] if self.point_times is not None else None
+        for i in range(start, end):
+            point_times = None if self.point_times is None else self.point_times[i]
+            frame_points, frame_times = extract_points_and_times(
+                self.frames[i],
+                point_times=point_times,
+            )
+            frames.append(frame_points)
+            if point_times_seq is not None:
+                point_times_seq.append(frame_times)
+
+        if self.pose_timeline is not None and self.timestamps is not None:
+            deskewed_frames, reference_time = deskew_frame_block(
+                frames=frames,
+                frame_timestamps=self.timestamps[start:end],
+                pose_timeline=self.pose_timeline,
+                point_times_seq=point_times_seq,
+                sensor_to_body_rotation=SC_LIDAR_TO_BODY_ROTATION,
+            )
+            stats = deskew_displacement_stats(frames, deskewed_frames)
+            self.state["deskew_mean_cm"] = 100.0 * stats["mean_m"]
+            self.state["deskew_std_cm"] = 100.0 * stats["std_m"]
+            self.metric_log[block_idx] = {
+                "merged_idx": block_idx,
+                "raw_start": start,
+                "raw_end": end - 1,
+                "point_count": int(stats["point_count"]),
+                "mean_cm": 100.0 * stats["mean_m"],
+                "std_cm": 100.0 * stats["std_m"],
+                "rms_cm": 100.0 * stats["rms_m"],
+                "max_cm": 100.0 * stats["max_m"],
+                "reference_time": reference_time,
+                "start_time": float(self.timestamps[start]),
+                "end_time": float(self.timestamps[end - 1]),
+            }
+            self.metrics_dirty = True
+            merged = np.vstack(deskewed_frames)
+            self.merged_reference_times[block_idx] = reference_time
+        else:
+            self.state["deskew_mean_cm"] = 0.0
+            self.state["deskew_std_cm"] = 0.0
+            merged = np.vstack(frames)
+
         self.merged_cache[block_idx] = merged
         return merged
+
+    def flush_metric_log(self):
+        if not self.metrics_dirty:
+            return
+
+        rows = [self.metric_log[idx] for idx in sorted(self.metric_log)]
+        self.metrics_csv_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.metrics_csv_path.open("w", encoding="utf-8", newline="") as f:
+            f.write(
+                "merged_idx,raw_start,raw_end,point_count,mean_cm,std_cm,rms_cm,max_cm,start_time,end_time,reference_time\n"
+            )
+            for row in rows:
+                f.write(
+                    f"{row['merged_idx']},{row['raw_start']},{row['raw_end']},"
+                    f"{row['point_count']},{row['mean_cm']:.6f},{row['std_cm']:.6f},"
+                    f"{row['rms_cm']:.6f},{row['max_cm']:.6f},"
+                    f"{row['start_time']:.9f},{row['end_time']:.9f},{row['reference_time']:.9f}\n"
+                )
+
+        try:
+            import os
+            os.environ.setdefault("MPLCONFIGDIR", str(self.metrics_csv_path.parent / ".mplconfig"))
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
+            frame_idx = [row["merged_idx"] for row in rows]
+            mean_cm = [row["mean_cm"] for row in rows]
+            std_cm = [row["std_cm"] for row in rows]
+
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(frame_idx, mean_cm, label="Mean displacement", color="#1f77b4", linewidth=1.8)
+            ax.plot(frame_idx, std_cm, label="Std. dev.", color="#ff7f0e", linewidth=1.8)
+            ax.set_title("Deskew Displacement by Merged Frame")
+            ax.set_xlabel("Merged frame index")
+            ax.set_ylabel("Centimeters")
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            fig.tight_layout()
+            fig.savefig(self.metrics_png_path, dpi=160)
+            plt.close(fig)
+        except Exception as exc:
+            print(f"Failed to write deskew metric plot: {exc}")
+
+        self.metrics_dirty = False
 
     def frame_timestamp_text(self, merged_idx):
         if self.timestamps is not None:
@@ -258,6 +406,9 @@ class LidarPlaybackApp:
             ts1 = float(self.timestamps[end - 1])
             t0 = datetime.fromtimestamp(ts0).strftime("%H:%M:%S.%f")[:-3]
             t1 = datetime.fromtimestamp(ts1).strftime("%H:%M:%S.%f")[:-3]
+            if merged_idx in self.merged_reference_times:
+                tr = datetime.fromtimestamp(self.merged_reference_times[merged_idx]).strftime("%H:%M:%S.%f")[:-3]
+                return f"ts {t0} -> {t1}  ref {tr}"
             return f"ts {t0} -> {t1}"
         simulated = merged_idx / float(self.args.fps)
         return f"playback t={simulated:0.2f}s"
@@ -272,6 +423,9 @@ class LidarPlaybackApp:
             f"{mode} {direction}  "
             f"Merged {idx + 1}/{self.merged_frame_count}  "
             f"Raw {start_raw}-{end_raw}  "
+            f"Deskew {self.deskew_mode}  "
+            f"dMean {self.state['deskew_mean_cm']:.1f}cm  "
+            f"dStd {self.state['deskew_std_cm']:.1f}cm  "
             f"Clusters {self.state['cluster_count']} ({self.state['cluster_point_count']} pts)  "
             f"{self.frame_timestamp_text(idx)}"
         )
@@ -425,6 +579,7 @@ class LidarPlaybackApp:
             self.update_frame(0)
             return True
         if key_matches(event, "Q", "Q") or key_matches(event, "ESCAPE"):
+            self.flush_metric_log()
             self.window.close()
             return True
 
@@ -442,6 +597,7 @@ class LidarPlaybackApp:
         next_idx = self.state["idx"] + self.state["direction"]
         if next_idx < 0 or next_idx >= self.merged_frame_count:
             self.state["paused"] = True
+            self.flush_metric_log()
             self.update_status()
             return True
         

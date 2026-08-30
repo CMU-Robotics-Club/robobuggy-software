@@ -233,7 +233,9 @@ class BuggyLidar(Node):
         array = np.asarray(frame)
         if array.ndim != 2 or array.shape[1] < 3:
             raise ValueError(f"Expected {source} to have shape (N, 3+), got {array.shape}")
-        return array[:, :3].astype(np.float32, copy=False)
+        xyz = array[:, :3]
+        valid_mask = np.isfinite(xyz).all(axis=1)
+        return xyz[valid_mask].astype(np.float32, copy=False)
 
     def _open_bag_reader(self):
         try:
