@@ -1,6 +1,7 @@
 <launch>
 
     <arg name="config_file" default="src/buggy/config/sim_single_sc.yaml"/>
+    <arg name="use_speed_model" default="false"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
 
@@ -18,6 +19,11 @@
         <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="localization_monitor.py" name="SC_localization_monitor" namespace="SC" output="screen"/>
+    <!-- use_speed_model:=true replaces the constant sim velocity with the gravity speed model (config/course_zones.yaml) -->
+    <node pkg="buggy" exec="speed_model_node.py" name="SC_speed_model" namespace="SC" output="screen" if="$(var use_speed_model)">
         <param from="$(var config_file)"/>
     </node>
 </launch>

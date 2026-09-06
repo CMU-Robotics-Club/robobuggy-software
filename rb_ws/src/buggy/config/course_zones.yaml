@@ -1,0 +1,99 @@
+# Course zones keyed by arc length s (metres) along paths/buggycourse_sc.json.
+#
+# APPROXIMATE. Segment lengths and elevation changes come from the published
+# course description (Hill 1 365 ft / +27 ft, Hill 2 211 ft, freeroll net -52 ft,
+# Hill 3 223 ft / +20 ft, Hill 4 404 ft / +20 ft, Hill 5 to the finish) mapped
+# onto the 1374 m SC line. Replace with an RTK survey (record ekf/odometry_earth
+# with altitude while pushing the course) as soon as one exists; the speed model
+# and the raceline weights are only as good as this table.
+#
+# type:  pushed   -> speed is set by the pushers (push_speed_mps), gravity ignored
+#        freeroll -> speed integrates gravity, rolling resistance, drag and scrub
+# dz_m:  elevation change over the zone (positive = uphill)
+
+zones:
+  - name: hill1
+    s_start: 0.0
+    s_end: 111.0
+    type: pushed
+    dz_m: 8.2
+    push_speed_mps: 5.5
+  - name: hill2
+    s_start: 111.0
+    s_end: 175.0
+    type: pushed
+    dz_m: 0.0
+    push_speed_mps: 7.5      # release speed at the top of Hill 2 (the monument)
+  - name: freeroll_descent   # Schenley Drive drops fastest right after the monument
+    s_start: 175.0
+    s_end: 375.0
+    type: freeroll
+    dz_m: -8.0
+  - name: freeroll           # gentle descent to the chute; -52 ft net over the whole freeroll
+    s_start: 375.0
+    s_end: 1010.0
+    type: freeroll
+    dz_m: -7.8
+  - name: hill3
+    s_start: 1010.0
+    s_end: 1078.0
+    type: pushed
+    dz_m: 6.1
+    push_speed_mps: 5.0
+  - name: hill4
+    s_start: 1078.0
+    s_end: 1201.0
+    type: pushed
+    dz_m: 6.1
+    push_speed_mps: 5.0
+  - name: hill5
+    s_start: 1201.0
+    s_end: 1374.0
+    type: pushed
+    dz_m: 4.0
+    push_speed_mps: 5.5
+
+# Sections where starting a pass is forbidden (s ranges on the SC line):
+# the chute (a pass there is unfinishable and contact = DQ) and the two road
+# crossings from the human racing line. APPROXIMATE, re-survey.
+no_pass_zones:
+  - name: chute
+    s_start: 780.0
+    s_end: 960.0
+  - name: monument_crossing
+    s_start: 150.0
+    s_end: 200.0
+  - name: pond_crossing
+    s_start: 560.0
+    s_end: 620.0
+
+# Pusher transition zones: a pusher may be running beside the buggy, so the
+# planner makes NO lateral change here (hold the current offset). APPROXIMATE,
+# 15 m either side of each hand-off on the SC line; agree the pickup side with
+# the push team and re-survey.
+no_lateral_change_zones:
+  - name: hill1_to_hill2
+    s_start: 96.0
+    s_end: 126.0
+  - name: hill2_release
+    s_start: 160.0
+    s_end: 190.0
+  - name: hill3_pickup
+    s_start: 995.0
+    s_end: 1025.0
+  - name: hill3_to_hill4
+    s_start: 1063.0
+    s_end: 1093.0
+  - name: hill4_to_hill5
+    s_start: 1186.0
+    s_end: 1216.0
+
+# Freeroll physics (point mass). Fit these from a logged roll: coast-down on a
+# straight gives crr and cda_over_m; speed lost through a known-radius turn gives
+# c_scrub. Until then these are order-of-magnitude values.
+physics:
+  crr: 0.004                 # rolling resistance; buggies run hard, narrow tyres
+  cda_over_m: 0.0006         # Cd*A / m  [1/m]  (~0.12 m^2 * 0.4 / 80 kg with driver)
+  c_scrub: 0.3               # tyre scrub loss: decel = c_scrub * v^2 * kappa^2  [m^2]
+  v_min_mps: 1.0
+  v_max_mps: 20.0

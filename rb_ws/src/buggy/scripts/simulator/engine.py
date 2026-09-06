@@ -23,6 +23,7 @@ class Simulator(Node):
         self.starting_poses = {
             "Hill1_NAND": (589760.46, 4477322.07, -110),
             "Hill1_SC": (589761.40, 4477321.75, -110),
+            "Hill1_SC_BEHIND": (589769.95, 4477345.25, -110),   # 25 m behind Hill1_SC, for pass tests
             "Hill2_NAND": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
             "Hill2_SC": (Constants.UTM_EAST_ZERO + 20, Constants.UTM_NORTH_ZERO + 30, -110),
             "WESTINGHOUSE": (589647, 4477143, -150),
@@ -85,6 +86,12 @@ class Simulator(Node):
         self.tick_count = 0
         self.interval = 2  # how frequently to publish
 
+        # Steering actuator slew-rate limit in deg/s (0 = unlimited). The real steering is a
+        # stepper with a finite rate; measure it on hardware and set it here so the sim
+        # cannot turn the wheel instantly.
+        self.declare_parameter("steering_rate_limit_dps", 0.0)
+        self.steering_rate_limit = float(self.get_parameter("steering_rate_limit_dps").value)
+
         # Steering delay configuration (each step = 10ms at 100 Hz)
         self.declare_parameter("steering_delay", 0)
         self.steering_delay_steps = self.get_parameter("steering_delay").value
@@ -131,7 +138,13 @@ class Simulator(Node):
     def apply_delayed_steering(self):
         """Precondition: lock must be held when calling this function"""
         # the delayed steering is at the front of the buffer
-        self.current_steering = self.steering_buffer[0]
+        target = self.steering_buffer[0]
+        if self.steering_rate_limit > 0.0:
+            max_step = self.steering_rate_limit / self.rate
+            delta = float(np.clip(target - self.current_steering, -max_step, max_step))
+            self.current_steering = self.current_steering + delta
+        else:
+            self.current_steering = target
 
     def steering_offset_value(self, sim_time: float) -> float:
         if self.steering_offset_func == "sin":

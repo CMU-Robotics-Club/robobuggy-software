@@ -1,9 +1,14 @@
 <launch>
     <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
+    <arg name="use_frenet" default="true"/>
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC">
             <param from="$(var config_file)"/>
     </node>
-    <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen">
+    <!-- use_frenet:=true (default) runs the Frenet sampling planner; use_frenet:=false runs the legacy sigmoid planner -->
+    <node pkg="buggy" exec="frenet_planner.py" name="SC_path_planner" namespace="SC" output = "screen" if="$(var use_frenet)">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen" unless="$(var use_frenet)">
         <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC">

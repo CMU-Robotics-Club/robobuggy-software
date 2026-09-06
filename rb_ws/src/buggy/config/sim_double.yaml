@@ -53,3 +53,19 @@ SC:
     ros__parameters:
       traj_name: "buggycourse_sc.json"
       curb_name: "buggycourse_curb.json"
+      # --- frenet_planner.py only (ignored by the legacy sigmoid planner) ---
+      right_width: 0.5            # metres of road right of the raceline (no right-curb file yet)
+      vehicle_width: 1.2
+      boundary_margin: 0.5
+      horizon: 60.0
+      lookahead: 2.0
+      offset_step: 0.25
+      transition_lengths: [15.0, 25.0, 40.0]
+      lateral_clearance: 1.6
+      longitudinal_window: 6.0
+      pass_left_only: true
+      w_curvature: 400.0
+      w_deviation: 1.0
+      w_proximity: 6.0
+      w_change: 2.0
+      w_margin: 3.0

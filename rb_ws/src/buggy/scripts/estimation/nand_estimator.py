@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+import json
+
 import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 from nav_msgs.msg import Odometry
 from buggy.msg import StampedFloat64Msg
 
@@ -90,10 +92,58 @@ class NANDStateEstimator(Node):
 
         self.init_ukf()
 
+        # ---- measurement sources -------------------------------------------------
+        # radio  : NAND's own GPS relayed over the RFM69 link (sparse, lossy)      -> other/stateNoUKF
+        # vision : ZED + YOLO detection of NAND, projected to UTM (detector_node)   -> vision/other/state
+        # lidar  : Velodyne cluster centroid projected to UTM (lidar_opponent_node) -> lidar/other/state
+        # Every source is fused through the same UKF position update, each with its
+        # own covariance, and every measurement is chi-square gated so one bad
+        # detection cannot yank the estimate.
+        self.declare_parameter("vision_topic", "vision/other/state")
+        self.declare_parameter("lidar_topic", "lidar/other/state")
+        self.declare_parameter("use_vision", True)
+        self.declare_parameter("use_lidar", True)
+        # 50 mm is only true when NAND's own receiver is RTK fixed; the radio relays single-point
+        # GPS most of the time, so default to a metre-class value (research: 1.5 m).
+        self.declare_parameter("radio_accuracy_mm", 1500.0)
+        self.declare_parameter("vision_pos_std_m", 1.0)   # used when the message carries no covariance
+        self.declare_parameter("lidar_pos_std_m", 0.3)
+        self.declare_parameter("gate_enabled", True)
+        self.declare_parameter("gate_chi2", 9.21)          # 99 % gate for a 2-dof position innovation
+        self.declare_parameter("gate_warmup_updates", 20)  # do not gate until this many updates were accepted
+        # a measurement is rejected only if it fails the chi-square test AND is farther than this from the
+        # prediction; protects against a mis-tuned (too confident) covariance starving the filter
+        self.declare_parameter("gate_min_distance_m", 5.0)
+
+        self.R = self.accuracy_to_mat(float(self.get_parameter("radio_accuracy_mm").value))
+        self.R_vision_default = np.eye(2) * float(self.get_parameter("vision_pos_std_m").value) ** 2
+        self.R_lidar_default = np.eye(2) * float(self.get_parameter("lidar_pos_std_m").value) ** 2
+        self.gate_enabled = bool(self.get_parameter("gate_enabled").value)
+        self.gate_chi2 = float(self.get_parameter("gate_chi2").value)
+        self.gate_min_dist = float(self.get_parameter("gate_min_distance_m").value)
+        self.gate_warmup = int(self.get_parameter("gate_warmup_updates").value)
+        self.accepted_updates = 0
+        self.source_stats = {k: {"accepted": 0, "rejected": 0, "last": None} for k in ("radio", "vision", "lidar")}
+
         self.create_subscription(Odometry, "other/stateNoUKF", self.update_measurement, 1)
+        # SC's serial node publishes the radio packet header (gps_fix, rssi); use the fix type to
+        # size the radio covariance: RTK-fixed positions are cm-class, everything else metre-class.
+        self.declare_parameter("radio_rtk_accuracy_mm", 50.0)
+        self.radio_fix = None
+        try:
+            from buggy.msg import SCRadioNANDMsg
+            self.create_subscription(SCRadioNANDMsg, "debug/NAND_radio", self.update_radio_info, 1)
+        except ImportError:
+            pass
+        if self.get_parameter("use_vision").value:
+            self.create_subscription(Odometry, self.get_parameter("vision_topic").value, self.update_vision, 1)
+        if self.get_parameter("use_lidar").value:
+            self.create_subscription(Odometry, self.get_parameter("lidar_topic").value, self.update_lidar, 1)
         self.create_subscription(StampedFloat64Msg, "other/steering", self.update_steering, 1)
         self.nand_publisher = self.create_publisher(Odometry, "other/state", 1)
         self.singular_flag_publisher = self.create_publisher(Bool, "debug/NANDSingularFlag", 1)
+        self.sources_publisher = self.create_publisher(String, "debug/opponent_sources", 1)
+        self.create_timer(0.5, self.publish_sources)
 
         self.steering = 0
 
@@ -102,24 +152,83 @@ class NANDStateEstimator(Node):
     def update_steering(self, msg):
         self.steering = np.deg2rad(msg.data)
 
-    def update_measurement(self, msg):
-        """Perform UKF measurement update using pose from other/stateNoUKF."""
-        if not self.start:
-            self.get_logger().info("STARTED")
-            self.start = True
-            self.x_hat = np.array(
-                [msg.pose.pose.position.x, msg.pose.pose.position.y, -np.pi / 2, 0.0]
-            )
+    def update_radio_info(self, msg):
+        self.radio_fix = int(msg.gps_fix)
 
-        y = [msg.pose.pose.position.x, msg.pose.pose.position.y]
+    def update_measurement(self, msg):
+        """Radio relay of NAND's GPS (other/stateNoUKF)."""
+        R = self.R
+        if self.radio_fix is not None and self.radio_fix >= 5:  # 5 = RTK float, 6 = RTK fixed
+            R = self.accuracy_to_mat(float(self.get_parameter("radio_rtk_accuracy_mm").value))
+        self.fuse(msg, R, "radio")
+
+    def update_vision(self, msg):
+        """Camera detection of NAND in UTM (vision/other/state)."""
+        self.fuse(msg, self.covariance_from_msg(msg, self.R_vision_default), "vision")
+
+    def update_lidar(self, msg):
+        """Lidar cluster of NAND in UTM (lidar/other/state)."""
+        self.fuse(msg, self.covariance_from_msg(msg, self.R_lidar_default), "lidar")
+
+    @staticmethod
+    def covariance_from_msg(msg, default):
+        """Use the x/y block of pose.covariance when the publisher filled it, else the default."""
+        c = msg.pose.covariance
+        if c[0] > 0.0 and c[7] > 0.0:
+            return np.array([[c[0], c[1]], [c[6], c[7]]])
+        return default
+
+    def fuse(self, msg, R, source):
+        """
+        Gated UKF position update shared by every source.
+
+        The first measurement from any source initialises the filter. After a
+        short warm-up, a measurement whose Mahalanobis distance from the
+        predicted position exceeds gate_chi2 is rejected and counted, so a false
+        detection or a radio glitch cannot drag the estimate.
+        """
+        y = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y])
+        stats = self.source_stats[source]
+        stats["last"] = self.get_clock().now()
+
+        if not self.start:
+            self.get_logger().info(f"STARTED from {source}")
+            self.start = True
+            self.x_hat = np.array([y[0], y[1], -np.pi / 2, 0.0])
+
+        if self.gate_enabled and self.accepted_updates >= self.gate_warmup:
+            S = self.Sigma[0:2, 0:2] + R
+            nu = y - self.x_hat[0:2]
+            try:
+                m2 = float(nu @ np.linalg.solve(S, nu))
+            except np.linalg.LinAlgError:
+                m2 = 0.0
+            if m2 > self.gate_chi2 and float(np.hypot(nu[0], nu[1])) > self.gate_min_dist:
+                stats["rejected"] += 1
+                self.get_logger().warn(
+                    f"rejected {source} measurement (chi2={m2:.1f} > {self.gate_chi2})",
+                    throttle_duration_sec=1.0,
+                )
+                return
 
         self.x_hat, self.Sigma, self.singular_flag = ukf_update(
-            self.x_hat, self.Sigma, self.Sigma_init, y, self.R
+            self.x_hat, self.Sigma, self.Sigma_init, y, R
         )
+        stats["accepted"] += 1
+        self.accepted_updates += 1
 
         # publish singular flag immediately after measurement update, because prediction also writes to the debug singular flag
         singular_flag_msg = Bool(data=self.singular_flag)
         self.singular_flag_publisher.publish(singular_flag_msg)
+
+    def publish_sources(self):
+        """Per-source health: seconds since the last measurement and accept/reject counts."""
+        now = self.get_clock().now()
+        out = {}
+        for name, st in self.source_stats.items():
+            age = None if st["last"] is None else round((now - st["last"]).nanoseconds * 1e-9, 2)
+            out[name] = {"age_s": age, "accepted": st["accepted"], "rejected": st["rejected"]}
+        self.sources_publisher.publish(String(data=json.dumps(out)))
 
     def init_ukf(self):
         """Reset the UKF and wait for the next measurement to initialize state."""
@@ -127,10 +236,10 @@ class NANDStateEstimator(Node):
         self.x_hat = None
         self.Sigma_init = np.diag([1e-2, 1e-2, 1e-2, 1e-1])  # initial state covariance
         self.Sigma = self.Sigma_init.copy()  # state covariance
-        self.R = self.accuracy_to_mat(50)
         self.Q = np.diag([1e-4, 1e-4, 1e-2, 2.4e-1])
         self.singular_flag = False
         self.ukf_converged = False
+        self.accepted_updates = 0
 
 
     def loop(self):
@@ -155,6 +264,8 @@ class NANDStateEstimator(Node):
         )
 
         nand_ukf_msg = Odometry()
+        nand_ukf_msg.header.stamp = self.get_clock().now().to_msg()
+        nand_ukf_msg.header.frame_id = "utm"
         nand_ukf_msg.pose.pose.position.x = self.x_hat[0]
         nand_ukf_msg.pose.pose.position.y = self.x_hat[1]
         nand_ukf_msg.pose.pose.orientation.z = self.x_hat[2]

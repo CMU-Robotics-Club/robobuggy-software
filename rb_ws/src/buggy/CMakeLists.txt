@@ -38,9 +38,16 @@ install(PROGRAMS
   scripts/debug/debug_steer.py
   scripts/vision/detector_node.py
   scripts/debug/set_steer.py
+  scripts/debug/sim_metrics.py
+  scripts/debug/pass_metrics.py
+  scripts/path_planner/raceline_optimizer.py
+  scripts/path_planner/frenet_planner.py
+  scripts/perception/lidar_opponent_node.py
+  scripts/estimation/localization_monitor.py
+  scripts/simulator/speed_model_node.py
+  scripts/simulator/perception_sim.py
   scripts/estimation/nand_estimator.py
   scripts/estimation/steer_offset_estimator.py
-  scripts/vision/detector_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

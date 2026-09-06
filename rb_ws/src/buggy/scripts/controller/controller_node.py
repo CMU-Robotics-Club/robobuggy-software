@@ -35,6 +35,14 @@ class Controller(Node):
         self.declare_parameter("steerOffsetTopic", "self/steering_offset/filtered")
         self.declare_parameter("useSteerOffset", False)
         self.use_steer_offset = self.get_parameter("useSteerOffset").value
+        # position standard deviation (metres) above which we refuse to start autonomous steering
+        self.declare_parameter("maxInitPositionStd", 1.0)
+        self.max_init_pos_std = float(self.get_parameter("maxInitPositionStd").value)
+        # limit how fast the commanded steering may change (deg/s); 0 = off. Set to the
+        # measured actuator slew rate so the command never asks for what the stepper cannot do.
+        self.declare_parameter("maxSteerRateDps", 0.0)
+        self.max_steer_rate = float(self.get_parameter("maxSteerRateDps").value)
+        self.last_cmd_deg = None
 
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
@@ -117,8 +125,14 @@ class Controller(Node):
             self.get_logger().warn("WARNING: no available position estimate")
             return False
 
-        elif odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 > 1:
-            self.get_logger().warn("checking position estimate certainty | current covariance: " + str(odom.pose.covariance[0] ** 2 + odom.pose.covariance[7] ** 2 ))
+        # covariance[0] and [7] are the x and y VARIANCES (m^2); the combined position std is
+        # sqrt(var_x + var_y). The previous check squared the variances, which passed a 0.99 m^2
+        # variance and failed anything a healthy non-RTK GQ7 reports.
+        pos_std = np.sqrt(max(odom.pose.covariance[0], 0.0) + max(odom.pose.covariance[7], 0.0))
+        if pos_std > self.max_init_pos_std:
+            self.get_logger().warn(
+                f"checking position estimate certainty | position std {pos_std:.2f} m > {self.max_init_pos_std:.2f} m"
+            )
             return False
 
         current_heading = odom.pose.pose.orientation.z % (2 * np.pi)
@@ -161,6 +175,10 @@ class Controller(Node):
             steering_angle -= self.steer_offset
 
         steering_angle_deg = np.rad2deg(steering_angle)
+        if self.max_steer_rate > 0.0 and self.last_cmd_deg is not None:
+            max_step = self.max_steer_rate * 0.01
+            steering_angle_deg = np.clip(steering_angle_deg, self.last_cmd_deg - max_step, self.last_cmd_deg + max_step)
+        self.last_cmd_deg = float(steering_angle_deg)
         self.steer_publisher.publish(StampedFloat64Msg(header=odom.header, data=float(steering_angle_deg.item())))
 
 
