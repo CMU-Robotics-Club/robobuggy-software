@@ -13,14 +13,17 @@ fast we are closing, (b) return to the raceline as soon as it is safe, and
 option because a gravity vehicle only keeps speed by not steering.
 
 Pipeline, at FREQUENCY Hz:
-    1. Project ego and opponent onto the track:  (s, d).
-    2. Predict the opponent along the track at its measured speed.
+    1. Project ego and every known opponent onto the track: (s, d). Opponents
+       come from perception/tracks (camera + lidar + radio fused by
+       opponent_tracker.py) plus NAND's radio estimate on other/state.
+    2. Predict each opponent along the track at its measured speed.
     3. Build candidate lateral profiles d(s) over a horizon: quintic smoothstep
        from the currently committed offset to a target offset over a transition
        length, then hold. Targets span the drivable width on a fixed grid.
-    4. Reject candidates that leave the road or intersect the opponent's
-       predicted footprint when both are at the same s at the same time.
-       Passing is only allowed on the left of the opponent.
+    4. Reject candidates that leave the road, exceed the steering limit, or
+       intersect any opponent's predicted footprint when both are at the same s
+       at the same time. The side to pass each opponent on comes from
+       side_policy: whichever side has more room (default), or fixed left/right.
     5. Cost = curvature^2 (integrated) + deviation from raceline + opponent
        proximity + change from the previous decision. Pick the minimum.
     6. Publish as a TrajectoryMsg (easting/northing lists + cur_idx).
@@ -40,7 +43,7 @@ from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, Int8
-from buggy.msg import TrajectoryMsg
+from buggy.msg import TrajectoryMsg, TrackedObjectsMsg
 
 from util.trajectory import Trajectory
 from util.track import Track
@@ -80,7 +83,15 @@ class FrenetPlanner(Node):
         self.declare_parameter("lateral_clearance", 1.6)        # centre-to-centre lateral gap required when alongside
         self.declare_parameter("longitudinal_window", 6.0)      # |s_ego - s_opp| inside which we are "alongside"
         self.declare_parameter("opponent_timeout", 2.0)         # seconds before a stale opponent estimate is ignored
-        self.declare_parameter("pass_left_only", True)
+        self.declare_parameter("pass_left_only", True)   # superseded by side_policy, kept for old configs
+        # which side to pass an opponent on: "more_room" (per opponent, whichever side has more
+        # drivable width at its position), "left", "right", or "any"
+        self.declare_parameter("side_policy", "more_room")
+        # tracked buggies from opponent_tracker.py (camera + lidar + radio); NAND's radio estimate on
+        # other/state is still used, deduplicated against the tracks
+        self.declare_parameter("tracks_topic", "perception/tracks")
+        self.declare_parameter("tracks_timeout", 1.0)
+        self.declare_parameter("dedupe_distance_m", 3.0)
         self.declare_parameter("min_speed_for_prediction", 1.0)
 
         # ---- physical limits
@@ -132,6 +143,14 @@ class FrenetPlanner(Node):
         self.long_window = float(p("longitudinal_window"))
         self.opp_timeout = float(p("opponent_timeout"))
         self.pass_left_only = bool(p("pass_left_only"))
+        self.side_policy = str(p("side_policy")).lower()
+        if self.side_policy not in ("more_room", "left", "right", "any"):
+            self.get_logger().warn(f"unknown side_policy '{self.side_policy}', using more_room")
+            self.side_policy = "more_room"
+        self.tracks_timeout = float(p("tracks_timeout"))
+        self.dedupe_d = float(p("dedupe_distance_m"))
+        self.tracks_msg = None
+        self.tracks_stamp = None
         self.min_pred_speed = float(p("min_speed_for_prediction"))
         self.w_curv = float(p("w_curvature"))
         self.w_dev = float(p("w_deviation"))
@@ -168,7 +187,9 @@ class FrenetPlanner(Node):
 
         self.create_subscription(Odometry, "self/state", self.on_self, 1)
         self.create_subscription(Odometry, "other/state", self.on_other, 1)
+        self.create_subscription(TrackedObjectsMsg, p("tracks_topic"), self.on_tracks, 1)
         self.create_subscription(Int8, p("health_topic"), self.on_health, 1)
+        self.n_opp_publisher = self.create_publisher(Float64, "debug/planner/num_opponents", 1)
         self.state_publisher = self.create_publisher(Int8, "debug/planner/state", 1)
 
         self.lock = Lock()
@@ -194,12 +215,52 @@ class FrenetPlanner(Node):
     def on_health(self, msg):
         self.health = int(msg.data)
 
+    def on_tracks(self, msg):
+        with self.lock:
+            self.tracks_msg = msg
+            self.tracks_stamp = self.get_clock().now()
+
+    def pass_side(self, s_o, d_o):
+        """Side to pass an opponent at track position s_o, lateral offset d_o."""
+        if self.side_policy in ("left", "right", "any"):
+            return self.side_policy
+        wl, wr = self.track.width_at(s_o)
+        room_left = float(wl) - d_o
+        room_right = float(wr) + d_o
+        return "left" if room_left >= room_right else "right"
+
+    def collect_opponents(self, ego_xy):
+        """
+        Every buggy we know about as (s, d, along-track speed, side-to-pass).
+        Tracks from the perception tracker first; NAND's radio estimate is added
+        only if no track already covers that position.
+        """
+        with self.lock:
+            tmsg, tstamp = self.tracks_msg, self.tracks_stamp
+            omsg, ostamp = self.other_odom, self.other_stamp
+        now = self.get_clock().now()
+        out = []
+        positions = []
+        if tmsg is not None and tstamp is not None and (now - tstamp).nanoseconds * 1e-9 <= self.tracks_timeout:
+            for i in range(len(tmsg.ids)):
+                x, y = tmsg.easting[i], tmsg.northing[i]
+                s_o, d_o = self.track.frenet(x, y)
+                h = float(self.track.heading_at(s_o))
+                v_along = tmsg.vx[i] * np.cos(h) + tmsg.vy[i] * np.sin(h)
+                out.append((s_o, d_o, max(float(v_along), 0.0), self.pass_side(s_o, d_o)))
+                positions.append((x, y))
+        if omsg is not None and ostamp is not None and (now - ostamp).nanoseconds * 1e-9 <= self.opp_timeout:
+            x, y = omsg.pose.pose.position.x, omsg.pose.pose.position.y
+            if not any(np.hypot(x - px, y - py) < self.dedupe_d for px, py in positions):
+                s_o, d_o = self.track.frenet(x, y)
+                ov = float(np.hypot(omsg.twist.twist.linear.x, omsg.twist.twist.linear.y))
+                out.append((s_o, d_o, ov, self.pass_side(s_o, d_o)))
+        return out
+
     # ------------------------------------------------------------------ planning
     def plan(self):
         with self.lock:
             ego = self.self_odom
-            opp = self.other_odom
-            opp_stamp = self.other_stamp
         if ego is None:
             return
 
@@ -207,15 +268,9 @@ class FrenetPlanner(Node):
         ev = float(np.hypot(ego.twist.twist.linear.x, ego.twist.twist.linear.y))
         s_e, d_e = self.track.frenet(ex, ey)
 
-        # opponent in Frenet frame, if fresh
-        opponent = None
-        if opp is not None and opp_stamp is not None:
-            age = (self.get_clock().now() - opp_stamp).nanoseconds * 1e-9
-            if age <= self.opp_timeout:
-                ox, oy = opp.pose.pose.position.x, opp.pose.pose.position.y
-                ov = float(np.hypot(opp.twist.twist.linear.x, opp.twist.twist.linear.y))
-                s_o, d_o = self.track.frenet(ox, oy)
-                opponent = (s_o, d_o, ov)
+        # every opponent we know about, in the track frame
+        opponents = self.collect_opponents((ex, ey))
+        self.n_opp_publisher.publish(Float64(data=float(len(opponents))))
 
         # local path support
         s0 = s_e + self.lookahead
@@ -240,20 +295,17 @@ class FrenetPlanner(Node):
         else:
             d_start = float(np.clip(d_e, -w_right[0], w_left[0]))
 
-        # opponent prediction sampled at the times ego reaches each s
-        opp_s_at = None
-        if opponent is not None:
-            s_o, d_o, ov = opponent
-            t = (s - s_e) / max(ev, self.min_pred_speed)
-            opp_s_at = s_o + max(ov, 0.0) * t
-            gap = s_o - s_e
+        # opponent predictions sampled at the times ego reaches each s: each entry is
+        # (predicted s array, lateral offset, side to pass on)
+        t_at = (s - s_e) / max(ev, self.min_pred_speed)
+        preds = [(s_o + v_o * t_at, d_o, side) for s_o, d_o, v_o, side in opponents]
+        if opponents:
+            ahead = [s_o - s_e for s_o, _, _, _ in opponents if s_o >= s_e]
+            gap = min(ahead) if ahead else max(s_o - s_e for s_o, _, _, _ in opponents)
             self.opp_gap_publisher.publish(Float64(data=float(gap)))
 
         # ---- behaviour state with hysteresis
-        opp_ahead_or_alongside = False
-        if opponent is not None:
-            s_o = opponent[0]
-            opp_ahead_or_alongside = s_o + self.opp_radius > s_e - self.long_window
+        opp_ahead_or_alongside = any(s_o + self.opp_radius > s_e - self.long_window for s_o, _, _, _ in opponents)
         passing_allowed = (self.health == 0) or not self.passing_needs_health_ok
         # no new pass may START inside a no-pass zone (a pass already under way continues)
         in_no_pass = any(a <= s_e <= b for a, b, _ in self.no_pass)
@@ -304,23 +356,34 @@ class FrenetPlanner(Node):
                 if not passing_allowed and self.state != "PASS" and d_end > 0.3:
                     continue
 
-                # hard: once committed to a pass, do not cut back right while the opponent is still there
-                if self.state == "PASS" and opp_ahead_or_alongside and d_end < self.prev_target - self.offset_step:
+                # hard: once committed to a pass, do not drift back toward the raceline while an
+                # opponent is still ahead or alongside
+                if self.state == "PASS" and opp_ahead_or_alongside and abs(d_end) < abs(self.prev_target) - self.offset_step:
                     continue
 
-                # hard: do not drive through the opponent; pass on the left only
+                # hard: do not drive through any opponent; keep the clearance on the chosen side
                 prox_cost = 0.0
-                if opp_s_at is not None and respect_opponent:
-                    alongside = np.abs(s - opp_s_at) < (self.long_window + self.opp_radius)
-                    if np.any(alongside):
-                        lateral_gap = d[alongside] - d_o
-                        if self.pass_left_only and np.any(lateral_gap < self.lat_clear):
-                            continue
-                        if not self.pass_left_only and np.any(np.abs(lateral_gap) < self.lat_clear):
-                            continue
-                    # soft: prefer more room when close in s
-                    long_gap = np.abs(s - opp_s_at)
-                    prox_cost = float(np.sum(np.exp(-long_gap / 10.0) / (0.5 + np.abs(d - d_o))))
+                blocked = False
+                if preds and respect_opponent:
+                    for p_s, p_d, side in preds:
+                        alongside = np.abs(s - p_s) < (self.long_window + self.opp_radius)
+                        if np.any(alongside):
+                            gap = d[alongside] - p_d
+                            if side == "left" and np.any(gap < self.lat_clear):
+                                blocked = True
+                                break
+                            if side == "right" and np.any(-gap < self.lat_clear):
+                                blocked = True
+                                break
+                            if side == "any" and np.any(np.abs(gap) < self.lat_clear):
+                                blocked = True
+                                break
+                        # soft: prefer more room when close in s
+                        long_gap = np.abs(s - p_s)
+                        prox_cost += float(np.sum(np.exp(-long_gap / 10.0) / (0.5 + np.abs(d - p_d))))
+                if blocked:
+                    n_rej += 1
+                    continue
 
                 xy = self.track.cartesian(s, d)
                 ds = np.gradient(s)
@@ -350,13 +413,14 @@ class FrenetPlanner(Node):
                 if best is None or cost < best[0]:
                     best = (cost, d_end, d, xy)
 
-        if best is None and opp_s_at is not None:
-            # Tier 2: the opponent constraint made everything infeasible (typically a wrong or
-            # stale opponent estimate on top of our own position). Road bounds and the curvature
-            # limit still apply; the opponent only enters through the soft proximity cost.
-            self.get_logger().warn("no candidate clears the opponent; replanning without the clearance constraint",
+        if best is None and preds:
+            # Tier 2: no candidate keeps the full clearance from every opponent (a narrow
+            # section, a bad opponent estimate, or simply no room). The buggy cannot brake,
+            # so the least-bad option is the road-legal, steerable path that keeps the
+            # LARGEST minimum gap to any opponent while alongside; cost breaks ties.
+            self.get_logger().warn("no candidate clears every opponent; choosing the path with the largest gap",
                                    throttle_duration_sec=1.0)
-            respect_opponent = False
+            best_key = None
             for L in self.transition_lengths:
                 u = smoothstep5((s - s0) / L)
                 for d_end in targets:
@@ -376,12 +440,20 @@ class FrenetPlanner(Node):
                     kappa = (dx * ddy - dy * ddx) / np.power(dx * dx + dy * dy, 1.5)
                     if np.max(np.abs(kappa[2:-2])) > kappa_limit:
                         continue
-                    long_gap = np.abs(s - opp_s_at)
-                    prox_cost = float(np.sum(np.exp(-long_gap / 10.0) / (0.5 + np.abs(d - d_o))))
+                    clearance = float("inf")
+                    prox_cost = 0.0
+                    for p_s, p_d, _ in preds:
+                        alongside = np.abs(s - p_s) < (self.long_window + self.opp_radius)
+                        if np.any(alongside):
+                            clearance = min(clearance, float(np.min(np.abs(d[alongside] - p_d))))
+                        long_gap = np.abs(s - p_s)
+                        prox_cost += float(np.sum(np.exp(-long_gap / 10.0) / (0.5 + np.abs(d - p_d))))
                     cost = (self.w_curv * float(np.sum(kappa[2:-2] ** 2) * (s[1] - s[0]))
                             + self.w_dev * float(np.mean(d * d)) + self.w_prox * prox_cost
                             + self.w_change * float((d_end - self.prev_target) ** 2))
-                    if best is None or cost < best[0]:
+                    key = (-min(clearance, self.lat_clear), cost)
+                    if best_key is None or key < best_key:
+                        best_key = key
                         best = (cost, d_end, d, xy)
 
         if best is None:

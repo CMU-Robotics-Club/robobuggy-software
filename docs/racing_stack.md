@@ -35,13 +35,14 @@ New and changed files, all under `rb_ws/src/buggy/`:
 | --- | --- |
 | `scripts/util/track.py` | Arc-length track model: Frenet conversions, left/right widths from boundary files, curvature. |
 | `scripts/path_planner/raceline_optimizer.py` | Offline minimum-curvature line. Bounded least squares on second differences, re-linearised 3 times. `--zones` weights fast sections using the speed model. Writes the repo's lat/lon waypoint JSON. |
-| `scripts/path_planner/frenet_planner.py` | Online local planner replacing the sigmoid rule. Samples lateral targets on a 0.25 m grid with 15/25/40 m transitions, rejects candidates that leave the road, exceed `kappa_max` (0.25 1/m, the Stanley steering clip), or cut inside the opponent; passes on the left only; states RACELINE, PASS, REJOIN with hysteresis; refuses new passes in no-pass zones or when localization health is degraded; holds the raceline when health is bad. Publishes `self/cur_traj` exactly like the old planner. |
+| `scripts/path_planner/frenet_planner.py` | Online local planner replacing the sigmoid rule. Samples lateral targets on a 0.25 m grid with 15/25/40 m transitions, rejects candidates that leave the road, exceed `kappa_max` (0.25 1/m, the Stanley steering clip), or cut inside any tracked opponent; the side to pass each opponent on comes from `side_policy` (default `more_room`, or fixed `left`/`right`); states RACELINE, PASS, REJOIN with hysteresis; refuses new passes in no-pass zones or when localization health is degraded; makes no lateral change in pusher transition zones; holds the raceline when health is bad. Publishes `self/cur_traj` exactly like the old planner. |
 | `scripts/path_planner/path_planner.py` | Unchanged legacy sigmoid planner, selectable with `use_frenet:=false`. |
 | `scripts/estimation/nand_estimator.py` | Now fuses `other/stateNoUKF` (radio), `vision/other/state` (camera) and `lidar/other/state` (lidar) through one gated UKF update; publishes per-source health on `debug/opponent_sources`; stamps `other/state`. |
 | `scripts/estimation/localization_monitor.py` | Publishes `localization/health` (0 ok, 1 degraded, 2 bad) from state freshness, position covariance, GQ7 fix type and filter state. |
-| `scripts/perception/lidar_opponent_node.py` | Converts the lidar branch's `/lidar/obstacle_centroid` into a UTM detection with range-dependent covariance. |
+| `scripts/perception/lidar_opponent_node.py` | Converts the lidar branch's `/lidar/obstacle_centroid` into a UTM detection with range-dependent covariance, on both the single-object topic and `lidar/detections`. |
+| `scripts/perception/opponent_tracker.py`, `msg/DetectionsMsg.msg`, `msg/TrackedObjectsMsg.msg` | Multi-object tracker. Takes detections from any number of sensors (`lidar/detections`, `vision/detections`, plus NAND's radio estimate), keeps one constant-velocity Kalman filter per object, associates detections by nearest neighbour with a statistical gate, confirms an object after 3 hits and drops it after 1.5 s unseen. Publishes every confirmed buggy on `perception/tracks`. This is what lets the planner handle buggies that never sent a radio message. |
 | `scripts/util/speed_model.py`, `scripts/simulator/speed_model_node.py`, `config/course_zones.yaml` | Point-mass gravity model v(s): pushed hills at pusher speed, freeroll integrating slope, rolling resistance, drag and tyre scrub. Drives `sim/velocity` so lap time in the sim depends on the line. Zone table also carries the no-pass bands. |
-| `scripts/simulator/perception_sim.py` | Fake lidar and camera detections of NAND from ground truth with noise, dropouts, outliers and latency, so the fused estimator runs in the sim. |
+| `scripts/simulator/perception_sim.py` | Fake lidar and camera. Detects every simulated buggy plus any number of "ghost" buggies (other teams' buggies that only the sensors can see, moving along the course at a set speed and offset) with noise, dropouts, outliers and latency. Publishes `DetectionsMsg` for the tracker and the single-object topics for the NAND estimator. |
 | `scripts/debug/sim_metrics.py`, `scripts/debug/pass_metrics.py` | Regression harnesses: tracking quality for a line; pass success, minimum separation, lateral gap and planner state times for the double sim. |
 | `scripts/controller/controller_node.py` | Fixed the start-up covariance check, which squared variances (passed a 0.99 m² variance, failed a healthy non-RTK GQ7). Now `sqrt(var_x + var_y) < maxInitPositionStd`. |
 | `scripts/simulator/engine.py` | Added start pose `Hill1_SC_BEHIND` (25 m behind Hill 1) for pass scenarios. |
@@ -201,6 +202,15 @@ Append results here as they are produced.
   lidar and camera data before it is trusted on the buggy. The planner fell back
   to "ignore the opponent constraint" 12 times in the run, always when the
   opponent estimate sat on top of SC's own position.
+- 2026-09-08 traffic scenario: NAND plus two ghost buggies that only the fake
+  lidar and camera can see (`ghosts` in `sim_double.yaml`), tracked by
+  `opponent_tracker.py`, SC 13 m/s from 25 m behind NAND, 100 s. First attempt
+  drove through a ghost (0.34 m) because the fallback for "no candidate keeps
+  full clearance" ignored opponents entirely. The fallback now picks the
+  road-legal, steerable path with the largest minimum gap instead. Rerun: passed
+  NAND at 10.2 s, closest approach to NAND 2.87 m, closest approach to any ghost
+  1.78 m, no contact, SC tracking error 0.026 m RMS. Planner states: RACELINE
+  63 s, PASS 21 s, REJOIN 15 s.
 - 2026-09-06 single buggy with the gravity speed model
   (`use_speed_model:=true`), 120 s from Hill 1: mean speed 9.3 m/s, 1128 m
   covered, cross-track RMS 0.021 m, no errors. Nominal model lap 168.8 s.

@@ -26,6 +26,8 @@ from rclpy.node import Node
 from geometry_msgs.msg import PointStamped
 from nav_msgs.msg import Odometry
 
+from buggy.msg import DetectionsMsg
+
 
 class LidarOpponent(Node):
     def __init__(self):
@@ -52,6 +54,7 @@ class LidarOpponent(Node):
         self.create_subscription(Odometry, "self/state", self.on_state, 1)
         self.create_subscription(PointStamped, p("centroid_topic"), self.on_centroid, 10)
         self.publisher = self.create_publisher(Odometry, "lidar/other/state", 1)
+        self.det_publisher = self.create_publisher(DetectionsMsg, "lidar/detections", 1)
 
     def on_state(self, msg):
         self.state = msg
@@ -91,6 +94,13 @@ class LidarOpponent(Node):
         cov[7] = std * std
         out.pose.covariance = cov
         self.publisher.publish(out)
+        det = DetectionsMsg()
+        det.header = out.header
+        det.source = "lidar"
+        det.easting = [float(ux)]
+        det.northing = [float(uy)]
+        det.pos_std = [float(std)]
+        self.det_publisher.publish(det)
 
 
 def main(args=None):

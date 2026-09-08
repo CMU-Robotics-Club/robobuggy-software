@@ -20,4 +20,8 @@
     </node>
 
     <node name="NAND_estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
+    <!-- multi-object tracker: fuses lidar/camera detections (and NAND's radio estimate) into perception/tracks -->
+    <node name="SC_opponent_tracker" pkg="buggy" exec="opponent_tracker.py" output="screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
 </launch>

@@ -43,6 +43,7 @@ install(PROGRAMS
   scripts/path_planner/raceline_optimizer.py
   scripts/path_planner/frenet_planner.py
   scripts/perception/lidar_opponent_node.py
+  scripts/perception/opponent_tracker.py
   scripts/estimation/localization_monitor.py
   scripts/simulator/speed_model_node.py
   scripts/simulator/perception_sim.py
@@ -62,6 +63,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/NANDRawGPSMsg.msg"
   "msg/NANDDebugInfoMsg.msg"
   "msg/SCRadioNANDMsg.msg"
+  "msg/DetectionsMsg.msg"
+  "msg/TrackedObjectsMsg.msg"
   DEPENDENCIES std_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)

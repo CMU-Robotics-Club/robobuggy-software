@@ -63,9 +63,39 @@ SC:
       transition_lengths: [15.0, 25.0, 40.0]
       lateral_clearance: 1.6
       longitudinal_window: 6.0
-      pass_left_only: true
+      side_policy: "more_room"     # more_room | left | right | any
       w_curvature: 400.0
       w_deviation: 1.0
       w_proximity: 6.0
       w_change: 2.0
       w_margin: 3.0
+
+  # ---- fake sensors and tracker for the double sim (use_perception_sim:=true) ----
+  SC_lidar_sim:
+    ros__parameters:
+      kind: "lidar"
+      max_range_m: 40.0
+      fov_deg: 360.0
+      base_std_m: 0.25
+      std_per_m: 0.02
+      dropout_prob: 0.1
+      # ghost buggies: other teams' buggies that only the sensors can see.
+      # s0 = start position along the SC line (m), v = speed (m/s), d = lateral offset (m, left +)
+      ghosts: ["s0:70,v:9.0,d:-0.3", "s0:150,v:8.5,d:0.4"]
+  SC_camera_sim:
+    ros__parameters:
+      kind: "camera"
+      max_range_m: 30.0
+      fov_deg: 100.0
+      base_std_m: 0.5
+      std_per_m: 0.05
+      dropout_prob: 0.2
+      outlier_prob: 0.02
+      latency_s: 0.1
+      ghosts: ["s0:70,v:9.0,d:-0.3", "s0:150,v:8.5,d:0.4"]
+  SC_opponent_tracker:
+    ros__parameters:
+      detection_topics: ["lidar/detections", "vision/detections"]
+      include_other_state: true
+      confirm_hits: 3
+      max_age_s: 1.5

@@ -45,20 +45,13 @@
     <node name="estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
     <!-- use_perception_sim:=true adds fake lidar + camera detections of NAND so the fused estimator runs in sim -->
     <node pkg="buggy" exec="perception_sim.py" name="SC_lidar_sim" namespace="SC" output="screen" if="$(var use_perception_sim)">
-        <param name="kind" value="lidar"/>
-        <param name="max_range_m" value="40.0"/>
-        <param name="base_std_m" value="0.25"/>
-        <param name="dropout_prob" value="0.1"/>
+        <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="perception_sim.py" name="SC_camera_sim" namespace="SC" output="screen" if="$(var use_perception_sim)">
-        <param name="kind" value="camera"/>
-        <param name="max_range_m" value="30.0"/>
-        <param name="fov_deg" value="100.0"/>
-        <param name="base_std_m" value="0.5"/>
-        <param name="std_per_m" value="0.05"/>
-        <param name="dropout_prob" value="0.2"/>
-        <param name="outlier_prob" value="0.02"/>
-        <param name="latency_s" value="0.1"/>
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="opponent_tracker.py" name="SC_opponent_tracker" namespace="SC" output="screen" if="$(var use_perception_sim)">
+        <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="localization_monitor.py" name="SC_localization_monitor" namespace="SC" output="screen"/>
     <!-- use_speed_model:=true replaces the constant sim velocity with the gravity speed model (config/course_zones.yaml) -->

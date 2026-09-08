@@ -25,6 +25,7 @@ import os
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from geometry_msgs.msg import PoseArray
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, Int8
 
@@ -63,10 +64,13 @@ class PassMetrics(Node):
         self.last_s = (None, None)
         self.finished = False
         self.final_gap = None
+        self.ghosts = []
+        self.min_ghost_sep = float("inf")
 
         self.create_subscription(Odometry, "self/state", self.on_sc, 10)
         self.create_subscription(Odometry, p("other_state_topic"), self.on_nand, 10)
         self.create_subscription(Int8, "debug/planner/state", self.on_state, 10)
+        self.create_subscription(PoseArray, "perception_sim/ghost_truth", self.on_ghosts, 10)
         self.create_subscription(Float64, "controller/controller/debug/cross_track_error", self.on_xte, 10)
         self.create_timer(0.1, self.tick)
 
@@ -75,6 +79,9 @@ class PassMetrics(Node):
 
     def on_nand(self, msg):
         self.nand = msg
+
+    def on_ghosts(self, msg):
+        self.ghosts = [(p.position.x, p.position.y) for p in msg.poses]
 
     def on_state(self, msg):
         now = self.get_clock().now().nanoseconds * 1e-9
@@ -93,6 +100,8 @@ class PassMetrics(Node):
             nx, ny = self.nand.pose.pose.position.x, self.nand.pose.pose.position.y
             sep = math.hypot(sx - nx, sy - ny)
             self.min_sep = min(self.min_sep, sep)
+            for gx, gy in self.ghosts:
+                self.min_ghost_sep = min(self.min_ghost_sep, math.hypot(sx - gx, sy - gy))
             s_sc, d_sc = self.track.frenet(sx, sy)
             s_nd, d_nd = self.track.frenet(nx, ny)
             self.last_s = (s_sc, s_nd)
@@ -123,6 +132,8 @@ class PassMetrics(Node):
             "min_separation_m": round(self.min_sep, 2) if self.min_sep < float("inf") else None,
             "min_lateral_gap_m": None if self.min_lat_gap is None else round(self.min_lat_gap, 2),
             "collision": bool(self.min_sep < self.collision_r),
+            "min_ghost_separation_m": round(self.min_ghost_sep, 2) if self.min_ghost_sep < float("inf") else None,
+            "ghost_collision": bool(self.min_ghost_sep < self.collision_r),
             "planner_states_s": {"RACELINE": round(self.state_time[0], 1), "PASS": round(self.state_time[1], 1), "REJOIN": round(self.state_time[2], 1)},
             "sc_xte_rms_m": round(float(np.sqrt(np.mean(np.square(self.xte)))), 3) if self.xte else None,
             "sc_xte_max_m": round(max(self.xte), 3) if self.xte else None,

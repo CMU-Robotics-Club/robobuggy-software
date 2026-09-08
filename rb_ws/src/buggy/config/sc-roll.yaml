@@ -54,7 +54,7 @@ SC:
       transition_lengths: [15.0, 25.0, 40.0]
       lateral_clearance: 1.6
       longitudinal_window: 6.0
-      pass_left_only: true
+      side_policy: "more_room"     # more_room | left | right | any
       w_curvature: 400.0
       w_deviation: 1.0
       w_proximity: 6.0
