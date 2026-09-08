@@ -38,8 +38,9 @@ from rclpy.node import Node
 from geometry_msgs.msg import Pose, PoseArray
 from nav_msgs.msg import Odometry
 
-from buggy.msg import DetectionsMsg
 from util.track import Track
+
+from buggy.msg import DetectionsMsg
 
 
 def parse_ghost(spec):

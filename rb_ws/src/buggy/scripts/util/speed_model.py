@@ -20,6 +20,8 @@ Zones and physics constants come from config/course_zones.yaml; see the notes
 in that file about how approximate they are.
 """
 
+import os
+
 import numpy as np
 import yaml
 
@@ -43,6 +45,20 @@ class SpeedModel:
         self.v_min = float(ph.get("v_min_mps", 1.0))
         self.v_max = float(ph.get("v_max_mps", 20.0))
         self.track = track
+        # optional measured elevation profile (CSV s_m,z_m from bag_to_course.py). When present it
+        # replaces the per-zone dz_m guesses for the slope term.
+        self.elev_s = None
+        self.elev_z = None
+        prof = cfg.get("elevation_profile")
+        if prof:
+            path = prof if os.path.isabs(prof) else os.path.join(os.path.dirname(os.path.abspath(zones_yaml)), "..", prof.replace("config/", ""))
+            path = os.path.normpath(path)
+            if os.path.exists(path):
+                data = np.genfromtxt(path, delimiter=",", names=True)
+                self.elev_s = np.asarray(data["s_m"], dtype=float)
+                self.elev_z = np.asarray(data["z_m"], dtype=float)
+            else:
+                print(f"speed_model: elevation profile {path} not found, using zone dz_m values")
         self.s, self.v = self.integrate(track.s, track.curvature)
 
     # ------------------------------------------------------------------ zones
@@ -53,7 +69,12 @@ class SpeedModel:
         return self.zones[-1]
 
     def grade_at(self, s):
-        """dz/ds of the zone containing s (constant per zone)."""
+        """dz/ds at s: from the measured profile if loaded, else constant per zone."""
+        if self.elev_s is not None and len(self.elev_s) > 2:
+            h = 5.0
+            z1 = np.interp(s + h, self.elev_s, self.elev_z)
+            z0 = np.interp(s - h, self.elev_s, self.elev_z)
+            return float((z1 - z0) / (2 * h))
         z = self.zone_at(s)
         length = max(z["s_end"] - z["s_start"], 1e-6)
         return float(z.get("dz_m", 0.0)) / length

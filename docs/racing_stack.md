@@ -44,6 +44,7 @@ New and changed files, all under `rb_ws/src/buggy/`:
 | `scripts/util/speed_model.py`, `scripts/simulator/speed_model_node.py`, `config/course_zones.yaml` | Point-mass gravity model v(s): pushed hills at pusher speed, freeroll integrating slope, rolling resistance, drag and tyre scrub. Drives `sim/velocity` so lap time in the sim depends on the line. Zone table also carries the no-pass bands. |
 | `scripts/simulator/perception_sim.py` | Fake lidar and camera. Detects every simulated buggy plus any number of "ghost" buggies (other teams' buggies that only the sensors can see, moving along the course at a set speed and offset) with noise, dropouts, outliers and latency. Publishes `DetectionsMsg` for the tracker and the single-object topics for the NAND estimator. |
 | `scripts/debug/sim_metrics.py`, `scripts/debug/pass_metrics.py` | Regression harnesses: tracking quality for a line; pass success, minimum separation, lateral gap and planner state times for the double sim. |
+| `launch/record_course.xml`, `scripts/util/bag_to_course.py`, `docs/course_survey_checklist.md` | Course survey kit: records GQ7, buggy, lidar and camera topics to a split MCAP bag with a live fix-quality readout; converts a recording into waypoint JSON for the centre line or either edge (RTK-only filtering, gap report) and an elevation profile the speed model reads. |
 | `scripts/controller/controller_node.py` | Fixed the start-up covariance check, which squared variances (passed a 0.99 m² variance, failed a healthy non-RTK GQ7). Now `sqrt(var_x + var_y) < maxInitPositionStd`. |
 | `scripts/simulator/engine.py` | Added start pose `Hill1_SC_BEHIND` (25 m behind Hill 1) for pass scenarios. |
 | `launch/sim_2d_double.xml`, `launch/sim_2d_single.xml`, `launch/sc-main.xml`, `launch/sc-system.xml` | Toggles `use_frenet`, `use_speed_model`, `use_perception_sim`, `use_lidar`; localization monitor added everywhere. |
@@ -129,9 +130,13 @@ end-of-course behaviour, not a planner fault.
 
 ## 6. What needs hardware, in order
 
-1. Survey the right edge of the legal course with the GQ7 in RTK-fixed mode
-   and store it as `paths/buggycourse_right_bound.json`. Re-record the left
-   curb the same way. Then rerun the raceline optimizer with `--right-boundary`.
+1. Survey the course. Follow `docs/course_survey_checklist.md`: one rolled pass
+   for the centre line and elevation, two walked passes for the left curb and
+   the right edge, all with RTK fixed, recorded with
+   `ros2 launch buggy record_course.xml pass:=...`. Convert with
+   `scripts/util/bag_to_course.py` into `buggycourse_survey_{center,left,right}.json`
+   and `config/course_elevation.csv`, then rerun the raceline optimizer with
+   `--right-boundary` and point `course_zones.yaml` at the elevation file.
 2. Enable RTK on the GQ7 in `INS_params.yml`: `ntrip_interface_enable: true`,
    `aux_port` on the second USB CDC port pinned by a udev rule, caster host,
    mountpoint and credentials, GLONASS and BeiDou enabled, GGA output for VRS

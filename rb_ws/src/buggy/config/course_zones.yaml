@@ -88,6 +88,11 @@ no_lateral_change_zones:
     s_start: 1186.0
     s_end: 1216.0
 
+# Measured elevation along the SC line, written by scripts/util/bag_to_course.py
+# (--kind centerline). Uncomment once a survey exists; it overrides the zone dz_m
+# values for the slope term.
+# elevation_profile: config/course_elevation.csv
+
 # Freeroll physics (point mass). Fit these from a logged roll: coast-down on a
 # straight gives crr and cda_over_m; speed lost through a known-radius turn gives
 # c_scrub. Until then these are order-of-magnitude values.

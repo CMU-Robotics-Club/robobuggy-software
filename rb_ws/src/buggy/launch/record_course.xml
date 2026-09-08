@@ -1,0 +1,36 @@
+<!--
+  record_course.xml : record everything needed for a course survey into one MCAP bag.
+
+  Run it NEXT TO the normal stack (sc-system.xml already running), for example:
+      ros2 launch buggy record_course.xml pass:=center
+      ros2 launch buggy record_course.xml pass:=left_curb
+      ros2 launch buggy record_course.xml pass:=right_edge record_lidar:=false
+
+  What it records (regular expressions on topic names):
+      ^/(ekf|gnss_1|gnss_2|imu|mip|nmea|rtcm).*   the Microstrain GQ7: filtered odometry (ECEF),
+                                                   raw GNSS fixes, IMU at 100 Hz, fix type,
+                                                   RTK status, dual-antenna heading
+      ^/SC/.*                                      every buggy topic: self/state (UTM), steering
+                                                   commands, firmware debug, encoder speed, radio,
+                                                   localization health, planner debug
+      ^/velodyne.*                                 lidar point clouds and packets (record_lidar)
+      ^/zed.*                                      only present if the zed-ros2-wrapper is running;
+                                                   the team's camera path records an SVO file
+                                                   instead (see docs/course_survey_checklist.md)
+
+  Output: $RBROOT/bags/<pass>_<date>_<time>/ (rb_ws/bags is git-ignored).
+  Bags are split every 5 minutes so a crash never loses the whole survey.
+  Turn it into course files with scripts/util/bag_to_course.py.
+-->
+<launch>
+    <arg name="pass" default="center" description="center | left_curb | right_edge | roll | other label"/>
+    <arg name="record_lidar" default="true"/>
+    <arg name="output_dir" default="$(env RBROOT)/bags"/>
+    <arg name="max_bag_duration" default="300"/>
+
+    <!-- the recorder itself lives in scripts/util/record_course.sh (date stamping and the topic
+         regex are easier there than inside a launch attribute) -->
+    <executable output="screen"
+        cmd="$(env RBROOT)/src/buggy/scripts/util/record_course.sh $(var output_dir) $(var pass) $(var max_bag_duration) $(var record_lidar)"/>
+
+</launch>

@@ -43,10 +43,11 @@ from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, Int8
-from buggy.msg import TrajectoryMsg, TrackedObjectsMsg
 
 from util.trajectory import Trajectory
 from util.track import Track
+
+from buggy.msg import TrajectoryMsg, TrackedObjectsMsg
 
 
 def smoothstep5(t):
