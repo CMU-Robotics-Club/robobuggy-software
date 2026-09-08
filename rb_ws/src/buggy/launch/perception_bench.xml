@@ -1,0 +1,67 @@
+<!--
+  perception_bench.xml : the perception chain only, for a stationary bench test in the workshop.
+
+  Run sc-system.xml FIRST (INS driver, foxglove bridge, serial node, state converter,
+  localization monitor), then this file in a second terminal:
+
+      ros2 launch buggy perception_bench.xml                      # lidar + camera + tracker
+      ros2 launch buggy perception_bench.xml use_camera:=false    # lidar only
+      ros2 launch buggy perception_bench.xml use_lidar_driver:=false   # velodyne driver already running
+
+  Nothing here commands steering. What you should see in Foxglove (ws://<buggy ip>:8765):
+      /velodyne_points                 10 Hz point cloud (600 rpm on the sensor web page)
+      /lidar/obstacle_centroid         nearest cluster in the lidar frame (buggy_lidar.py)
+      /SC/lidar/detections             the same in UTM (lidar_opponent_node.py)
+      /SC/vision/other/state           camera detection of a buggy in UTM (detector_node.py)
+      /SC/perception/tracks            confirmed tracks: walk in front of the buggy and watch one appear
+      /SC/debug/tracker/status         counts of detections, associations, new and dropped tracks
+      /SC/localization/status          own-position quality; needs sky view to mean anything indoors
+
+  Lidar parameters below follow the research notes rather than the lidar branch's defaults:
+  one frame per cloud (no 4-frame merge, which smears moving targets), a 30 m detection
+  radius instead of 8 m, and a lower minimum cluster size so a buggy at 20 m still counts.
+  Treat them as starting points and tune with the real data you record.
+-->
+<launch>
+    <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
+    <arg name="use_lidar_driver" default="true"/>
+    <arg name="use_camera" default="true"/>
+    <arg name="lidar_rpm" default="600.0"/>
+
+    <!-- Velodyne VLP-16 driver + point cloud conversion (ros-humble-velodyne must be installed) -->
+    <include if="$(var use_lidar_driver)" file="$(find-pkg-share velodyne)/launch/velodyne-all-nodes-VLP16-launch.py">
+        <arg name="frame_id" value="velodyne"/>
+        <arg name="port" value="2368"/>
+        <arg name="rpm" value="$(var lidar_rpm)"/>
+        <arg name="cut_angle" value="6.28"/>
+        <arg name="model" value="VLP16"/>
+    </include>
+
+    <!-- ground removal + clustering -> /lidar/obstacle_centroid (from the lidar branch) -->
+    <node pkg="buggy" exec="buggy_lidar.py" name="buggy_lidar" namespace="SC" output="screen">
+        <param name="input_topic" value="/velodyne_points"/>
+        <param name="input_file" value=""/>
+        <param name="frames_to_merge" value="1"/>
+        <param name="circle_radius" value="30.0"/>
+        <param name="ellipse_half_width" value="6.0"/>
+        <param name="ellipse_half_depth" value="30.0"/>
+        <param name="ellipse_forward_offset" value="10.0"/>
+        <param name="dbscan_eps" value="0.5"/>
+        <param name="dbscan_min_points" value="8"/>
+    </node>
+
+    <!-- lidar centroid -> UTM detection -->
+    <node pkg="buggy" exec="lidar_opponent_node.py" name="lidar_opponent" namespace="SC" output="screen">
+        <param from="$(var config_file)"/>
+    </node>
+
+    <!-- ZED + YOLO camera detector (needs the ZED SDK and ultralytics on this machine) -->
+    <node if="$(var use_camera)" pkg="buggy" exec="detector_node.py" name="SC_vision" namespace="SC" output="screen">
+        <param from="$(var config_file)"/>
+    </node>
+
+    <!-- multi-object tracker -> /SC/perception/tracks -->
+    <node pkg="buggy" exec="opponent_tracker.py" name="SC_opponent_tracker" namespace="SC" output="screen">
+        <param from="$(var config_file)"/>
+    </node>
+</launch>

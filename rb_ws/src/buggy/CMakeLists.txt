@@ -44,6 +44,7 @@ install(PROGRAMS
   scripts/path_planner/frenet_planner.py
   scripts/perception/lidar_opponent_node.py
   scripts/perception/opponent_tracker.py
+  scripts/lidar/buggy_lidar.py
   scripts/util/bag_to_course.py
   scripts/util/record_course.sh
   scripts/estimation/localization_monitor.py

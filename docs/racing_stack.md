@@ -130,6 +130,13 @@ end-of-course behaviour, not a planner fault.
 
 ## 6. What needs hardware, in order
 
+Before any of it: `docs/workshop_test.md` explains how to put this branch on the
+buggy, run the perception chain standing still (`perception_bench.xml`), watch
+it in Foxglove and bring a recording home. The lidar clustering node from the
+lidar branch (`scripts/lidar/buggy_lidar.py`) is included on this branch for
+that purpose; its extra Python packages are in `perception-requirements.txt`.
+
+
 1. Survey the course. Follow `docs/course_survey_checklist.md`: one rolled pass
    for the centre line and elevation, two walked passes for the left curb and
    the right edge, all with RTK fixed, recorded with

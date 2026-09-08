@@ -1,0 +1,7 @@
+# Extra Python packages for the perception nodes on the buggy computer / Jetson.
+# Not part of the Docker image (no GPU there). Install into the buggy's venv:
+#     source ~/robobuggy-software/.sc/bin/activate && pip install -r perception-requirements.txt
+open3d          # buggy_lidar.py: RANSAC ground plane, voxel downsampling, DBSCAN
+scikit-learn    # lidar_helpers.py: ground plane fit
+ultralytics     # detector_node.py: YOLOv11 (see vision-requirements.txt)
+# pyzed (ZED SDK python API) is installed by the ZED SDK installer, not pip.

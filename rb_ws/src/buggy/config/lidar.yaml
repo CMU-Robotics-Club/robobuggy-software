@@ -1,0 +1,4 @@
+SC:
+  Lidar_Detector:
+    ros__parameters:
+      input_file: "src/buggy/scripts/lidar/sc_feb_21_26_roll_1.npz"
