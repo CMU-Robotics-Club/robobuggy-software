@@ -1,6 +1,5 @@
 import numpy as np
 import open3d as o3d
-from time import time
 from sklearn import linear_model
 from scipy.spatial import cKDTree
 
