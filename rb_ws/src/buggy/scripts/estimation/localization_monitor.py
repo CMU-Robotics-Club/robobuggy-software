@@ -70,7 +70,7 @@ class LocalizationMonitor(Node):
         try:
             import importlib
             mod = importlib.import_module("microstrain_inertial_msgs.msg")
-        except Exception as e:
+        except ImportError as e:
             self.get_logger().warn(f"microstrain messages unavailable ({e}); using covariance only")
             return
         fix_cls = next((getattr(mod, n) for n in ("MipGnssFixInfo", "GNSSFixInfo") if hasattr(mod, n)), None)

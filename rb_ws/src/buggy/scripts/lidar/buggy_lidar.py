@@ -415,7 +415,7 @@ class BuggyLidar(Node):
         # ~20-80 ms depending on point density — the pipeline's most expensive step.
         try:
             _ground, nonground = ground_plane_segmentation(data)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.get_logger().warn(f"Ground segmentation failed: {e}")
             return
 
@@ -441,7 +441,7 @@ class BuggyLidar(Node):
             clusters, _boxes, _labels = euclidean_clustering(
                 ng_circle, eps=eps, min_points=min_pts
             )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.get_logger().warn(f"Clustering failed: {e}")
             return
 

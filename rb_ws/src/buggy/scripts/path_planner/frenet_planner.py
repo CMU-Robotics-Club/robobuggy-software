@@ -230,7 +230,7 @@ class FrenetPlanner(Node):
         room_right = float(wr) + d_o
         return "left" if room_left >= room_right else "right"
 
-    def collect_opponents(self, ego_xy):
+    def collect_opponents(self):
         """
         Every buggy we know about as (s, d, along-track speed, side-to-pass).
         Tracks from the perception tracker first; NAND's radio estimate is added
@@ -270,7 +270,7 @@ class FrenetPlanner(Node):
         s_e, d_e = self.track.frenet(ex, ey)
 
         # every opponent we know about, in the track frame
-        opponents = self.collect_opponents((ex, ey))
+        opponents = self.collect_opponents()
         self.n_opp_publisher.publish(Float64(data=float(len(opponents))))
 
         # local path support
