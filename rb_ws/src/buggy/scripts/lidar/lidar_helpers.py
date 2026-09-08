@@ -1,4 +1,3 @@
-from time import time
 import numpy as np
 import open3d as o3d
 from time import time
@@ -50,7 +49,7 @@ def ground_plane_segmentation2(data):
     # distance_threshold: max distance a point can be from the plane to be an inlier
     # ransac_n: number of points sampled to estimate a plane
     # num_iterations: more = more accurate but slower
-    plane_model, inliers = pcd.segment_plane(distance_threshold=0.12,
+    _plane_model, inliers = pcd.segment_plane(distance_threshold=0.12,
                                              ransac_n=4,
                                              num_iterations=1000)
 
