@@ -79,27 +79,35 @@ class Track:
         Build a track from waypoint JSON files.
 
         Widths are measured from the resampled center line to the nearest point
-        of each boundary polyline, minus `margin`. Where a boundary file is
-        missing the default width is used everywhere.
+        of each boundary polyline, minus `margin` (normally half the vehicle
+        width plus the hard boundary margin). Where a boundary file is missing
+        the default width is an ASSUMED corridor used everywhere; pass None to
+        record the width as UNKNOWN (NaN), which planners must never drive
+        through. Widths are not clamped: a negative width means the corridor is
+        narrower than the vehicle there, and the planner must see that.
         """
         center = cls.load_waypoints_utm(center_json)
-        track = cls(center, default_left, default_right, ds=ds)
+        track = cls(center, np.nan, np.nan, ds=ds)
 
-        if left_boundary_json is not None:
-            left = cls.load_waypoints_utm(left_boundary_json)
-            off = cls.signed_lateral_offset(track.xy, cls.resample_polyline(left, 0.5))
-            track.w_left = np.maximum(off - margin, 0.0)
-        else:
-            track.w_left = np.full(len(track.xy), max(default_left - margin, 0.0))
+        def measured(boundary_json, sign):
+            pts = cls.load_waypoints_utm(boundary_json)
+            off = cls.signed_lateral_offset(track.xy, cls.resample_polyline(pts, 0.5))
+            return sign * off - margin
 
-        if right_boundary_json is not None:
-            right = cls.load_waypoints_utm(right_boundary_json)
-            off = cls.signed_lateral_offset(track.xy, cls.resample_polyline(right, 0.5))
-            track.w_right = np.maximum(-off - margin, 0.0)
-        else:
-            track.w_right = np.full(len(track.xy), max(default_right - margin, 0.0))
+        def assumed(default):
+            if default is None:
+                return np.full(len(track.xy), np.nan)
+            return np.full(len(track.xy), float(default) - margin)
 
+        track.w_left = measured(left_boundary_json, 1.0) if left_boundary_json is not None else assumed(default_left)
+        track.w_right = measured(right_boundary_json, -1.0) if right_boundary_json is not None else assumed(default_right)
+        track.left_source = "boundary_file" if left_boundary_json is not None else ("assumed" if default_left is not None else "unknown")
+        track.right_source = "boundary_file" if right_boundary_json is not None else ("assumed" if default_right is not None else "unknown")
         return track
+
+    def width_known(self):
+        """True where both drivable widths are known (finite)."""
+        return np.isfinite(self.w_left) & np.isfinite(self.w_right)
 
     # ------------------------------------------------------------------ geometry
     @staticmethod
@@ -170,34 +178,44 @@ class Track:
     # ------------------------------------------------------------------ frenet
     def frenet(self, x, y):
         """
-        Project a point onto the track.
+        Project a point (or arrays of points) onto the track.
 
         Returns:
-            s (float): arc length of the projection
-            d (float): signed lateral offset, left positive
+            s: arc length of the projection (float, or array for array input)
+            d: signed lateral offset, left positive
         """
-        _, i = self._tree.query([x, y])
-        p = np.array([x, y], dtype=float)
-        best = None
-        for a in (i - 1, i):
-            if a < 0 or a + 1 >= len(self.xy):
-                continue
-            p0, p1 = self.xy[a], self.xy[a + 1]
-            seg = p1 - p0
-            seg_len2 = float(seg @ seg)
-            if seg_len2 == 0:
-                continue
-            t = float(np.clip((p - p0) @ seg / seg_len2, 0.0, 1.0))
-            proj = p0 + t * seg
-            dist2 = float((p - proj) @ (p - proj))
-            if best is None or dist2 < best[0]:
-                s = self.s[a] + t * np.sqrt(seg_len2)
-                tangent = seg / np.sqrt(seg_len2)
-                d = float(-(p - proj)[0] * tangent[1] + (p - proj)[1] * tangent[0])
-                best = (dist2, s, d)
-        if best is None:
-            return float(self.s[i]), 0.0
-        return float(best[1]), float(best[2])
+        scalar = np.isscalar(x) and np.isscalar(y)
+        px = np.atleast_1d(np.asarray(x, dtype=float))
+        py = np.atleast_1d(np.asarray(y, dtype=float))
+        pts = np.c_[px, py]
+        _, nearest = self._tree.query(pts)
+        n_seg = len(self.xy) - 1
+        best_dist2 = np.full(len(pts), np.inf)
+        best_s = self.s[np.clip(nearest, 0, len(self.s) - 1)].astype(float)
+        best_d = np.zeros(len(pts))
+        for a in (nearest - 1, nearest):
+            valid = (a >= 0) & (a < n_seg)
+            idx = np.clip(a, 0, max(n_seg - 1, 0))
+            p0 = self.xy[idx]
+            seg = self.xy[np.minimum(idx + 1, len(self.xy) - 1)] - p0
+            seg_len2 = np.einsum("ij,ij->i", seg, seg)
+            ok = valid & (seg_len2 > 0)
+            safe_len2 = np.where(ok, seg_len2, 1.0)
+            t = np.clip(np.einsum("ij,ij->i", pts - p0, seg) / safe_len2, 0.0, 1.0)
+            proj = p0 + t[:, None] * seg
+            rel = pts - proj
+            dist2 = np.einsum("ij,ij->i", rel, rel)
+            better = ok & (dist2 < best_dist2)
+            seg_len = np.sqrt(safe_len2)
+            tangent = seg / seg_len[:, None]
+            s_here = self.s[idx] + t * seg_len
+            d_here = -rel[:, 0] * tangent[:, 1] + rel[:, 1] * tangent[:, 0]
+            best_dist2 = np.where(better, dist2, best_dist2)
+            best_s = np.where(better, s_here, best_s)
+            best_d = np.where(better, d_here, best_d)
+        if scalar:
+            return float(best_s[0]), float(best_d[0])
+        return best_s, best_d
 
     def cartesian(self, s, d=0.0):
         """Map arc length(s) and lateral offset(s) to UTM points. Vectorised."""

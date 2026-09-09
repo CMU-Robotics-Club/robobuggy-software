@@ -76,6 +76,11 @@ class Simulator(Node):
         self.process_noise_std = self.get_parameter("process_noise_std").value
         self.declare_parameter("measurement_noise_std", 1e-2)
         self.measurement_noise_std = self.get_parameter("measurement_noise_std").value
+        # seed > 0 makes the measurement/process noise repeatable for committed scenarios (D12)
+        self.declare_parameter("seed", 0)
+        seed = int(self.get_parameter("seed").value)
+        if seed > 0:
+            np.random.seed(seed)
 
         init_pose_name = self.get_parameter("pose").value
         self.init_pose = self.starting_poses[init_pose_name]
@@ -205,13 +210,15 @@ class Simulator(Node):
             self.heading = heading_new
             self.sim_time = sim_time + h
 
-    def publish(self):
+    def publish(self, moving=True):
+        """Publish the simulated INS state. During warm-up (moving=False) the reported speed is
+        zero, so the state is internally consistent: nothing steps, nothing moves, no velocity."""
         odom_pose = Pose()
         time_stamp = self.get_clock().now().to_msg()
         with self.lock:
             odom_pose.position.x = self.e_utm
             odom_pose.position.y = self.n_utm
-            velocity = self.velocity
+            velocity = self.velocity if moving else 0.0
 
         odom_pose.position.x += np.random.normal(0, self.measurement_noise_std)
         odom_pose.position.y += np.random.normal(0, self.measurement_noise_std)
@@ -269,9 +276,11 @@ class Simulator(Node):
 def main(args=None):
     rclpy.init(args=args)
     sim = Simulator()
+    # warm-up: publish a stationary state (zero speed) so downstream estimators never see a
+    # buggy that reports 12 m/s while its position does not change
     for _ in range(500):
         time.sleep(0.01)
-        sim.publish()
+        sim.publish(moving=False)
 
     sim.get_logger().info("STARTED PUBLISHING")
     rclpy.spin(sim)

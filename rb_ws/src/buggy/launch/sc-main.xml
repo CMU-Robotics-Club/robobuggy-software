@@ -1,14 +1,27 @@
+<!--
+  sc-main.xml : the hardware control stack (started by the boot service after sc-system.xml).
+
+  The LEGACY sigmoid planner drives (self/cur_traj -> SC_controller -> input/steering -> serial).
+  There is deliberately NO argument that lets the experimental Frenet planner steer the real
+  buggy in this milestone (DECISIONS.md D1/D13): hardware actuation limits and firmware
+  behaviour are unverified.
+
+  frenet_shadow:=true (default) runs the experimental planner and a SHADOW controller beside the
+  legacy stack. They publish only:
+      planning/result, planning/status           the planner's envelope and JSON status
+      debug/shadow/input_steering(_raw)          what the experimental controller WOULD command
+      controller/plan_source                     which trajectory the shadow controller is using
+  Nothing under debug/shadow/ is subscribed by ros_to_bnyahaj.py, so no experimental command
+  reaches the Teensy. Compare the shadow command with input/steering in Foxglove or a bag.
+-->
 <launch>
     <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
-    <arg name="use_frenet" default="true"/>
+    <arg name="frenet_shadow" default="true"/>
+
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC">
             <param from="$(var config_file)"/>
     </node>
-    <!-- use_frenet:=true (default) runs the Frenet sampling planner; use_frenet:=false runs the legacy sigmoid planner -->
-    <node pkg="buggy" exec="frenet_planner.py" name="SC_path_planner" namespace="SC" output = "screen" if="$(var use_frenet)">
-        <param from="$(var config_file)"/>
-    </node>
-    <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen" unless="$(var use_frenet)">
+    <node pkg="buggy" exec="path_planner.py" name="SC_path_planner" namespace="SC" output = "screen">
         <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC">
@@ -20,8 +33,16 @@
     </node>
 
     <node name="NAND_estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
-    <!-- multi-object tracker: fuses lidar/camera detections (and NAND's radio estimate) into perception/tracks -->
+    <!-- the single fusion authority for other buggies (lidar + camera detection arrays; radio off by default) -->
     <node name="SC_opponent_tracker" pkg="buggy" exec="opponent_tracker.py" output="screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+
+    <!-- shadow: experimental planner + non-actuating controller -->
+    <node pkg="buggy" exec="frenet_planner.py" name="SC_shadow_planner" namespace="SC" output="screen" if="$(var frenet_shadow)">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="controller_node.py" name="SC_shadow_controller" namespace="SC" output="screen" if="$(var frenet_shadow)">
         <param from="$(var config_file)"/>
     </node>
 </launch>

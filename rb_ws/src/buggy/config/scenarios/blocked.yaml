@@ -1,0 +1,134 @@
+# scenario: two STATIONARY ghost buggies side by side 60 m ahead, filling the corridor (launch with
+# use_perception_sim:=true). No eligible plan exists once they are inside the horizon: the planner
+# must publish INELIGIBLE envelopes only, and the controller must report reference_fallback. The
+# reference line runs into the ghosts, so a collision with a ghost is EXPECTED here; the gate is
+# that no ineligible plan ever steered (metrics: ineligible_steer_events == 0) and the fallback was
+# reported. The simulator cannot brake or stop; this is exactly the case the hardware contract
+# leaves to the operator.
+NAND:
+  NAND_sim_single:
+    ros__parameters:
+      velocity: 10.0
+      pose: "Hill1_NAND"
+      seed: 51
+  NAND_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "self/state"
+      trajectoryTopic: "self/cur_traj"
+      steeringTopic: "input/steering"
+      debugHeadingTopic: "debug/heading"
+      useHeadingRate: true
+      controllerName: "controller"
+      useSteerOffset: false
+      traj_name: "buggycourse_nand.json"
+      controller: "stanley"
+
+SC:
+  SC_sim_single:
+    ros__parameters:
+      velocity: 13.0
+      pose: "Hill1_SC_BEHIND"
+      seed: 52
+
+  SC_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "self/state"
+      trajectoryTopic: "self/cur_traj"
+      steeringTopic: "input/steering"
+      debugHeadingTopic: "debug/heading"
+      useHeadingRate: true
+      controllerName: "controller"
+      useSteerOffset: false
+      traj_name: "buggycourse_sc.json"
+      controller: "stanley"
+      maxPathAgeS: 0.5
+      offsetMaxAgeS: 0.5
+      offsetFallbackDeg: 0.0
+
+  SC_NAND_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "other/state"
+      trajectoryTopic: "other/cur_traj"
+      steeringTopic: "other/steering"
+      debugHeadingTopic: "other/debug/heading"
+      useHeadingRate: true
+      controllerName: "NAND_controller"
+      traj_name: "buggycourse_nand.json"
+      controller: "stanley"
+
+  SC_localization_monitor:
+    ros__parameters:
+      max_state_age_s: 0.3
+      pos_std_ok_m: 0.5
+      pos_std_bad_m: 2.0
+      health_validity_s: 0.5
+
+  SC_path_planner:
+    ros__parameters:
+      traj_name: "buggycourse_sc.json"
+      curb_name: "buggycourse_curb.json"
+      left_width: 3.0
+      right_width: 1.3   # ASSUMED distance from the line to the right road edge (vehicle centre may go 0.5 m right); every plan is DEGRADED right_width_assumed until surveyed
+      hard_boundary_margin: 0.2
+      boundary_margin: 0.5
+      horizon: 60.0
+      lookahead: 2.0
+      offset_step: 0.25
+      transition_lengths: [15.0, 25.0, 40.0]
+      lateral_clearance: 1.6
+      longitudinal_window: 6.0
+      hard_opponent_margin: 0.2
+      opponent_sigma_gain: 2.0
+      side_policy: "more_room"
+      max_joint_opponents: 3
+      tracks_topic: "perception/tracking"
+      tracks_max_age_s: 1.0
+      require_perception: false
+      require_health: true
+      publish_legacy_trajectory: false
+      w_curvature: 400.0
+      w_deviation: 1.0
+      w_proximity: 6.0
+      w_change: 10.0
+      w_margin: 3.0
+
+  SC_lidar_sim:
+    ros__parameters:
+      kind: "lidar"
+      max_range_m: 40.0
+      fov_deg: 360.0
+      base_std_m: 0.25
+      std_per_m: 0.02
+      dropout_prob: 0.05
+      seed: 53
+      target_topics: [""]
+      ghosts: ["s0:90,v:0.0,d:-0.2", "s0:90,v:0.0,d:2.0"]
+  SC_camera_sim:
+    ros__parameters:
+      kind: "camera"
+      max_range_m: 30.0
+      fov_deg: 100.0
+      base_std_m: 0.5
+      std_per_m: 0.05
+      dropout_prob: 0.1
+      outlier_prob: 0.0
+      latency_s: 0.1
+      seed: 54
+      target_topics: [""]
+      ghosts: ["s0:90,v:0.0,d:-0.2", "s0:90,v:0.0,d:2.0"]
+
+  SC_opponent_tracker:
+    ros__parameters:
+      detection_topics: ["lidar/detection_array", "vision/detection_array"]
+      raw_radio_odometry_topic: ""
+      confirm_hits: 3
+      max_age_s: 1.5
+      reorder_buffer_s: 0.15
+      max_input_age_s: 0.5
+      acceleration_std: 3.0   # course curves demand up to ~5 m/s^2; see racing/tracking.py
+      lidar_calibration_std_m: 0.15
+      camera_calibration_std_m: 0.30
+      radio_calibration_std_m: 0.50

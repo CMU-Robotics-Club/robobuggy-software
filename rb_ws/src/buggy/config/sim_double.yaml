@@ -3,6 +3,7 @@ NAND:
     ros__parameters:
       velocity: 10.0
       pose: "Hill1_NAND"
+      seed: 0
   NAND_controller:
     ros__parameters:
       dist: 0.0
@@ -22,6 +23,7 @@ SC:
     ros__parameters:
       velocity: 12.0
       pose: "Hill1_SC"
+      seed: 0
 
   SC_controller:
     ros__parameters:
@@ -35,6 +37,10 @@ SC:
       useSteerOffset: false
       traj_name: "buggycourse_sc.json"
       controller: "stanley"
+      # envelope mode (planningResultTopic) is set by the launch file with use_frenet:=true
+      maxPathAgeS: 0.5
+      offsetMaxAgeS: 0.5
+      offsetFallbackDeg: 0.0
 
   SC_NAND_controller:
     ros__parameters:
@@ -48,14 +54,22 @@ SC:
       traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
+  SC_localization_monitor:
+    ros__parameters:
+      # simulation policy; the launch file forces require_rtk_for_ok / require_filter_for_ok off
+      max_state_age_s: 0.3
+      pos_std_ok_m: 0.5
+      pos_std_bad_m: 2.0
+      health_validity_s: 0.5
 
   SC_path_planner:
     ros__parameters:
       traj_name: "buggycourse_sc.json"
       curb_name: "buggycourse_curb.json"
       # --- frenet_planner.py only (ignored by the legacy sigmoid planner) ---
-      right_width: 0.5            # metres of road right of the raceline (no right-curb file yet)
-      vehicle_width: 1.2
+      left_width: 3.0
+      right_width: 1.3   # ASSUMED distance from the line to the right road edge (vehicle centre may go 0.5 m right); every plan is DEGRADED right_width_assumed until surveyed
+      hard_boundary_margin: 0.2
       boundary_margin: 0.5
       horizon: 60.0
       lookahead: 2.0
@@ -63,14 +77,23 @@ SC:
       transition_lengths: [15.0, 25.0, 40.0]
       lateral_clearance: 1.6
       longitudinal_window: 6.0
+      hard_opponent_margin: 0.2
+      opponent_sigma_gain: 2.0
       side_policy: "more_room"     # more_room | left | right | any
+      max_joint_opponents: 3
+      lateral_velocity_decay_s: 2.0
+      tracks_topic: "perception/tracking"
+      tracks_max_age_s: 1.0
+      require_perception: false    # sim: an empty tracker output is a valid "nobody around"
+      require_health: true
+      publish_legacy_trajectory: false
       w_curvature: 400.0
       w_deviation: 1.0
       w_proximity: 6.0
-      w_change: 2.0
+      w_change: 10.0
       w_margin: 3.0
 
-  # ---- fake sensors and tracker for the double sim (use_perception_sim:=true) ----
+  # ---- fake sensors for the double sim (use_perception_sim:=true) ----
   SC_lidar_sim:
     ros__parameters:
       kind: "lidar"
@@ -79,6 +102,7 @@ SC:
       base_std_m: 0.25
       std_per_m: 0.02
       dropout_prob: 0.1
+      seed: 0
       # ghost buggies: other teams' buggies that only the sensors can see.
       # s0 = start position along the SC line (m), v = speed (m/s), d = lateral offset (m, left +)
       ghosts: ["s0:70,v:9.0,d:-0.3", "s0:150,v:8.5,d:0.4"]
@@ -92,10 +116,20 @@ SC:
       dropout_prob: 0.2
       outlier_prob: 0.02
       latency_s: 0.1
+      seed: 0
       ghosts: ["s0:70,v:9.0,d:-0.3", "s0:150,v:8.5,d:0.4"]
+
+  # ---- the single fusion authority (always on) ----
   SC_opponent_tracker:
     ros__parameters:
-      detection_topics: ["lidar/detections", "vision/detections"]
-      include_other_state: true
+      detection_topics: ["lidar/detection_array", "vision/detection_array"]
+      raw_radio_odometry_topic: "other/stateNoUKF"   # NAND's RAW relayed position (sim), not the UKF
+      raw_radio_std_m: 1.5
       confirm_hits: 3
       max_age_s: 1.5
+      reorder_buffer_s: 0.15
+      max_input_age_s: 0.5
+      acceleration_std: 3.0   # course curves demand up to ~5 m/s^2; see racing/tracking.py
+      lidar_calibration_std_m: 0.15
+      camera_calibration_std_m: 0.30
+      radio_calibration_std_m: 0.50

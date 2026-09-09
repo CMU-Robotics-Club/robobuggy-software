@@ -51,7 +51,13 @@ class SpeedModel:
         self.elev_z = None
         prof = cfg.get("elevation_profile")
         if prof:
-            path = prof if os.path.isabs(prof) else os.path.join(os.path.dirname(os.path.abspath(zones_yaml)), "..", prof.replace("config/", ""))
+            if os.path.isabs(prof):
+                path = prof
+            else:
+                # relative to the package root (the parent of the config directory, i.e. src/buggy),
+                # so the documented value "config/course_elevation.csv" resolves as written
+                package_root = os.path.dirname(os.path.dirname(os.path.abspath(zones_yaml)))
+                path = os.path.join(package_root, prof)
             path = os.path.normpath(path)
             if os.path.exists(path):
                 data = np.genfromtxt(path, delimiter=",", names=True)

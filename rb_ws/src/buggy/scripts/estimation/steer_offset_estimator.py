@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import time
+from collections import deque
+
 import numpy as np
 
 import rclpy
@@ -7,7 +9,7 @@ from rclpy.node import Node
 
 from std_msgs.msg import Float64, Float64MultiArray
 from nav_msgs.msg import Odometry
-from buggy.msg import StampedFloat64Msg, SCDebugInfoMsg, NANDDebugInfoMsg
+from buggy.msg import StampedFloat64Msg, SCDebugInfoMsg, NANDDebugInfoMsg, OffsetEstimateMsg
 
 
 from estimation import ukf_utils
@@ -96,6 +98,14 @@ class SteerOffsetEstimator(Node):
         self.enabled = True  # estimator enabled
         self.auton_enabled_prev = None  # previous auton flag for edge detection
 
+        # ---- validity bookkeeping for OffsetEstimateMsg (DECISIONS.md D9). The convergence flag is
+        # one input among several: the estimate must also come from a generation that has seen real
+        # motion (position deltas, not the reported twist), be fresh, finite and plausibly small.
+        self.generation = 0
+        self.generation_start = None
+        self.position_history = deque()   # (wall time, x, y) from self/state
+        self.last_measurement_stamp = None
+
         self.reset_filter() # initialize filter state
 
         self.declare_parameter("steerOffsetFilterTimeConstant", 50)
@@ -104,6 +114,15 @@ class SteerOffsetEstimator(Node):
 
         self.declare_parameter("steerOffsetRawTopic", "self/steer_offset/raw")
         self.declare_parameter("steerOffsetFilteredTopic", "self/steer_offset/filtered")
+        self.declare_parameter("offsetEstimateTopic", "self/steering_offset/estimate")
+        self.declare_parameter("maxPlausibleOffsetDeg", 10.0)     # assumption; see config/vehicle_sc.yaml
+        self.declare_parameter("observabilityDistanceM", 3.0)     # metres travelled within the window
+        self.declare_parameter("observabilityWindowS", 1.0)
+        self.declare_parameter("minGenerationAgeS", 1.0)
+        self.max_plausible_deg = float(self.get_parameter("maxPlausibleOffsetDeg").value)
+        self.observability_distance = float(self.get_parameter("observabilityDistanceM").value)
+        self.observability_window = float(self.get_parameter("observabilityWindowS").value)
+        self.min_generation_age = float(self.get_parameter("minGenerationAgeS").value)
 
         if (self.get_namespace() == "/SC"):
             self.wheelbase = Constants.WHEELBASE_SC
@@ -118,13 +137,17 @@ class SteerOffsetEstimator(Node):
         self.offset_publisher_filtered = self.create_publisher(Float64, self.get_parameter("steerOffsetFilteredTopic").value, 1)
         self.state_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/state", 1)
         self.state_covar_publisher = self.create_publisher(Float64MultiArray, "self/offset_estimator/covariance", 1)
+        self.estimate_publisher = self.create_publisher(OffsetEstimateMsg, self.get_parameter("offsetEstimateTopic").value, 1)
 
         self.steering = 0
 
         self.timer = self.create_timer(0.01, self.loop)
 
     def reset_filter(self):
-        """Reset the UKF so next measurement initializes state."""
+        """Reset the UKF so next measurement initializes state. Starts a new estimate generation."""
+        self.generation += 1
+        self.generation_start = time.time()
+        self.position_history = deque()
         self.start = False
         self.x_hat: np.ndarray = np.zeros((5,))  # state vector
 
@@ -180,6 +203,12 @@ class SteerOffsetEstimator(Node):
         """Perform UKF measurement update using pose from self/state."""
         if not self.enabled:
             return
+
+        now = time.time()
+        self.position_history.append((now, msg.pose.pose.position.x, msg.pose.pose.position.y))
+        while self.position_history and now - self.position_history[0][0] > self.observability_window:
+            self.position_history.popleft()
+        self.last_measurement_stamp = msg.header.stamp
 
         # initialize state on first measurement
         if not self.start:
@@ -268,6 +297,46 @@ class SteerOffsetEstimator(Node):
             )
             self.get_logger().info("Reinitializing UKF")
             self.reset_filter()
+            return
+
+        self.publish_estimate(offset_variance)
+
+    def distance_travelled(self):
+        """Metres moved over the observability window, from position deltas (not the reported twist)."""
+        if len(self.position_history) < 2:
+            return 0.0
+        pts = np.array([(x, y) for _, x, y in self.position_history])
+        return float(np.sum(np.linalg.norm(np.diff(pts, axis=0), axis=1)))
+
+    def publish_estimate(self, offset_variance):
+        """Stamped, generation-tagged estimate with an explicit validity verdict (D9)."""
+        msg = OffsetEstimateMsg()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        if self.last_measurement_stamp is not None:
+            msg.observation_stamp = self.last_measurement_stamp
+        msg.generation = int(self.generation)
+        age = time.time() - self.generation_start if self.generation_start else 0.0
+        msg.generation_age_s = float(age)
+        offset = float(self.wrap_angle(self.x_hat[4], np.pi / 2))
+        msg.offset_rad = offset
+        msg.variance_rad2 = float(offset_variance)
+        msg.converged = bool(self.ukf_converged)
+        travelled = self.distance_travelled()
+        msg.observable = bool(travelled >= self.observability_distance)
+        reasons = []
+        if not np.isfinite(offset) or not np.isfinite(offset_variance):
+            reasons.append("nonfinite")
+        if not self.ukf_converged:
+            reasons.append("not_converged")
+        if not msg.observable:
+            reasons.append(f"not_observable:{travelled:.1f}m")
+        if abs(np.rad2deg(offset)) > self.max_plausible_deg:
+            reasons.append(f"implausible:{np.rad2deg(offset):.1f}deg")
+        if age < self.min_generation_age:
+            reasons.append("generation_too_young")
+        msg.valid = not reasons
+        msg.reasons = reasons
+        self.estimate_publisher.publish(msg)
 
 
 

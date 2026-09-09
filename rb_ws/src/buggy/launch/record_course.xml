@@ -13,14 +13,27 @@
       ^/SC/.*                                      every buggy topic: self/state (UTM), steering
                                                    commands, firmware debug, encoder speed, radio,
                                                    localization health, planner debug
+      ^/lidar/.*                                   the lidar pipeline's root-level outputs
+                                                   (obstacle_centroid, obstacle_cloud, filtered);
+                                                   with record_lidar:=false only obstacle_centroid
       ^/velodyne.*                                 lidar point clouds and packets (record_lidar)
+      ^/(tf|tf_static|clock)$                      frames and sim clock, so a replay has them
       ^/zed.*                                      only present if the zed-ros2-wrapper is running;
                                                    the team's camera path records an SVO file
                                                    instead (see docs/course_survey_checklist.md)
 
   Output: $RBROOT/bags/<pass>_<date>_<time>/ (rb_ws/bags is git-ignored).
   Bags are split every 5 minutes so a crash never loses the whole survey.
-  Turn it into course files with scripts/util/bag_to_course.py.
+
+  Stopping: Ctrl-C here (or a launch shutdown) is forwarded to the recorder, which finalises
+  the MCAP; that exits 0. Any other recorder failure makes the wrapper exit with the
+  recorder's status, so a dead recorder is visible in the launch log, not hidden.
+  After the recorder stops, <bag dir>/manifest.txt is written with `ros2 bag info`, `df -h`,
+  the regex and a REQUIRED TOPICS check (/SC/self/state plus /ekf/odometry_earth or
+  /mip/gnss_1/fix_info); a missing one prints a WARNING but does not fail the run.
+
+  Turn the bag into course files with scripts/util/bag_to_course.py; replay it at home with
+  launch/replay_bag.xml.
 -->
 <launch>
     <arg name="pass" default="center" description="center | left_curb | right_edge | roll | other label"/>
@@ -28,8 +41,8 @@
     <arg name="output_dir" default="$(env RBROOT)/bags"/>
     <arg name="max_bag_duration" default="300"/>
 
-    <!-- the recorder itself lives in scripts/util/record_course.sh (date stamping and the topic
-         regex are easier there than inside a launch attribute) -->
+    <!-- the recorder itself lives in scripts/util/record_course.sh (date stamping, the topic
+         regex, signal forwarding and the manifest are easier there than inside a launch attribute) -->
     <executable output="screen"
         cmd="$(env RBROOT)/src/buggy/scripts/util/record_course.sh $(var output_dir) $(var pass) $(var max_bag_duration) $(var record_lidar)"/>
 

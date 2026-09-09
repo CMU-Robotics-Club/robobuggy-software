@@ -16,10 +16,16 @@ services:
     environment:
       - DISPLAY=host.docker.internal:0
     hostname: main
+    # Published ports bind to localhost by default. The Foxglove bridge has no
+    # authentication, so exposing it on the LAN must be deliberate: set
+    # BIND_ADDR=0.0.0.0 in .env.dev or the shell. See DEV_NETWORK.md.
     ports:
-      - "0.0.0.0:8765:8765" # foxglove bridge
-      - "0.0.0.0:8760:8760" # Asset server for loading stuff into foxglove
+      - "${BIND_ADDR:-127.0.0.1}:8765:8765" # foxglove bridge
+      - "${BIND_ADDR:-127.0.0.1}:8760:8760" # Asset server for loading stuff into foxglove
     platform: "linux/amd64"
+    # Grants read/write/mknod on every character device ("c *:*") to the
+    # container, and every process started inside it inherits that access.
+    # Owned by the hardware side; the `devices:` list above is what is used.
     device_cgroup_rules:
       - "c *:* rmw"
   tileserver:
@@ -30,4 +36,4 @@ services:
     tty: true # docker run -t
     command: [ "-p", "80", "-c", "/data/conf.json" ]
     ports:
-      - "8080:80"
+      - "${BIND_ADDR:-127.0.0.1}:8080:80" # map tiles for foxglove; same bind rule as above

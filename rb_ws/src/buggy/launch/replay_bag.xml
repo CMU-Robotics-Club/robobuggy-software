@@ -1,0 +1,44 @@
+<!--
+  replay_bag.xml : replay the INPUT side of a survey or bench bag, for tuning at home.
+
+  Only sensor and own-state topics are played back. Everything a node of this stack computes
+  (/SC/perception/tracks, /SC/debug/tracker/status, planner and controller outputs) is
+  deliberately NOT replayed: the nodes you start now recompute those, and recomputed outputs
+  must never be mixed with the ones recorded on the buggy, or you tune against a ghost.
+
+  Before launching, set the domain to a value nobody else on this machine uses, so the
+  replay cannot collide with a simulator or another replay:
+      export ROS_DOMAIN_ID=<unused number>
+
+  Usage (in the container, in /rb_ws):
+      ros2 launch buggy replay_bag.xml bag:=bags/bench_<stamp>
+      ros2 launch buggy replay_bag.xml bag:=bags/center_<stamp> rate:=0.5 run_tracker:=true
+
+  Humble's `ros2 bag play` filters by explicit topic names only (its help output in the
+  container lists a topics option but no regex or exclude option), so the whitelist below is
+  a space-separated list of names; names absent from the bag are simply not played. Override
+  it with topics:="..." if you need more inputs. The /SC/{lidar,vision}/detection* topics are
+  inputs to the tracker; drop them from the list when you re-run the detection nodes from
+  raw data.
+
+  The player publishes /clock (clock option, clock_hz), so every node you start must run
+  with use_sim_time:=true; run_tracker:=true does that for opponent_tracker.py in namespace SC.
+-->
+<launch>
+    <arg name="bag" description="bag directory or file to replay (required)"/>
+    <arg name="rate" default="1.0" description="playback rate multiplier"/>
+    <arg name="clock_hz" default="100" description="/clock publish rate"/>
+    <arg name="topics"
+         default="/ekf/odometry_earth /ekf/status /ekf/llh_position /ekf/velocity /ekf/dual_antenna_heading /ekf/imu/data /mip/ekf/status /mip/filter/status /mip/gnss_1/fix_info /mip/gnss_2/fix_info /mip/ekf/gnss_dual_antenna_status /mip/ekf/gnss_position_aiding_status /gnss_1/llh_position /gnss_1/velocity /gnss_1/odometry_earth /gnss_2/llh_position /gnss_2/velocity /gnss_2/odometry_earth /imu/data /velodyne_points /velodyne_packets /lidar/obstacle_centroid /lidar/obstacle_cloud /lidar/filtered /SC/self/state /SC/debug/NAND_radio /SC/lidar/detection_array /SC/vision/detection_array /SC/lidar/detections /SC/vision/detections /SC/vision/other/state /tf /tf_static"
+         description="space-separated input topics to play (inputs only, see the comment above)"/>
+    <arg name="run_tracker" default="false" description="also start opponent_tracker.py (namespace SC, use_sim_time)"/>
+    <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
+
+    <executable output="screen"
+        cmd="ros2 bag play $(var bag) --clock $(var clock_hz) --rate $(var rate) --topics $(var topics)"/>
+
+    <node if="$(var run_tracker)" pkg="buggy" exec="opponent_tracker.py" name="SC_opponent_tracker" namespace="SC" output="screen">
+        <param from="$(var config_file)"/>
+        <param name="use_sim_time" value="true"/>
+    </node>
+</launch>

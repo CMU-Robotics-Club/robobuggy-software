@@ -2,28 +2,28 @@
 """
 opponent_tracker.py
 -------------------
-Turns raw detections from any number of sensors into a list of tracked buggies.
+The single fusion authority for other buggies (DECISIONS.md D5).
 
-The camera and the lidar each report "there is something at this position"
-several times a second, with noise, misses, and the occasional false alarm.
-This node keeps one small Kalman filter per object (position and velocity,
-constant-velocity model), decides which detection belongs to which object
-(nearest neighbour with a statistical gate), confirms an object only after it
-has been seen several times, and forgets it when it has not been seen for a
-while. That is the standard "tracking by detection" recipe (AB3DMOT style) and
-it is what lets the planner reason about buggies that never told us where they
-are.
+Inputs (buggy/DetectionArrayMsg, capture-time stamped):
+    lidar/detection_array, vision/detection_array   from the sensor adapters
+    radio/detection_array                           from radio_detection_adapter.py (optional)
+    other/stateNoUKF (nav_msgs/Odometry)            optional raw radio position as a "radio"
+                                                    source (simulation), NOT the UKF output
+Output:
+    perception/tracking   buggy/TrackingResultMsg: every live track with covariance,
+                          last observation time, observation count, confirmation, sources
+    perception/tracks     legacy buggy/TrackedObjectsMsg (confirmed tracks) for old tools
+    debug/tracker/status  JSON counters, including suspected duplicates
 
-Inputs
-    detection_topics   buggy/DetectionsMsg from lidar_opponent_node, detector_node,
-                       or perception_sim (default: lidar/detections, vision/detections)
-    other/state        optional: NAND's radio-based estimate, treated as one more
-                       detection source so NAND appears in the same list
-Output
-    perception/tracks  buggy/TrackedObjectsMsg with every confirmed track
-    debug/tracker/status  std_msgs/String, counts for Foxglove
+The algorithm lives in racing/tracking.py: one-to-one gated assignment per
+message (scipy linear_sum_assignment), constant-velocity prediction, no
+post-hoc merging, observations counted once per capture stamp, prediction-only
+outputs never counted. Messages are held in a short reorder buffer so sources
+are ingested in capture-time order; late or repeated stamps are rejected and
+counted.
 """
 
+import heapq
 import json
 
 import numpy as np
@@ -32,187 +32,173 @@ from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
 
-from buggy.msg import DetectionsMsg, TrackedObjectsMsg
+from racing.health import stamp_seconds
+from racing.tracking import MultiObjectTracker, Observation
 
-
-class Track:
-    def __init__(self, tid, x, y, std, now):
-        self.id = tid
-        self.x = np.array([x, y, 0.0, 0.0])  # x, y, vx, vy
-        self.P = np.diag([std * std, std * std, 25.0, 25.0])
-        self.last_update = now
-        self.last_predict = now
-        self.hits = 1
-        self.misses = 0
-
-    def predict(self, now, q_pos, q_vel):
-        dt = max(now - self.last_predict, 0.0)
-        if dt <= 0.0:
-            return
-        F = np.array([[1, 0, dt, 0], [0, 1, 0, dt], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=float)
-        Q = np.diag([q_pos * dt, q_pos * dt, q_vel * dt, q_vel * dt])
-        self.x = F @ self.x
-        self.P = F @ self.P @ F.T + Q
-        self.last_predict = now
-
-    def mahalanobis(self, z, std):
-        S = self.P[0:2, 0:2] + np.eye(2) * std * std
-        nu = z - self.x[0:2]
-        try:
-            return float(nu @ np.linalg.solve(S, nu)), S
-        except np.linalg.LinAlgError:
-            return float("inf"), S
-
-    def update(self, z, std, now):
-        H = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], dtype=float)
-        R = np.eye(2) * std * std
-        S = H @ self.P @ H.T + R
-        K = self.P @ H.T @ np.linalg.inv(S)
-        self.x = self.x + K @ (z - H @ self.x)
-        self.P = (np.eye(4) - K @ H) @ self.P
-        self.last_update = now
-        self.hits += 1
-        self.misses = 0
+from buggy.msg import DetectionArrayMsg, TrackedObjectsMsg, TrackingResultMsg, TrackMsg
 
 
 class OpponentTracker(Node):
     def __init__(self):
         super().__init__("opponent_tracker")
-        self.declare_parameter("detection_topics", ["lidar/detections", "vision/detections"])
-        self.declare_parameter("include_other_state", True)
-        self.declare_parameter("other_state_std_m", 1.0)
+        self.declare_parameter("detection_topics", ["lidar/detection_array", "vision/detection_array"])
+        self.declare_parameter("radio_topic", "")                 # radio_detection_adapter output
+        self.declare_parameter("raw_radio_odometry_topic", "")    # sim: other/stateNoUKF
+        self.declare_parameter("raw_radio_std_m", 1.5)
         self.declare_parameter("rate_hz", 10.0)
-        self.declare_parameter("gate_chi2", 9.21)      # 99 % for 2 dof
-        self.declare_parameter("gate_max_m", 6.0)      # never associate beyond this, whatever the covariance says
-        self.declare_parameter("confirm_hits", 3)
+        self.declare_parameter("reorder_buffer_s", 0.15)
+        self.declare_parameter("max_input_age_s", 0.5)
         self.declare_parameter("max_age_s", 1.5)
-        self.declare_parameter("q_pos", 0.5)           # position process noise per second (m^2/s)
-        self.declare_parameter("q_vel", 4.0)           # velocity process noise per second ((m/s)^2/s)
-        self.declare_parameter("merge_distance_m", 1.5)
+        self.declare_parameter("confirm_hits", 3)
+        self.declare_parameter("gate_chi2", 9.21)
+        self.declare_parameter("gate_max_m", 6.0)
+        self.declare_parameter("acceleration_std", 3.0)   # m/s^2 process noise; see racing/tracking.py
+        self.declare_parameter("min_confidence", 0.0)
+        # per-source calibration uncertainty added to every measurement covariance (metres)
+        self.declare_parameter("lidar_calibration_std_m", 0.15)
+        self.declare_parameter("camera_calibration_std_m", 0.30)
+        self.declare_parameter("radio_calibration_std_m", 0.50)
+        self.declare_parameter("duplicate_distance_m", 1.5)
 
         p = lambda n: self.get_parameter(n).value  # noqa: E731
-        self.gate_chi2 = float(p("gate_chi2"))
-        self.gate_max = float(p("gate_max_m"))
+        self.buffer_s = float(p("reorder_buffer_s"))
+        self.max_input_age = float(p("max_input_age_s"))
         self.confirm_hits = int(p("confirm_hits"))
-        self.max_age = float(p("max_age_s"))
-        self.q_pos = float(p("q_pos"))
-        self.q_vel = float(p("q_vel"))
-        self.merge_d = float(p("merge_distance_m"))
-        self.other_std = float(p("other_state_std_m"))
+        self.min_confidence = float(p("min_confidence"))
+        self.raw_radio_std = float(p("raw_radio_std_m"))
+        self.duplicate_distance = float(p("duplicate_distance_m"))
+        self.tracker = MultiObjectTracker(
+            max_age=float(p("max_age_s")), confirm_hits=self.confirm_hits,
+            gate_chi2=float(p("gate_chi2")), gate_distance=float(p("gate_max_m")),
+            acceleration_std=float(p("acceleration_std")),
+            source_std={"lidar": float(p("lidar_calibration_std_m")),
+                        "camera": float(p("camera_calibration_std_m")),
+                        "vision": float(p("camera_calibration_std_m")),
+                        "radio": float(p("radio_calibration_std_m"))},
+        )
+        self.heap = []          # (stamp, seq, source, observations, flags)
+        self.seq = 0
+        self.source_flags = {}  # source -> last flags (age unknown, uncompensated)
+        self.counts = {"messages": 0, "detections": 0, "unobserved_skipped": 0, "low_confidence": 0}
 
-        self.tracks = []
-        self.next_id = 1
-        self.counts = {"detections": 0, "associated": 0, "new_tracks": 0, "dropped": 0}
+        for topic in list(p("detection_topics")) + ([p("radio_topic")] if p("radio_topic") else []):
+            self.create_subscription(DetectionArrayMsg, topic, self.on_detections, 10)
+        if p("raw_radio_odometry_topic"):
+            self.create_subscription(Odometry, p("raw_radio_odometry_topic"), self.on_raw_radio, 5)
 
-        for topic in p("detection_topics"):
-            self.create_subscription(DetectionsMsg, topic, self.on_detections, 10)
-        if p("include_other_state"):
-            self.create_subscription(Odometry, "other/state", self.on_other_state, 1)
-
-        self.tracks_pub = self.create_publisher(TrackedObjectsMsg, "perception/tracks", 1)
+        self.result_pub = self.create_publisher(TrackingResultMsg, "perception/tracking", 1)
+        self.legacy_pub = self.create_publisher(TrackedObjectsMsg, "perception/tracks", 1)
         self.status_pub = self.create_publisher(String, "debug/tracker/status", 1)
         self.create_timer(1.0 / float(p("rate_hz")), self.publish)
+        self.get_logger().info(
+            f"tracker: topics {p('detection_topics')} radio '{p('radio_topic')}' raw radio '{p('raw_radio_odometry_topic')}'"
+        )
 
-    # ------------------------------------------------------------------ inputs
     def now_s(self):
         return self.get_clock().now().nanoseconds * 1e-9
 
-    def on_other_state(self, msg):
+    # ------------------------------------------------------------------ inputs
+    def on_detections(self, msg: DetectionArrayMsg):
+        self.counts["messages"] += 1
+        observations = []
+        for det in msg.detections:
+            if not det.observed:
+                self.counts["unobserved_skipped"] += 1
+                continue
+            if det.confidence < self.min_confidence:
+                self.counts["low_confidence"] += 1
+                continue
+            cov = np.asarray(det.position_covariance, dtype=float).reshape(3, 3)[:2, :2]
+            extent = np.array([det.extent.x, det.extent.y, det.extent.z], dtype=float)
+            observations.append(Observation(
+                np.array([det.position.x, det.position.y], dtype=float), cov, extent,
+                bool(det.extent_known), True, str(det.object_id)))
+        self.counts["detections"] += len(observations)
+        flags = []
+        if msg.source_age_unknown:
+            flags.append(f"{msg.source}_age_unknown")
+        if not msg.motion_compensated:
+            flags.append(f"{msg.source}_uncompensated")
+        self.source_flags[msg.source] = flags
+        self.enqueue(stamp_seconds(msg.header.stamp), str(msg.source), observations)
+
+    def on_raw_radio(self, msg: Odometry):
+        """Raw relayed GPS position (not the UKF output) as a radio observation."""
+        self.counts["messages"] += 1
         c = msg.pose.covariance
-        std = float(np.sqrt(max(c[0], 0.0) + max(c[7], 0.0))) if c[0] > 0 else self.other_std
-        std = max(std, 0.3)
-        self.ingest([(msg.pose.pose.position.x, msg.pose.pose.position.y, std)])
+        std = float(np.sqrt(max(c[0], 0.0) + max(c[7], 0.0))) if c[0] > 0 else self.raw_radio_std
+        obs = Observation(np.array([msg.pose.pose.position.x, msg.pose.pose.position.y], dtype=float),
+                          np.eye(2) * std * std, object_id="NAND")
+        self.source_flags["radio"] = ["radio_age_unknown"]
+        self.counts["detections"] += 1
+        stamp = stamp_seconds(msg.header.stamp)
+        self.enqueue(stamp if stamp > 0 else self.now_s(), "radio", [obs])
 
-    def on_detections(self, msg: DetectionsMsg):
-        dets = []
-        for i in range(len(msg.easting)):
-            std = msg.pos_std[i] if i < len(msg.pos_std) else 1.0
-            dets.append((msg.easting[i], msg.northing[i], max(float(std), 0.05)))
-        self.ingest(dets)
+    def enqueue(self, stamp, source, observations):
+        self.seq += 1
+        heapq.heappush(self.heap, (stamp, self.seq, source, observations))
 
-    # ------------------------------------------------------------------ core
-    def ingest(self, dets):
-        now = self.now_s()
-        for t in self.tracks:
-            t.predict(now, self.q_pos, self.q_vel)
-        self.counts["detections"] += len(dets)
-
-        # greedy nearest-neighbour association by Mahalanobis distance
-        unused = set(range(len(dets)))
-        pairs = []
-        for ti, t in enumerate(self.tracks):
-            for di in unused:
-                z = np.array(dets[di][0:2])
-                m2, _ = t.mahalanobis(z, dets[di][2])
-                if m2 < self.gate_chi2 and np.linalg.norm(z - t.x[0:2]) < self.gate_max:
-                    pairs.append((m2, ti, di))
-        pairs.sort()
-        used_tracks = set()
-        for m2, ti, di in pairs:
-            if ti in used_tracks or di not in unused:
-                continue
-            z = np.array(dets[di][0:2])
-            self.tracks[ti].update(z, dets[di][2], now)
-            used_tracks.add(ti)
-            unused.discard(di)
-            self.counts["associated"] += 1
-
-        # leftovers start new tentative tracks (unless they sit on an existing one)
-        for di in unused:
-            z = np.array(dets[di][0:2])
-            if any(np.linalg.norm(z - t.x[0:2]) < self.merge_d for t in self.tracks):
-                continue
-            self.tracks.append(Track(self.next_id, z[0], z[1], dets[di][2], now))
-            self.next_id += 1
-            self.counts["new_tracks"] += 1
-
-        self.prune(now)
-
-    def prune(self, now):
-        keep = []
-        for t in self.tracks:
-            age = now - t.last_update
-            # tentative tracks die fast, confirmed ones survive a short blackout
-            limit = self.max_age if t.hits >= self.confirm_hits else 0.5
-            if age > limit:
-                self.counts["dropped"] += 1
-                continue
-            keep.append(t)
-        # merge duplicates that converged onto the same object
-        merged = []
-        for t in keep:
-            dup = next((m for m in merged if np.linalg.norm(m.x[0:2] - t.x[0:2]) < self.merge_d), None)
-            if dup is None:
-                merged.append(t)
-            elif t.hits > dup.hits:
-                merged.remove(dup)
-                merged.append(t)
-        self.tracks = merged
+    def drain(self, now):
+        """Ingest everything older than the reorder buffer, in capture-time order."""
+        while self.heap and self.heap[0][0] <= now - self.buffer_s:
+            stamp, _, source, observations = heapq.heappop(self.heap)
+            self.tracker.ingest(observations, stamp, source, now, self.max_input_age)
 
     # ------------------------------------------------------------------ output
     def publish(self):
         now = self.now_s()
-        for t in self.tracks:
-            t.predict(now, self.q_pos, self.q_vel)
-        self.prune(now)
-        msg = TrackedObjectsMsg()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "utm"
-        for t in self.tracks:
-            if t.hits < self.confirm_hits:
-                continue
-            msg.ids.append(int(t.id))
-            msg.easting.append(float(t.x[0]))
-            msg.northing.append(float(t.x[1]))
-            msg.vx.append(float(t.x[2]))
-            msg.vy.append(float(t.x[3]))
-            msg.pos_std.append(float(np.sqrt(max(t.P[0, 0] + t.P[1, 1], 0.0))))
-            msg.age_s.append(float(now - t.last_update))
-            msg.hits.append(int(t.hits))
-        self.tracks_pub.publish(msg)
-        self.status_pub.publish(String(data=json.dumps({
-            "confirmed": len(msg.ids), "tentative": len(self.tracks) - len(msg.ids), **self.counts,
-        })))
+        self.drain(now)
+        live = self.tracker.snapshot(now)
+
+        out = TrackingResultMsg()
+        out.header.stamp = self.get_clock().now().to_msg()
+        out.header.frame_id = "utm"
+        last = self.tracker.last_stamp
+        if last > 0:
+            out.source_stamp.sec = int(last)
+            out.source_stamp.nanosec = int((last - int(last)) * 1e9)
+        reasons = sorted({f for flags in self.source_flags.values() for f in flags})
+        fresh_sources = [s for s, t in self.tracker.source_stamps.items() if now - t <= self.max_input_age]
+        out.perception_ready = bool(fresh_sources)
+        if not fresh_sources:
+            reasons.append("no_fresh_source")
+        out.reasons = reasons
+
+        legacy = TrackedObjectsMsg()
+        legacy.header = out.header
+        for track, state, cov in live:
+            t = TrackMsg()
+            t.id = int(track.id)
+            t.position.x, t.position.y = float(state[0]), float(state[1])
+            t.velocity.x, t.velocity.y = float(state[2]), float(state[3])
+            t.covariance = [float(v) for v in np.asarray(cov).reshape(-1)]
+            t.extent.x, t.extent.y, t.extent.z = [float(v) for v in track.extent]
+            t.extent_known = bool(track.extent_known)
+            t.last_observed_stamp.sec = int(track.last_observed)
+            t.last_observed_stamp.nanosec = int((track.last_observed - int(track.last_observed)) * 1e9)
+            t.observation_count = int(track.hits)
+            t.confirmed = bool(track.hits >= self.confirm_hits)
+            t.sources = sorted(track.sources)
+            out.tracks.append(t)
+            if t.confirmed:
+                legacy.ids.append(t.id)
+                legacy.easting.append(t.position.x)
+                legacy.northing.append(t.position.y)
+                legacy.vx.append(t.velocity.x)
+                legacy.vy.append(t.velocity.y)
+                legacy.pos_std.append(float(np.sqrt(max(cov[0, 0] + cov[1, 1], 0.0))))
+                legacy.age_s.append(float(now - track.last_observed))
+                legacy.hits.append(t.observation_count)
+        self.result_pub.publish(out)
+        self.legacy_pub.publish(legacy)
+        status = {
+            "confirmed": len(legacy.ids), "live": len(live),
+            "suspected_duplicates": int(self.tracker.suspected_duplicates(now, self.duplicate_distance)),
+            "queued": len(self.heap), "fresh_sources": fresh_sources,
+            **self.counts, **{f"tracker_{k}": v for k, v in self.tracker.counts.items()},
+        }
+        self.status_pub.publish(String(data=json.dumps(status)))
+        self.get_logger().info(f"tracker status {status}", throttle_duration_sec=5.0)
 
 
 def main(args=None):

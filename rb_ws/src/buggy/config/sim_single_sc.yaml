@@ -11,20 +11,63 @@ SC:
       # noise compounds at each timestep, note: square root of time rule applies
       process_noise_std: 0.001 # standard deviation of process GPS noise (in meters)
       measurement_noise_std: 0.02 # standard deviation of measured GPS noise (in meters)
+      seed: 0 # > 0 makes the noise repeatable (committed scenarios set it)
 
   SC_controller:
     ros__parameters:
       dist: 0.0
       traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
-      debugHeadingTopic: "debug/heading"
+      useHeadingRate: true
       useSteerOffset: true
+      # envelope mode is switched on by the launch file (planningResultTopic) with use_frenet:=true;
+      # these apply only then
+      maxPathAgeS: 0.5
+      offsetMaxAgeS: 0.5
+      offsetFallbackDeg: 0.0
 
   SC_offset_estimator:
     ros__parameters:
       steerOffsetRawTopic: "self/steering_offset/raw"
       steerOffsetFilteredTopic: "self/steering_offset/filtered"
       steerOffsetFilterTimeConstant: 50
+      offsetEstimateTopic: "self/steering_offset/estimate"
+      maxPlausibleOffsetDeg: 10.0
+      observabilityDistanceM: 3.0
+      observabilityWindowS: 1.0
+      minGenerationAgeS: 1.0
+
+  SC_localization_monitor:
+    ros__parameters:
+      # simulation policy: the launch file also forces require_rtk_for_ok/require_filter_for_ok off
+      max_state_age_s: 0.3
+      pos_std_ok_m: 0.5
+      pos_std_bad_m: 2.0
+      health_validity_s: 0.5
+
+  SC_path_planner:
+    ros__parameters:
+      traj_name: 'buggycourse_sc.json'
+      curb_name: 'buggycourse_curb.json'
+      left_width: 3.0            # used only where no curb file point exists
+      right_width: 1.3   # ASSUMED distance from the line to the right road edge (vehicle centre may go 0.5 m right); every plan is DEGRADED right_width_assumed until surveyed
+      hard_boundary_margin: 0.2
+      boundary_margin: 0.5
+      horizon: 60.0
+      lookahead: 2.0
+      offset_step: 0.25
+      transition_lengths: [15.0, 25.0, 40.0]
+      lateral_clearance: 1.6
+      longitudinal_window: 6.0
+      side_policy: "more_room"
+      require_perception: false  # no tracker in the single sim
+      require_health: true
+      publish_legacy_trajectory: false
+      w_curvature: 400.0
+      w_deviation: 1.0
+      w_proximity: 6.0
+      w_change: 10.0
+      w_margin: 3.0
 
   SC_ros_to_bnyahaj:
     ros__parameters:

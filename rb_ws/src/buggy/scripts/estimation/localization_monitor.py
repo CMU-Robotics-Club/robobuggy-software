@@ -12,8 +12,8 @@ rest of the stack can act on:
 
     localization/status   std_msgs/String  JSON with the reasons, for Foxglove.
 
-The Frenet planner refuses new passes at 1 and holds the raceline at 2. The
-controller's init check still guards the start; this node covers the whole run.
+The experimental planner consumes localization/health_stamped with source time
+and expiry. The Int8 topic remains a legacy diagnostic, not an authorization.
 
 Inputs (all optional; the node degrades gracefully when a topic is absent):
     self/state                     nav_msgs/Odometry, position covariance and freshness
@@ -30,6 +30,10 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8, String
+from buggy.msg import LocalizationHealthMsg
+from rclpy.duration import Duration
+
+from racing.health import HealthPolicy, evaluate_health, stamp_seconds
 
 
 class LocalizationMonitor(Node):
@@ -39,7 +43,10 @@ class LocalizationMonitor(Node):
         self.declare_parameter("max_state_age_s", 0.3)
         self.declare_parameter("pos_std_ok_m", 0.5)        # below: OK (if fix is good)
         self.declare_parameter("pos_std_bad_m", 2.0)       # above: BAD
-        self.declare_parameter("require_rtk_for_ok", False)  # set true once RTK corrections are wired up
+        self.declare_parameter("require_rtk_for_ok", True)
+        self.declare_parameter("require_filter_for_ok", True)
+        self.declare_parameter("max_quality_age_s", 1.0)
+        self.declare_parameter("health_validity_s", 0.3)
         self.declare_parameter("rate_hz", 5.0)
 
         p = lambda n: self.get_parameter(n).value  # noqa: E731
@@ -47,18 +54,24 @@ class LocalizationMonitor(Node):
         self.std_ok = float(p("pos_std_ok_m"))
         self.std_bad = float(p("pos_std_bad_m"))
         self.require_rtk = bool(p("require_rtk_for_ok"))
+        self.policy = HealthPolicy(self.max_age, float(p("max_quality_age_s")),
+                                   self.std_ok, self.std_bad, self.require_rtk,
+                                   bool(p("require_filter_for_ok")))
+        self.validity = float(p("health_validity_s"))
 
         self.state = None
         self.state_time = None
         self.fix_type = None        # from GNSSFixInfo: 0 3D,1 2D,2 time only,3 none,4 invalid,5 RTK float,6 RTK fixed
         self.filter_state = None    # from FilterStatus: 1 init, 2 vertical gyro, 3 AHRS, 4 full nav
-        self.have_sim_state = False
+        self.fix_stamp = None
+        self.filter_stamp = None
 
         self.create_subscription(Odometry, p("state_topic"), self.on_state, 1)
         self._try_subscribe_microstrain()
 
         self.health_pub = self.create_publisher(Int8, "localization/health", 1)
         self.status_pub = self.create_publisher(String, "localization/status", 1)
+        self.stamped_pub = self.create_publisher(LocalizationHealthMsg, "localization/health_stamped", 1)
         self.create_timer(1.0 / float(p("rate_hz")), self.evaluate)
 
     def _try_subscribe_microstrain(self):
@@ -71,7 +84,7 @@ class LocalizationMonitor(Node):
             import importlib
             mod = importlib.import_module("microstrain_inertial_msgs.msg")
         except ImportError as e:
-            self.get_logger().warn(f"microstrain messages unavailable ({e}); using covariance only")
+            self.get_logger().warn(f"microstrain messages unavailable ({e}); required quality remains unknown")
             return
         fix_cls = next((getattr(mod, n) for n in ("MipGnssFixInfo", "GNSSFixInfo") if hasattr(mod, n)), None)
         filt_cls = next((getattr(mod, n) for n in ("MipFilterStatus", "FilterStatus") if hasattr(mod, n)), None)
@@ -87,56 +100,48 @@ class LocalizationMonitor(Node):
 
     def on_state(self, msg):
         self.state = msg
-        self.state_time = self.get_clock().now()
+        self.state_time = stamp_seconds(msg.header.stamp)
 
     def on_fix(self, msg):
         v = getattr(msg, "fix_type", None)
         if v is not None:
             self.fix_type = int(v)
+            self.fix_stamp = stamp_seconds(msg.header.stamp) if hasattr(msg, "header") else None
 
     def on_filter(self, msg):
         v = getattr(msg, "filter_state", None)
         if v is not None:
             self.filter_state = int(v)
+            self.filter_stamp = stamp_seconds(msg.header.stamp) if hasattr(msg, "header") else None
 
     def evaluate(self):
-        reasons = []
-        level = 0
+        now = self.get_clock().now()
+        pose, cov = None, None
+        if self.state is not None:
+            p = self.state.pose.pose.position
+            q = self.state.pose.pose.orientation
+            pose = [p.x, p.y, p.z, q.x, q.y, q.z, q.w]
+            cov = self.state.pose.covariance
+        level, reasons, std = evaluate_health(
+            now.nanoseconds * 1e-9, pose, cov, self.state_time,
+            self.fix_type, self.fix_stamp, self.filter_state, self.filter_stamp, self.policy)
 
-        if self.state is None or self.state_time is None:
-            level = 2
-            reasons.append("no state yet")
-        else:
-            age = (self.get_clock().now() - self.state_time).nanoseconds * 1e-9
-            if age > self.max_age:
-                level = 2
-                reasons.append(f"state stale {age:.2f}s")
-            c = self.state.pose.covariance
-            pos_std = (max(c[0], 0.0) + max(c[7], 0.0)) ** 0.5
-            if pos_std > self.std_bad:
-                level = max(level, 2)
-                reasons.append(f"pos std {pos_std:.2f}m > {self.std_bad}")
-            elif pos_std > self.std_ok:
-                level = max(level, 1)
-                reasons.append(f"pos std {pos_std:.2f}m > {self.std_ok}")
-
-        if self.filter_state is not None and self.filter_state != 4:
-            level = max(level, 2)
-            reasons.append(f"INS filter state {self.filter_state} (need 4 = full nav)")
-
-        if self.fix_type is not None:
-            if self.fix_type in (2, 3, 4):
-                level = max(level, 2)
-                reasons.append(f"GNSS fix type {self.fix_type} (no position fix)")
-            elif self.fix_type not in (5, 6) and self.require_rtk:
-                level = max(level, 1)
-                reasons.append(f"GNSS fix type {self.fix_type} is not RTK")
+        stamped = LocalizationHealthMsg()
+        stamped.header.stamp = now.to_msg()
+        if self.state is not None:
+            stamped.header.frame_id = self.state.header.frame_id
+            stamped.state_stamp = self.state.header.stamp
+        stamped.valid_until = (now + Duration(seconds=self.validity)).to_msg()
+        stamped.level = level
+        stamped.reasons = reasons
+        self.stamped_pub.publish(stamped)
 
         self.health_pub.publish(Int8(data=level))
         self.status_pub.publish(String(data=json.dumps({
             "health": level,
             "fix_type": self.fix_type,
             "filter_state": self.filter_state,
+            "position_std_m": std,
             "reasons": reasons,
         })))
 

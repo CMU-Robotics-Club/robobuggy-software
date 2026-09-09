@@ -1,13 +1,13 @@
 import json
 import time
 
-# from buggy.msg import TrajectoryMsg
-
 import numpy as np
 from scipy.interpolate import Akima1DInterpolator, CubicSpline
-from buggy.msg import TrajectoryMsg
 
 import utm
+
+# buggy.msg is imported lazily inside pack()/unpack() so this module (the curve the controller
+# follows) can be used and tested without a built ROS workspace.
 
 class Trajectory:
     """A wrapper around a trajectory JSON file that does some under-the-hood math. Will
@@ -361,7 +361,8 @@ class Trajectory:
             + start_index
         )
 
-    def pack(self, x, y) -> TrajectoryMsg:
+    def pack(self, x, y):
+        from buggy.msg import TrajectoryMsg  # pylint: disable=import-outside-toplevel
         traj = TrajectoryMsg()
         traj.easting = list(self.positions[:, 0])
         traj.northing = list(self.positions[:, 1])
@@ -369,7 +370,8 @@ class Trajectory:
         traj.cur_idx = self.get_closest_index_on_path(x,y)
         return traj
 
-    def unpack(trajMsg : TrajectoryMsg):
+    @staticmethod
+    def unpack(trajMsg):
         pos = np.array([trajMsg.easting, trajMsg.northing]).transpose(1, 0)
         cur_idx = trajMsg.cur_idx
         return Trajectory(positions=pos), cur_idx

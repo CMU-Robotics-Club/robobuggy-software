@@ -1,0 +1,10 @@
+std_msgs/Header header
+builtin_interfaces/Time observation_stamp
+uint64 generation
+float64 generation_age_s
+float64 offset_rad
+float64 variance_rad2
+bool converged
+bool observable
+bool valid
+string[] reasons

@@ -40,7 +40,7 @@ from nav_msgs.msg import Odometry
 
 from util.track import Track
 
-from buggy.msg import DetectionsMsg
+from buggy.msg import DetectionArrayMsg, DetectionMsg, DetectionsMsg
 
 
 def parse_ghost(spec):
@@ -95,12 +95,15 @@ class PerceptionSim(Node):
 
         base = "lidar" if self.kind == "lidar" else "vision"
         self.det_pub = self.create_publisher(DetectionsMsg, f"{base}/detections", 1)
+        # structured, capture-time stamped detections for opponent_tracker.py (D4)
+        self.array_pub = self.create_publisher(DetectionArrayMsg, f"{base}/detection_array", 1)
+        self.extent = (2.5, 1.2, 1.5)  # synthetic buggy footprint (m)
         self.legacy_pub = self.create_publisher(Odometry, f"{base}/other/state", 1)
         self.truth_pub = self.create_publisher(PoseArray, "perception_sim/ghost_truth", 1)
 
         self.observer = None
         self.targets = {}
-        self.target_order = list(p("target_topics"))
+        self.target_order = [str(t) for t in p("target_topics") if str(t).strip()]   # [""] = ghosts only
         for topic in self.target_order:
             self.create_subscription(Odometry, topic, lambda m, t=topic: self.on_target(t, m), 1)
         self.create_subscription(Odometry, p("observer_topic"), self.on_observer, 1)
@@ -162,9 +165,14 @@ class PerceptionSim(Node):
         oh = self.observer.pose.pose.orientation.z
 
         det = DetectionsMsg()
-        det.header.stamp = self.get_clock().now().to_msg()
+        det.header.stamp = self.get_clock().now().to_msg()   # capture time (latency is applied on release)
         det.header.frame_id = "utm"
         det.source = self.kind
+        arr = DetectionArrayMsg()
+        arr.header = det.header
+        arr.source = "lidar" if self.kind == "lidar" else "camera"
+        arr.motion_compensated = True   # synthetic: positions are exact at the capture time
+        arr.source_age_unknown = False
         legacy = None
 
         candidates = [(pos, idx == 0) for idx, pos in enumerate(self.real_positions()) if pos is not None]
@@ -190,6 +198,15 @@ class PerceptionSim(Node):
             det.easting.append(float(mx))
             det.northing.append(float(my))
             det.pos_std.append(float(std))
+            one = DetectionMsg()
+            one.position.x, one.position.y = float(mx), float(my)
+            one.position_covariance = [std * std, 0.0, 0.0, 0.0, std * std, 0.0, 0.0, 0.0, 0.0]
+            one.extent.x, one.extent.y, one.extent.z = self.extent
+            one.extent_known = True
+            one.class_id = "buggy"
+            one.confidence = 1.0
+            one.observed = True
+            arr.detections.append(one)
             if is_primary:
                 legacy = Odometry()
                 legacy.header = det.header
@@ -201,13 +218,14 @@ class PerceptionSim(Node):
                 legacy.pose.covariance = cov
 
         release = self.get_clock().now().nanoseconds * 1e-9 + self.latency
-        self.queue.append((release, det, legacy))
+        self.queue.append((release, det, arr, legacy))
 
     def flush(self):
         now = self.get_clock().now().nanoseconds * 1e-9
         while self.queue and self.queue[0][0] <= now:
-            _, det, legacy = self.queue.popleft()
+            _, det, arr, legacy = self.queue.popleft()
             self.det_pub.publish(det)
+            self.array_pub.publish(arr)
             if legacy is not None:
                 self.legacy_pub.publish(legacy)
 

@@ -1,3 +1,23 @@
+<!--
+  sim_2d_double.xml : SC and NAND on the course, NAND relayed to SC by the simulated radio.
+
+  use_frenet:=true (default)     the experimental Frenet planner publishes planning/result and
+                                 SC's controller runs in envelope mode (steers only on
+                                 control-eligible, unexpired plans; falls back to the static
+                                 reference otherwise). DECISIONS.md D1.
+  use_frenet:=false              the legacy sigmoid planner drives through self/cur_traj.
+  use_perception_sim:=true       fake lidar + camera detections of NAND and any ghost buggies
+                                 (config: SC_lidar_sim / SC_camera_sim), so the tracker sees
+                                 several opponents.
+  use_speed_model:=true          gravity speed model instead of a constant velocity.
+
+  The opponent tracker (the single fusion authority, D5) always runs. Its inputs are the
+  structured detection arrays and, in the simulator, NAND's RAW relayed position on
+  other/stateNoUKF (never the UKF output). The NAND UKF (nand_estimator.py) still runs for
+  the NAND shadow controller; the planner does not read it.
+
+  The localization monitor runs with the SIMULATION policy (no GNSS fix / INS status in sim).
+-->
 <launch>
 
     <arg name="config_file" default="src/buggy/config/sim_double.yaml"/>
@@ -16,10 +36,16 @@
     <node pkg="buggy" exec="engine.py" name="NAND_sim_single" output = "screen" namespace="NAND">
         <param from="$(var config_file)"/>
     </node>
-    
+
     <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" output = "screen" namespace="SC"/>
-    <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC">
+    <!-- legacy controller: follows self/cur_traj from the sigmoid planner -->
+    <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC" unless="$(var use_frenet)">
         <param from="$(var config_file)"/>
+    </node>
+    <!-- experimental controller: envelope mode -->
+    <node pkg="buggy" exec="controller_node.py" name="SC_controller" output = "screen" namespace="SC" if="$(var use_frenet)">
+        <param from="$(var config_file)"/>
+        <param name="planningResultTopic" value="planning/result"/>
     </node>
     <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC"/>
 
@@ -30,7 +56,6 @@
         <param from="$(var config_file)"/>
     </node>
 
-    <!-- use_frenet:=true (default) runs the Frenet sampling planner; use_frenet:=false runs the legacy sigmoid planner -->
     <node pkg="buggy" exec="frenet_planner.py" name="SC_path_planner" namespace="SC" output = "screen" if="$(var use_frenet)">
         <param from="$(var config_file)"/>
     </node>
@@ -43,17 +68,22 @@
     </node>
 
     <node name="estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
-    <!-- use_perception_sim:=true adds fake lidar + camera detections of NAND so the fused estimator runs in sim -->
+    <!-- use_perception_sim:=true adds fake lidar + camera detections of NAND and the ghosts -->
     <node pkg="buggy" exec="perception_sim.py" name="SC_lidar_sim" namespace="SC" output="screen" if="$(var use_perception_sim)">
         <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="perception_sim.py" name="SC_camera_sim" namespace="SC" output="screen" if="$(var use_perception_sim)">
         <param from="$(var config_file)"/>
     </node>
-    <node pkg="buggy" exec="opponent_tracker.py" name="SC_opponent_tracker" namespace="SC" output="screen" if="$(var use_perception_sim)">
+    <!-- the single fusion authority; always on -->
+    <node pkg="buggy" exec="opponent_tracker.py" name="SC_opponent_tracker" namespace="SC" output="screen">
         <param from="$(var config_file)"/>
     </node>
-    <node pkg="buggy" exec="localization_monitor.py" name="SC_localization_monitor" namespace="SC" output="screen"/>
+    <node pkg="buggy" exec="localization_monitor.py" name="SC_localization_monitor" namespace="SC" output="screen">
+        <param from="$(var config_file)"/>
+        <param name="require_rtk_for_ok" value="false"/>
+        <param name="require_filter_for_ok" value="false"/>
+    </node>
     <!-- use_speed_model:=true replaces the constant sim velocity with the gravity speed model (config/course_zones.yaml) -->
     <node pkg="buggy" exec="speed_model_node.py" name="SC_speed_model" namespace="SC" output="screen" if="$(var use_speed_model)">
         <param from="$(var config_file)"/>

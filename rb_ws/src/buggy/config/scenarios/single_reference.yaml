@@ -1,0 +1,65 @@
+# scenario: one buggy in envelope mode on the reference line (launch with use_frenet:=true)
+SC:
+  SC_sim_single:
+    ros__parameters:
+      pose: "Hill1_SC"
+      velocity: 12.0
+      steering_offset: 4.0
+      steering_offset_func: "constant"
+      steering_delay: 0
+      process_noise_std: 0.001
+      measurement_noise_std: 0.02
+      seed: 11
+
+  SC_controller:
+    ros__parameters:
+      dist: 0.0
+      traj_name: "buggycourse_sc.json"
+      controller: "stanley"
+      useHeadingRate: true
+      useSteerOffset: true
+      maxPathAgeS: 0.5
+      offsetMaxAgeS: 0.5
+      offsetFallbackDeg: 0.0
+
+  SC_offset_estimator:
+    ros__parameters:
+      steerOffsetRawTopic: "self/steering_offset/raw"
+      steerOffsetFilteredTopic: "self/steering_offset/filtered"
+      steerOffsetFilterTimeConstant: 50
+      offsetEstimateTopic: "self/steering_offset/estimate"
+      maxPlausibleOffsetDeg: 10.0
+      observabilityDistanceM: 3.0
+      observabilityWindowS: 1.0
+      minGenerationAgeS: 1.0
+
+  SC_localization_monitor:
+    ros__parameters:
+      max_state_age_s: 0.3
+      pos_std_ok_m: 0.5
+      pos_std_bad_m: 2.0
+      health_validity_s: 0.5
+
+  SC_path_planner:
+    ros__parameters:
+      traj_name: "buggycourse_sc.json"
+      curb_name: "buggycourse_curb.json"
+      left_width: 3.0
+      right_width: 1.3   # ASSUMED distance from the line to the right road edge (vehicle centre may go 0.5 m right); every plan is DEGRADED right_width_assumed until surveyed
+      hard_boundary_margin: 0.2
+      boundary_margin: 0.5
+      horizon: 60.0
+      lookahead: 2.0
+      offset_step: 0.25
+      transition_lengths: [15.0, 25.0, 40.0]
+      lateral_clearance: 1.6
+      longitudinal_window: 6.0
+      side_policy: "more_room"
+      require_perception: false
+      require_health: true
+      publish_legacy_trajectory: false
+      w_curvature: 400.0
+      w_deviation: 1.0
+      w_proximity: 6.0
+      w_change: 10.0
+      w_margin: 3.0

@@ -17,6 +17,8 @@ import numpy as np
 from cv_bridge import CvBridge
 from scipy.spatial.transform import Rotation
 
+from buggy.msg import DetectionArrayMsg, DetectionMsg
+
 
 class Detector(Node):
 
@@ -30,6 +32,9 @@ class Detector(Node):
 
         # Parameters
         self.declare_parameter("model_name", "01-15-25_no_pushbar_yolov11n.pt")
+        # position std (m) attached to every camera detection until the ZED depth error is characterised
+        self.declare_parameter("vision_pos_std_m", 1.0)
+        self.vision_pos_std = float(self.get_parameter("vision_pos_std_m").value)
         model_name = self.get_parameter("model_name").value
         self.model = YOLO(f"{os.environ['RBROOT']}/src/buggy/models/{model_name}")
 
@@ -44,7 +49,7 @@ class Detector(Node):
         self.raw_image = sl.Mat()
         self.objects = sl.Objects()
 
-        self.model = YOLO("src/buggy/scripts/vision/trained-models/01-15-25_no_pushbar_yolov11n.pt")
+        # (the model named by the model_name parameter is used; the old hard-coded reload is gone)
 
         self.runtime_params = sl.RuntimeParameters()
         self.object_det_params = sl.ObjectDetectionRuntimeParameters()
@@ -59,6 +64,10 @@ class Detector(Node):
         # Publishers
         self.observed_NAND_odom_publisher = self.create_publisher(
             Odometry, "vision/other/state", 1
+        )
+        # every detected object, capture-time stamped, for opponent_tracker.py (DECISIONS.md D4)
+        self.detection_array_publisher = self.create_publisher(
+            DetectionArrayMsg, "vision/detection_array", 1
         )
         self.annotated_camera_frame_publisher = self.create_publisher(
                     CompressedImage, "debug/annotated_camera_frame", 1
@@ -104,7 +113,7 @@ class Detector(Node):
         # --> changed from exit(1) to destroy_node(), still needs to be tested
         status = self.cam.open(init_params)
         if status != sl.ERROR_CODE.SUCCESS:
-            self.get_logger().error("Camera Open", status, "Exiting program.")
+            self.get_logger().error(f"Camera Open {status}. Exiting program.")
             self.destroy_node()
             rclpy.shutdown()
 
@@ -184,6 +193,37 @@ class Detector(Node):
 
         return utms
 
+    def detection_array(self, utms):
+        """All ZED objects as a DetectionArrayMsg stamped with the image capture time.
+
+        `observed` is true only for objects the SDK is currently tracking from a real
+        detection; SDK-predicted (occluded/searching) objects are carried with observed=false
+        so the tracker never counts them as new evidence.
+        """
+        msg = DetectionArrayMsg()
+        image_ns = int(self.cam.get_timestamp(sl.TIME_REFERENCE.IMAGE).get_nanoseconds())
+        msg.header.stamp.sec = image_ns // 1_000_000_000
+        msg.header.stamp.nanosec = image_ns % 1_000_000_000
+        msg.header.frame_id = "utm"
+        msg.source = "camera"
+        msg.motion_compensated = False
+        msg.source_age_unknown = False
+        var = self.vision_pos_std ** 2
+        for obj, utm_position in zip(self.objects.object_list, utms):
+            det = DetectionMsg()
+            det.position.x, det.position.y, det.position.z = [float(v) for v in utm_position]
+            det.position_covariance = [var, 0.0, 0.0, 0.0, var, 0.0, 0.0, 0.0, var]
+            dims = np.asarray(obj.dimensions, dtype=float)
+            if dims.shape == (3,) and np.all(np.isfinite(dims)) and np.all(dims > 0):
+                det.extent.x, det.extent.y, det.extent.z = [float(v) for v in dims]
+                det.extent_known = True
+            det.object_id = str(obj.id)
+            det.class_id = str(obj.raw_label)
+            det.confidence = float(obj.confidence) / 100.0
+            det.observed = obj.tracking_state == sl.OBJECT_TRACKING_STATE.OK
+            msg.detections.append(det)
+        return msg
+
     def loop(self):
         # raw_frame_publish = None
         num_detections = 0
@@ -224,6 +264,7 @@ class Detector(Node):
                 NAND_pose.pose.pose.position.x = NAND_utm[0]
                 NAND_pose.pose.pose.position.y = NAND_utm[1]
                 NAND_pose.pose.pose.position.z = NAND_utm[2]
+                self.detection_array_publisher.publish(self.detection_array(utms))
 
             self.num_detections_publisher.publish(Int32(data=num_detections))
 

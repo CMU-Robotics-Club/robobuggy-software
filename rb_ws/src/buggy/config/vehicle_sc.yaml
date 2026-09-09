@@ -1,0 +1,57 @@
+# vehicle_sc.yaml : the single source of geometric and actuator limits for Short Circuit (D1, D9).
+#
+# Every field carries a status so a number can never quietly become "measured":
+#   verified_source  read from code that runs on the buggy today (file named in note)
+#   measured         measured on the hardware, with the date and method in note
+#   assumed          an engineering assumption used by simulation and planning
+#   policy           a deliberate software choice, stricter than any physical limit
+#   unverified       unknown; value is null and must be measured before a hardware profile may use it
+#
+# racing/profile.py loads this file. The planning curvature cap can only be tightened, never loosened
+# above the software ceiling tan(software_steering_clip_deg) / wheelbase_m.
+vehicle: SC
+command_coordinate: >-
+  input/steering is in degrees; positive is a left (counter-clockwise) turn in the bicycle model;
+  the steering-offset correction has already been subtracted; ros_to_bnyahaj.py sends the value
+  unchanged to the Teensy as software_steering_angle. Firmware clamping and rate limits are unverified.
+fields:
+  wheelbase_m:
+    value: 1.104
+    status: verified_source
+    note: util/constants.py WHEELBASE_SC
+  width_m:
+    value: 1.2
+    status: assumed
+    note: planning footprint width; measure the real buggy including wheels
+  length_m:
+    value: 2.5
+    status: assumed
+    note: planning footprint length (nose to tail, push bar excluded); measure the real buggy
+  software_steering_clip_deg:
+    value: 20.0
+    status: verified_source
+    note: controller/stanley_controller.py clips the Stanley command to +/- pi/9
+  physical_wheel_angle_deg:
+    value: null
+    status: unverified
+    note: mechanical steering stop; measure with the wheel on stands
+  actuator_command_limit_deg:
+    value: null
+    status: unverified
+    note: largest command the firmware accepts or clamps; read from firmware or measure
+  actuator_slew_dps:
+    value: null
+    status: unverified
+    note: measure from SCDebugInfo true_steering_angle against commanded steps on the bench
+  actuator_delay_s:
+    value: null
+    status: unverified
+    note: command to wheel-motion latency; measure on the bench
+  planning_curvature_cap_1_per_m:
+    value: 0.25
+    status: policy
+    note: stricter than the software ceiling 0.330 (tan 20 deg / 1.104 m); never raised above the ceiling
+  max_offset_correction_deg:
+    value: 10.0
+    status: assumed
+    note: plausibility bound for the steering-offset estimate; the simulator's true offsets are 0 to 4 deg

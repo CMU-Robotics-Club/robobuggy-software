@@ -28,8 +28,8 @@ import pyzed.sl as sl
 
 cam = sl.Camera()
 
-#Handler to deal with CTRL+C properly
-def handler(_):
+#Handler to deal with CTRL+C properly (Python calls it with (signum, frame))
+def handler(_signum, _frame):
     cam.disable_recording()
     cam.close()
     sys.exit(0)

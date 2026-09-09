@@ -15,9 +15,12 @@ them for the new address and user; everything else is the same.
 ## 0. Safety, before touching the keyboard
 
 - Buggy on stands or wheels chocked, brake engaged, drop-brake test done.
-- The RC transmitter's autonomous-steering switch stays OFF the whole time. The
-  firmware only obeys software steering when that switch is on, so with it off
-  nothing here can move the wheel.
+- The RC transmitter's autonomous-steering switch stays OFF the whole time.
+  Team lore says the firmware only obeys software steering while that switch is
+  on; that is UNVERIFIED and the team has to confirm it against the firmware
+  source before anyone relies on it. Until then the stands, the chocks and the
+  e-stop are what keep the wheel from moving, not the switch. Nothing in this
+  test publishes a steering command in any case.
 - One person at the e-stop while anything is running.
 - Lidar spinning and a camera on: no one needs to be in front of the buggy
   except deliberately, as a test target.
@@ -99,11 +102,18 @@ separately.
 Open three tmux panes (`tmux new -s bench`, then `Ctrl-b %` to split; the
 `.bashrc` on the buggy already sources everything):
 
-Pane 1, sensors and infrastructure:
+Pane 1, sensors and infrastructure, with the serial-free system launch:
 
 ```bash
-ros2 launch buggy sc-system.xml
+ros2 launch buggy bench-system.xml use_lidar:=false
 ```
+
+`bench-system.xml` is `sc-system.xml` without the serial node `ros_to_bnyahaj.py`.
+Standing still on the bench the firmware link is not needed, the serial node is
+the one process that can hand a steering or alarm packet to the Teensy, and with
+the Teensy unplugged or being flashed it would only respawn and fill the log with
+port errors. `use_lidar:=false` because `perception_bench.xml` (pane 2) starts
+`lidar_opponent_node.py` itself.
 
 Pane 2, the perception chain from this branch:
 
@@ -131,8 +141,11 @@ Then from your laptop on the same Wi-Fi, open Foxglove and connect to
 | `/SC/localization/status` | fix type and reasons; indoors it will say degraded, that is expected |
 
 Things to try, in order: a person walking a slow circle 5 to 15 m in front;
-two people at once (two ids); a person walking behind a pillar and back (does
-the id survive the 1.5 s blackout?); NAND pushed slowly past if it is around.
+two people at once (two ids, once the all-cluster output of `buggy_lidar` is
+live; today it publishes only the nearest cluster as `/lidar/obstacle_centroid`,
+so until then expect one id that jumps between the two); a person walking behind
+a pillar and back (does the id survive the 1.5 s blackout?); NAND pushed slowly
+past if it is around.
 Write down what the tracker saw and missed, and at what range. That list is
 the tuning input for the lidar parameters at the top of `perception_bench.xml`.
 
@@ -152,15 +165,21 @@ Stop the recorder with Ctrl-C in pane 3, then from your laptop:
 scp -r nuc@192.168.1.217:robobuggy-software/rb_ws/bags/bench_* ./rb_ws/bags/
 ```
 
-At home, inside the container, replay it through the same nodes:
+At home, inside the container, replay it with `launch/replay_bag.xml`, which
+plays the input topics only (the recorded `/SC/perception/tracks` and tracker
+status are deliberately not replayed, so you never look at a mix of recorded and
+recomputed outputs), publishes `/clock`, and with `run_tracker:=true` starts
+`opponent_tracker.py` in namespace `SC` with `use_sim_time:=true`:
 
 ```bash
-ros2 bag play bags/bench_<stamp> --clock &
-ros2 run buggy opponent_tracker.py --ros-args -r __ns:=/SC
+export ROS_DOMAIN_ID=<a number nobody else on this machine uses>
+ros2 launch buggy replay_bag.xml bag:=bags/bench_<stamp> run_tracker:=true
 ```
 
-and open Foxglove on `ws://localhost:8765` as usual. Replaying is how you tune
-the tracker without going back to the workshop.
+Any other node you start next to it (Foxglove bridge, lidar nodes) also needs
+`use_sim_time:=true`, or its timers run on the wall clock while the data is on
+bag time. Then open Foxglove on `ws://localhost:8765` as usual. Replaying is how
+you tune the tracker without going back to the workshop.
 
 ## 6. Put the buggy back
 

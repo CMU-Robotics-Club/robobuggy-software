@@ -40,6 +40,8 @@ from lidar_helpers import (
     identify_best_cluster,
 )
 
+from buggy.msg import DetectionArrayMsg, DetectionMsg
+
 
 class BuggyLidar(Node):
 
@@ -98,6 +100,11 @@ class BuggyLidar(Node):
         )
         self.obstacle_centroid_pub = self.create_publisher( # (x, y, z) centroid of the best cluster — consumed by the planner
             PointStamped, "/lidar/obstacle_centroid", 10
+        )
+        # EVERY cluster that survives the ellipse filter, in the sensor frame, with its extent.
+        # lidar_opponent_node.py transforms these to UTM for the tracker (DECISIONS.md D4).
+        self.clusters_pub = self.create_publisher(
+            DetectionArrayMsg, "/lidar/detections_sensor", 10
         )
 
         input_file = str(self.get_parameter("input_file").value).strip()
@@ -471,6 +478,7 @@ class BuggyLidar(Node):
             pc = o3d.geometry.PointCloud()
             pc.points = o3d.utility.Vector3dVector(c)
             ranged_boxes.append(pc.get_axis_aligned_bounding_box())
+        self.publish_clusters(ranged_clusters, ranged_boxes, header)
 
         # -------- Stage 6: Best Cluster --------
         # Scores each surviving cluster by distance, forward angle, and size.
@@ -511,6 +519,26 @@ class BuggyLidar(Node):
         # passing a raw numpy array causes a type error in some ROS2 distros.
         cloud_msg = point_cloud2.create_cloud_xyz32(header, points.tolist())
         publisher.publish(cloud_msg)
+
+    def publish_clusters(self, clusters, boxes, header):
+        """Every ellipse-filtered cluster as a sensor-frame DetectionArrayMsg (not motion compensated)."""
+        msg = DetectionArrayMsg()
+        msg.header = header
+        msg.source = "lidar"
+        msg.motion_compensated = False
+        msg.source_age_unknown = False
+        for cluster, box in zip(clusters, boxes):
+            centroid = np.mean(cluster, axis=0)
+            extent = np.asarray(box.get_extent(), dtype=float)
+            det = DetectionMsg()
+            det.position.x, det.position.y, det.position.z = [float(v) for v in centroid]
+            det.extent.x, det.extent.y, det.extent.z = [float(v) for v in extent]
+            det.extent_known = bool(np.all(np.isfinite(extent)) and np.all(extent > 0))
+            det.class_id = "cluster"
+            det.confidence = 1.0
+            det.observed = True
+            msg.detections.append(det)
+        self.clusters_pub.publish(msg)
 
     def publish_centroid(self, centroid: np.ndarray, header):
         """Publishes the (x, y, z) centre of mass of the best obstacle cluster

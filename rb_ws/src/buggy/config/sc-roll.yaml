@@ -26,6 +26,11 @@ SC:
       steerOffsetRawTopic: "self/steering_offset/raw"
       steerOffsetFilteredTopic: "self/steering_offset/filtered"
       steerOffsetFilterTimeConstant: 1   # in timesteps; smoothing factor alpha for low pass filter is 1 / steerOffsetFilterTimeConstant
+      offsetEstimateTopic: "self/steering_offset/estimate"
+      maxPlausibleOffsetDeg: 10.0        # assumption until the real steering offset range is measured
+      observabilityDistanceM: 3.0
+      observabilityWindowS: 1.0
+      minGenerationAgeS: 1.0
 
   SC_NAND_controller:
     ros__parameters:
@@ -41,12 +46,18 @@ SC:
       traj_name: "buggycourse_nand.json"
       controller: "stanley"
 
+  # legacy sigmoid planner (drives)
   SC_path_planner:
     ros__parameters:
       curb_name: "buggycourse_curb.json"
-      # --- frenet_planner.py only (ignored by the legacy sigmoid planner) ---
-      right_width: 0.5
-      vehicle_width: 1.2
+
+  # ---- shadow: experimental planner + non-actuating controller (sc-main.xml frenet_shadow) ----
+  SC_shadow_planner:
+    ros__parameters:
+      curb_name: "buggycourse_curb.json"
+      left_width: 3.0
+      right_width: 1.3   # ASSUMED distance from the line to the right road edge (vehicle centre may go 0.5 m right); every plan is DEGRADED right_width_assumed until surveyed
+      hard_boundary_margin: 0.2
       boundary_margin: 0.5
       horizon: 60.0
       lookahead: 2.0
@@ -54,13 +65,74 @@ SC:
       transition_lengths: [15.0, 25.0, 40.0]
       lateral_clearance: 1.6
       longitudinal_window: 6.0
-      side_policy: "more_room"     # more_room | left | right | any
+      side_policy: "more_room"
+      tracks_topic: "perception/tracking"
+      require_perception: true     # hardware: no fresh tracker output means no eligible plan
+      require_health: true         # hardware: unknown/expired health means no eligible plan
+      hardware_profile: false      # the shadow does not actuate; width_m is still an assumption
+      publish_legacy_trajectory: false
       w_curvature: 400.0
       w_deviation: 1.0
       w_proximity: 6.0
-      w_change: 2.0
+      w_change: 10.0
       w_margin: 3.0
+
+  SC_shadow_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "self/state"
+      steeringTopic: "debug/shadow/input_steering"        # NOT subscribed by the serial node
+      rawSteeringTopic: "debug/shadow/input_steering_raw"
+      debugHeadingTopic: "debug/shadow/heading"
+      planningResultTopic: "planning/result"
+      offsetEstimateTopic: "self/steering_offset/estimate"
+      useSteerOffset: true
+      useHeadingRate: true
+      controllerName: "shadow_controller"
+      controller: "stanley"
+      maxPathAgeS: 0.5
+      offsetMaxAgeS: 0.5
+      offsetFallbackDeg: 0.0
+      hardwareProfile: true
+
+  # ---- localization health, hardware policy (node name in sc-system.xml / bench-system.xml) ----
+  localization_monitor:
+    ros__parameters:
+      max_state_age_s: 0.3
+      pos_std_ok_m: 0.5
+      pos_std_bad_m: 2.0
+      require_rtk_for_ok: true
+      require_filter_for_ok: true
+      max_quality_age_s: 1.0
+      health_validity_s: 0.5
+
+  # ---- perception ----
+  lidar_opponent:
+    ros__parameters:
+      lidar_x: 0.9                 # ASSUMED, metres forward of the INS reference point
+      lidar_y: 0.0
+      lidar_yaw_deg: 0.0
+      sensor_forward_axis: "neg_x" # lidar branch convention (lidar_helpers.py); verify on the bench
+      extrinsics_status: "assumed"
+      base_std_m: 0.25
+      std_per_m: 0.02
+      max_range_m: 40.0
+
+  SC_opponent_tracker:
+    ros__parameters:
+      detection_topics: ["lidar/detection_array", "vision/detection_array"]
+      radio_topic: ""              # radio_detection_adapter.py output; off until the radio is verified
+      raw_radio_odometry_topic: ""
+      confirm_hits: 3
+      max_age_s: 1.5
+      reorder_buffer_s: 0.15
+      max_input_age_s: 0.5
+      acceleration_std: 3.0   # course curves demand up to ~5 m/s^2; see racing/tracking.py
+      lidar_calibration_std_m: 0.15
+      camera_calibration_std_m: 0.30
+      radio_calibration_std_m: 0.50
 
   SC_vision:
     ros__parameters:
       model_name: "01-15-25_no_pushbar_yolov11n.pt"
+      vision_pos_std_m: 1.0

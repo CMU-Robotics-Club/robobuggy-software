@@ -1,0 +1,105 @@
+# scenario: SC starts 25 m behind NAND (13 vs 10 m/s); NAND is known to SC only through the
+# simulated radio (raw relayed position into the tracker). Expect a left pass and no collision.
+NAND:
+  NAND_sim_single:
+    ros__parameters:
+      velocity: 10.0
+      pose: "Hill1_NAND"
+      seed: 21
+  NAND_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "self/state"
+      trajectoryTopic: "self/cur_traj"
+      steeringTopic: "input/steering"
+      debugHeadingTopic: "debug/heading"
+      useHeadingRate: true
+      controllerName: "controller"
+      useSteerOffset: false
+      traj_name: "buggycourse_nand.json"
+      controller: "stanley"
+
+SC:
+  SC_sim_single:
+    ros__parameters:
+      velocity: 13.0
+      pose: "Hill1_SC_BEHIND"
+      seed: 22
+
+  SC_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "self/state"
+      trajectoryTopic: "self/cur_traj"
+      steeringTopic: "input/steering"
+      debugHeadingTopic: "debug/heading"
+      useHeadingRate: true
+      controllerName: "controller"
+      useSteerOffset: false
+      traj_name: "buggycourse_sc.json"
+      controller: "stanley"
+      maxPathAgeS: 0.5
+      offsetMaxAgeS: 0.5
+      offsetFallbackDeg: 0.0
+
+  SC_NAND_controller:
+    ros__parameters:
+      dist: 0.0
+      stateTopic: "other/state"
+      trajectoryTopic: "other/cur_traj"
+      steeringTopic: "other/steering"
+      debugHeadingTopic: "other/debug/heading"
+      useHeadingRate: true
+      controllerName: "NAND_controller"
+      traj_name: "buggycourse_nand.json"
+      controller: "stanley"
+
+  SC_localization_monitor:
+    ros__parameters:
+      max_state_age_s: 0.3
+      pos_std_ok_m: 0.5
+      pos_std_bad_m: 2.0
+      health_validity_s: 0.5
+
+  SC_path_planner:
+    ros__parameters:
+      traj_name: "buggycourse_sc.json"
+      curb_name: "buggycourse_curb.json"
+      left_width: 3.0
+      right_width: 1.3   # ASSUMED distance from the line to the right road edge (vehicle centre may go 0.5 m right); every plan is DEGRADED right_width_assumed until surveyed
+      hard_boundary_margin: 0.2
+      boundary_margin: 0.5
+      horizon: 60.0
+      lookahead: 2.0
+      offset_step: 0.25
+      transition_lengths: [15.0, 25.0, 40.0]
+      lateral_clearance: 1.6
+      longitudinal_window: 6.0
+      hard_opponent_margin: 0.2
+      opponent_sigma_gain: 2.0
+      side_policy: "more_room"
+      max_joint_opponents: 3
+      tracks_topic: "perception/tracking"
+      tracks_max_age_s: 1.0
+      require_perception: false
+      require_health: true
+      publish_legacy_trajectory: false
+      w_curvature: 400.0
+      w_deviation: 1.0
+      w_proximity: 6.0
+      w_change: 10.0
+      w_margin: 3.0
+
+  SC_opponent_tracker:
+    ros__parameters:
+      detection_topics: ["lidar/detection_array", "vision/detection_array"]
+      raw_radio_odometry_topic: "other/stateNoUKF"
+      raw_radio_std_m: 1.5
+      confirm_hits: 3
+      max_age_s: 1.5
+      reorder_buffer_s: 0.15
+      max_input_age_s: 0.5
+      acceleration_std: 3.0   # course curves demand up to ~5 m/s^2; see racing/tracking.py
+      lidar_calibration_std_m: 0.15
+      camera_calibration_std_m: 0.30
+      radio_calibration_std_m: 0.50

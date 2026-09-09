@@ -1,7 +1,23 @@
+<!--
+  sim_2d_single.xml : one simulated buggy (SC) on the course.
+
+  use_frenet:=false (default)  the controller follows the static reference JSON (legacy).
+  use_frenet:=true             the experimental Frenet planner publishes planning/result
+                               envelopes and the controller runs in envelope mode: it steers
+                               only on control-eligible, unexpired plans and falls back to the
+                               static reference otherwise (DECISIONS.md D1). Nothing here
+                               reaches hardware; this is the simulator.
+  use_speed_model:=true        gravity speed model instead of a constant velocity.
+
+  The localization monitor runs with the SIMULATION policy (no GNSS fix or INS filter status
+  exists in the sim, so those requirements are switched off explicitly). The hardware launch
+  uses the hardware policy from config/sc-roll.yaml.
+-->
 <launch>
 
     <arg name="config_file" default="src/buggy/config/sim_single_sc.yaml"/>
     <arg name="use_speed_model" default="false"/>
+    <arg name="use_frenet" default="false"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
 
@@ -15,13 +31,28 @@
         <param from="$(var config_file)"/>
     </node> -->
     <node pkg="buggy" exec="buggy_state_converter.py" name="SC_state_converter" namespace="SC"/>
-    <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC">
+
+    <!-- legacy: static reference trajectory -->
+    <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC" unless="$(var use_frenet)">
         <param from="$(var config_file)"/>
     </node>
+    <!-- experimental: envelope mode -->
+    <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC" output="screen" if="$(var use_frenet)">
+        <param from="$(var config_file)"/>
+        <param name="planningResultTopic" value="planning/result"/>
+    </node>
+    <node pkg="buggy" exec="frenet_planner.py" name="SC_path_planner" namespace="SC" output="screen" if="$(var use_frenet)">
+        <param from="$(var config_file)"/>
+    </node>
+
     <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC">
         <param from="$(var config_file)"/>
     </node>
-    <node pkg="buggy" exec="localization_monitor.py" name="SC_localization_monitor" namespace="SC" output="screen"/>
+    <node pkg="buggy" exec="localization_monitor.py" name="SC_localization_monitor" namespace="SC" output="screen">
+        <param from="$(var config_file)"/>
+        <param name="require_rtk_for_ok" value="false"/>
+        <param name="require_filter_for_ok" value="false"/>
+    </node>
     <!-- use_speed_model:=true replaces the constant sim velocity with the gravity speed model (config/course_zones.yaml) -->
     <node pkg="buggy" exec="speed_model_node.py" name="SC_speed_model" namespace="SC" output="screen" if="$(var use_speed_model)">
         <param from="$(var config_file)"/>

@@ -8,14 +8,17 @@
       ros2 launch buggy perception_bench.xml use_camera:=false    # lidar only
       ros2 launch buggy perception_bench.xml use_lidar_driver:=false   # velodyne driver already running
 
-  Nothing here commands steering. What you should see in Foxglove (ws://<buggy ip>:8765):
+  Nothing here commands steering. Use bench-system.xml (no serial node) instead of sc-system.xml
+  for the infrastructure. What you should see in Foxglove (ws://<buggy ip>:8765):
       /velodyne_points                 10 Hz point cloud (600 rpm on the sensor web page)
-      /lidar/obstacle_centroid         nearest cluster in the lidar frame (buggy_lidar.py)
-      /SC/lidar/detections             the same in UTM (lidar_opponent_node.py)
-      /SC/vision/other/state           camera detection of a buggy in UTM (detector_node.py)
-      /SC/perception/tracks            confirmed tracks: walk in front of the buggy and watch one appear
-      /SC/debug/tracker/status         counts of detections, associations, new and dropped tracks
-      /SC/localization/status          own-position quality; needs sky view to mean anything indoors
+      /lidar/detections_sensor         EVERY cluster inside the ellipse, lidar frame, with extents
+      /lidar/obstacle_centroid         legacy: the single best cluster
+      /SC/lidar/detection_array        all clusters in UTM, stamped at scan time (lidar_opponent_node.py)
+      /SC/vision/detection_array       every ZED object in UTM, image-time stamped (detector_node.py)
+      /SC/perception/tracking          the tracker's live tracks with covariance, age, sources, confirmed flag
+      /SC/perception/tracks            legacy confirmed-track list
+      /SC/debug/tracker/status         counts of detections, associations, suspected duplicates
+      /SC/localization/health_stamped  own-position health with expiry; indoors it will say BAD, expected
 
   Lidar parameters below follow the research notes rather than the lidar branch's defaults:
   one frame per cloud (no 4-frame merge, which smears moving targets), a 30 m detection

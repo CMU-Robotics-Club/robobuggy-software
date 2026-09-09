@@ -1,0 +1,28 @@
+<!--
+  bench-system.xml : sc-system.xml WITHOUT the serial bridge, for stationary sensor tests.
+
+  Starts the INS driver, the Foxglove bridge, the state converter, the localization monitor
+  (hardware policy from config/sc-roll.yaml) and, with use_lidar:=true, the lidar-to-UTM adapter.
+  It does not start ros_to_bnyahaj.py, so nothing in this session can send a steering or
+  alarm packet to the Teensy, and it does not start any planner or controller.
+
+      ros2 launch buggy bench-system.xml                 # then perception_bench.xml in a second terminal
+      ros2 launch buggy bench-system.xml use_lidar:=true
+-->
+<launch>
+    <include file="$(find-pkg-share microstrain_inertial_driver)/launch/microstrain_launch.py">
+        <arg name="params_file" value="$(env RBROOT)/src/buggy/INS_params.yml"/>
+    </include>
+    <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
+    <arg name="use_lidar" default="true"/>
+
+    <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
+
+    <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen" namespace="SC"/>
+    <node name="localization_monitor" pkg="buggy" exec="localization_monitor.py" namespace="SC" output="screen">
+        <param from="$(var config_file)"/>
+    </node>
+    <node name="lidar_opponent" pkg="buggy" exec="lidar_opponent_node.py" namespace="SC" output="screen" if="$(var use_lidar)">
+        <param from="$(var config_file)"/>
+    </node>
+</launch>
