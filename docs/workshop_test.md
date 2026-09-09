@@ -27,8 +27,26 @@ them for the new address and user; everything else is the same.
 
 ## 1. Connect
 
+The two buggy computers, as SSH aliases (put these in `~/.ssh/config`):
+
+| alias | address | user | network |
+| --- | --- | --- | --- |
+| `sc` | 192.168.1.217 | nuc | ShortCircuit hotspot |
+| `sc_cmu` | roboclub-robobuggy-nuc.wifi.local.cmu.edu | nuc | CMU wifi |
+| `nand` | 192.168.10.191 | nand | NAND hotspot |
+| `nand_cmu` | nandjetson.wifi.local.cmu.edu | nand | CMU wifi |
+
+```
+Host sc
+  HostName 192.168.1.217
+  User nuc
+  SetEnv TERM=xterm-256color
+```
+
+(repeat for the other three), then:
+
 ```bash
-ssh nuc@192.168.1.217
+ssh sc
 ```
 
 Look around before changing anything:
@@ -71,7 +89,7 @@ git checkout feature/racing-perception-planning
 Option B, straight over SSH, no GitHub. On your laptop, once:
 
 ```bash
-git remote add buggy nuc@192.168.1.217:robobuggy-software
+git remote add buggy sc:robobuggy-software
 git push buggy feature/racing-perception-planning
 ```
 
@@ -162,7 +180,7 @@ ros2 topic echo /SC/debug/tracker/status --once
 Stop the recorder with Ctrl-C in pane 3, then from your laptop:
 
 ```bash
-scp -r nuc@192.168.1.217:robobuggy-software/rb_ws/bags/bench_* ./rb_ws/bags/
+scp -r sc:robobuggy-software/rb_ws/bags/bench_* ./rb_ws/bags/
 ```
 
 At home, inside the container, replay it with `launch/replay_bag.xml`, which
