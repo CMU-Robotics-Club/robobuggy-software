@@ -4,13 +4,14 @@ How to get `feature/racing-perception-planning` onto Short Circuit, run the
 perception chain with the buggy standing still, look at the result, and bring
 the data home. Nothing in this test commands steering.
 
-Assumptions from the repo's `bootstrap/` files and README: the buggy computer
-is reachable on the **ShortCircuit** Wi-Fi as `nuc@192.168.1.217`, the repo is
-checked out at `~/robobuggy-software`, ROS 2 Humble is installed natively (no
-Docker on the buggy), the Python packages live in a virtualenv at
-`~/robobuggy-software/.sc`, and a systemd service called `buggy` starts the
-stack in a tmux session at boot. If the team has moved to the Jetson Orin, ask
-them for the new address and user; everything else is the same.
+Checked on the NUC on 2026-09-09: the repo is at `~/robobuggy-software`, ROS 2
+Humble is native (no Docker on the buggy), the Python packages live in the
+virtualenv `~/robobuggy-software/.sc`, and the systemd service `buggy` starts the
+stack in a tmux session at boot. The machine is an Intel NUC11PHi7 with an RTX
+2060, hostname `nuc-NUC11PHi7`. On CMU wifi it is `roboclub-robobuggy-nuc.wifi.local.cmu.edu`
+(`ssh sc_cmu`); `192.168.1.217` is its wired interface, so `ssh sc` only works from
+the ShortCircuit network. If the team has moved to the Jetson Orin, ask them for
+the new address and user; everything else is the same.
 
 ## 0. Safety, before touching the keyboard
 
@@ -57,13 +58,24 @@ tmux ls                         # the "buggy" session, if so
 cd ~/robobuggy-software && git status && git branch --show-current
 ```
 
-The service starts `sc-system.xml` and `sc-main.xml` at boot. For a perception
-bench test you want the sensors but not the controller and planner, so stop the
-service and start the sensors yourself:
+The service starts `sc-system.xml` and `sc-main.xml` at boot. It is only a
+wrapper: `buggy.service` runs `/home/nuc/start_buggy.sh` once, which builds the
+workspace and sends the two launch commands into panes 0 and 1 of the `buggy`
+tmux session, owned by `nuc`. Two consequences worth knowing:
+
+- `sudo` asks for a password on the NUC. You do not need it: stopping the stack
+  is what the team's own `bootstrap/stop_buggy.sh` does, and that is just tmux.
+- A failed build does not stop the service. The `colcon` errors scroll past and
+  the stack starts from whatever is left in `install/`. Read the build summary.
+
+For a perception bench test you want the sensors but not the controller and
+planner, so stop the stack (the same commands as `stop_buggy.sh`) and start the
+sensors yourself:
 
 ```bash
-sudo systemctl stop buggy
-tmux kill-session -t buggy 2>/dev/null
+tmux respawn-pane -k -t buggy.0     # sc-system.xml: INS, foxglove, serial node
+tmux respawn-pane -k -t buggy.1     # sc-main.xml: controllers, planner, estimators
+pgrep -af "ros_to_bnyahaj|controller_node" || echo stopped
 ```
 
 ## 2. Get the branch onto the buggy
@@ -96,24 +108,45 @@ git push buggy feature/racing-perception-planning
 then check the branch out on the buggy as above. Either way, note which branch
 the buggy was on before (`rolls`, most likely) so you can put it back.
 
+The two branches declare different message sets: `rolls` has none of
+`DetectionArrayMsg`, `PlanningResultMsg`, `TrackingResultMsg`. rosidl does not
+clean its generated code between configures, so after switching in either
+direction remove the package's build output before building. Otherwise the next
+build fails on a stale header, as it did on 2026-09-09
+(`geometry_msgs/msg/detail/point__struct.h: No such file` while compiling a
+message that no longer existed):
+
+```bash
+rm -rf ~/robobuggy-software/rb_ws/build/buggy ~/robobuggy-software/rb_ws/install/buggy
+```
+
 ## 3. Install the extra packages and build
 
 ```bash
 cd ~/robobuggy-software
 source .sc/bin/activate
 pip install -r perception-requirements.txt      # open3d, scikit-learn, ultralytics
-sudo apt install ros-humble-velodyne             # lidar driver, if not already there
+pip install "pytest<8" mcap                     # for test/; pytest 8+ breaks ROS's launch_testing plugin
 cd rb_ws
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install
 source install/local_setup.bash
 source environments/sc_env.bash
+cd src/buggy && python3 -m pytest test -q -p no:cacheprovider   # the branch's regressions on the buggy's Python
 ```
+
+As of 2026-09-09 the NUC already has everything: numpy 1.26, scipy 1.15, open3d
+0.19, scikit-learn 1.7, ultralytics 8.3, torch 2.6 with CUDA 12.4, `pyzed`,
+`ros-humble-velodyne` 2.5.1 and the Microstrain driver 4.5.0. The branch built
+clean there in 10 s. Only `pytest` and `mcap` were missing.
 
 The ZED camera needs the ZED SDK and its Python package `pyzed`, which the
 vision people installed for `detector_node.py`. If `python3 -c "import pyzed"`
 fails, run the bench test with `use_camera:=false` and sort the camera out
-separately.
+separately. On 2026-09-09 `pyzed` imported fine but the SDK reported
+`CAMERA NOT DETECTED` although `lsusb` listed the ZED 2i: it was enumerated behind
+a USB 2.0 hub, and the ZED SDK needs USB 3. Move it to a blue port directly on
+the NUC before blaming the software.
 
 ## 4. Run the bench test
 
@@ -203,9 +236,43 @@ you tune the tracker without going back to the workshop.
 
 ```bash
 cd ~/robobuggy-software && git checkout rolls      # or whatever it was on
-cd rb_ws && colcon build --symlink-install
-sudo systemctl start buggy
+rm -rf rb_ws/build/buggy rb_ws/install/buggy       # stale generated messages, see section 2
+BUGGY=sc BAG_DIR=/home/nuc/bags/ PROJECT_ROOT=/home/nuc/robobuggy-software /home/nuc/start_buggy.sh
 ```
+
+That last line is exactly what the service runs at boot: it rebuilds and respawns
+the two launch panes, no `sudo` needed. Confirm with `git branch --show-current`
+(`rolls`) and `ros2 node list` (`/SC/bnyahaj`, the serial node, is back). If
+`git checkout` refuses because scripts show as modified, that is `colcon` setting
+executable bits on files committed without them; `git stash` and carry on.
+
+## Bench log
+
+**2026-09-09, workshop, NUC on CMU wifi, lidar unplugged, buggy stationary.**
+The serial node was stopped first, so nothing in this session could reach the
+Teensy; the firmware topic reported `auton_steer: false` and `tx12_state: false`
+throughout.
+
+| check | result |
+| --- | --- |
+| `colcon build --symlink-install` of this branch on the NUC | clean, 10 s; the five new messages registered |
+| `bench-system.xml use_lidar:=false` | INS at 100 Hz, Foxglove and state converter up; `localization_monitor` crashed (fix 1) |
+| `perception_bench.xml use_lidar_driver:=false` | `buggy_lidar`, `lidar_opponent` and the tracker up, tracker status at 20 Hz; `detector_node` exited, ZED not detected (USB 2, section 3) |
+| `sc-main.xml` beside it (legacy + shadow, no serial) | both legacy controllers, path planner, offset and NAND estimators, shadow controller up and reporting `source: reference`; shadow planner crashed (fix 2) |
+| unit tests on the NUC | not run: pytest 9 clashed with `launch_testing`; pin `pytest<8` |
+
+Fixed in the branch afterwards:
+
+1. `localization_monitor.py`: driver 4.5.0 messages carry a `MipHeader` whose
+   `header` holds the stamp; reading `msg.header.stamp` raised. Now
+   `racing.health.header_stamp_seconds` accepts both layouts.
+2. `frenet_planner.py`: indoors the state converter publishes NaN UTM and the
+   KD-tree query raised. The planner now publishes an INELIGIBLE result with the
+   reason `state_not_finite` and skips the cycle.
+3. New scripts were committed without the executable bit; `colcon` sets it on
+   the buggy, which dirties the tree and blocks `git checkout`. Fixed in git.
+
+Not covered: lidar (unplugged), camera (USB), anything moving.
 
 ## What this test does and does not tell you
 

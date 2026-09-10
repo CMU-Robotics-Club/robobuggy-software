@@ -1,9 +1,11 @@
 """Regressions for missing, stale and malformed localization inputs."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
-from racing.health import HealthPolicy, evaluate_health
+from racing.health import HealthPolicy, evaluate_health, header_stamp_seconds
 
 
 def health(**overrides):
@@ -41,3 +43,21 @@ def test_missing_and_stale_quality_never_ok():
 def test_simulation_policy_is_explicit():
     assert health(fix=None, fix_stamp=None, filter_state=None, filter_stamp=None,
                   policy=HealthPolicy(require_rtk=False, require_filter=False))[0] == 0
+
+
+def _stamp(sec, nanosec):
+    return SimpleNamespace(sec=sec, nanosec=nanosec)
+
+
+def test_header_stamp_reads_plain_and_microstrain_nested_headers():
+    plain = SimpleNamespace(header=SimpleNamespace(stamp=_stamp(12, 500_000_000)))
+    assert header_stamp_seconds(plain) == pytest.approx(12.5)
+    # microstrain_inertial_msgs 4.x: MipHeader{header: std_msgs/Header, event_source, reference_timestamp}
+    nested = SimpleNamespace(header=SimpleNamespace(header=SimpleNamespace(stamp=_stamp(7, 0)),
+                                                    event_source=0, reference_timestamp=0))
+    assert header_stamp_seconds(nested) == pytest.approx(7.0)
+
+
+def test_header_stamp_is_none_without_a_usable_header():
+    assert header_stamp_seconds(SimpleNamespace(fix_type=6)) is None
+    assert header_stamp_seconds(SimpleNamespace(header=SimpleNamespace(event_source=0))) is None

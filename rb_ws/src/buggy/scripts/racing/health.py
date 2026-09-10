@@ -10,6 +10,24 @@ def stamp_seconds(stamp):
     return float(stamp.sec) + float(stamp.nanosec) * 1e-9
 
 
+def header_stamp_seconds(msg):
+    """
+    Source time of a message, or None when it carries none.
+
+    std_msgs/Header has .stamp directly. The Microstrain 4.x driver wraps it: its messages
+    carry a MipHeader whose .header is the std_msgs/Header (seen on the GQ7 with driver
+    4.5.0, 2026-09-09). Reading .header.stamp blindly raised AttributeError and took the
+    localization monitor down on the buggy.
+    """
+    hdr = getattr(msg, "header", None)
+    if hdr is not None and not hasattr(hdr, "stamp"):
+        hdr = getattr(hdr, "header", None)
+    stamp = getattr(hdr, "stamp", None)
+    if stamp is None or not hasattr(stamp, "sec"):
+        return None
+    return stamp_seconds(stamp)
+
+
 def fresh(stamp, now, maximum_age, future_tolerance=0.02):
     """Reject missing/zero stamps, clock rollback, future and expired measurements."""
     return (stamp is not None and math.isfinite(stamp) and math.isfinite(now)

@@ -417,6 +417,11 @@ class FrenetPlanner(Node):
         ex, ey = ego.pose.pose.position.x, ego.pose.pose.position.y
         ev = float(np.hypot(ego.twist.twist.linear.x, ego.twist.twist.linear.y))
         heading_e = float(ego.pose.pose.orientation.z)
+        if not all(math.isfinite(v) for v in (ex, ey, ev, heading_e)):
+            # Indoors or before the first fix the state converter emits NaN / out-of-range UTM.
+            # The KD-tree query raises on NaN and took the node down on the buggy (2026-09-09).
+            self.publish_no_geometry(ego, hard_failures + ["state_not_finite"], t_start)
+            return
         s_e, d_e = self.track.frenet(ex, ey)
 
         opponents, tracks_stamp, perception_failure = self.collect_opponents(now)
@@ -707,6 +712,32 @@ class FrenetPlanner(Node):
         self.get_logger().info(
             f"plan {msg.plan_id} {STATUS_NAMES[result.status]} target {d_end:+.2f} m, {n_cand} candidates, "
             f"{len(opponents)} opponents, cycle {cycle_ms:.1f} ms", throttle_duration_sec=5.0)
+
+    def publish_no_geometry(self, ego, reasons, t_start):
+        """INELIGIBLE envelope without a trajectory, for cycles where no plan geometry can exist."""
+        self.plan_id += 1
+        now_ros = self.get_clock().now()
+        msg = PlanningResultMsg()
+        msg.header.stamp = now_ros.to_msg()
+        msg.header.frame_id = "utm"
+        msg.plan_id = int(self.plan_id)
+        msg.state_stamp = ego.header.stamp
+        msg.valid_until = (now_ros + Duration(seconds=self.plan_validity)).to_msg()
+        msg.status = STATUS_INELIGIBLE
+        msg.control_eligible = False
+        msg.reasons = [str(r) for r in reasons]
+        msg.max_curvature = -1.0
+        msg.min_hard_clearance = 1e9
+        msg.min_road_margin = 1e9
+        self.result_publisher.publish(msg)
+        cycle_ms = (self.now_s() - t_start) * 1000.0
+        self.cycle_ms_publisher.publish(Float64(data=float(cycle_ms)))
+        self.status_publisher.publish(String(data=json.dumps({
+            "plan_id": msg.plan_id, "status": STATUS_NAMES[STATUS_INELIGIBLE], "control_eligible": False,
+            "reasons": msg.reasons, "state": self.state, "target_offset": None, "opponents": 0,
+            "cycle_ms": round(cycle_ms, 1),
+        })))
+        self.get_logger().warn(f"no plan geometry: {msg.reasons}", throttle_duration_sec=1.0)
 
 
 def main(args=None):

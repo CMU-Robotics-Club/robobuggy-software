@@ -27,13 +27,13 @@ simulator where the driver package is installed but nothing publishes.
 import json
 
 import rclpy
+from rclpy.duration import Duration
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int8, String
-from buggy.msg import LocalizationHealthMsg
-from rclpy.duration import Duration
 
-from racing.health import HealthPolicy, evaluate_health, stamp_seconds
+from racing.health import HealthPolicy, evaluate_health, header_stamp_seconds, stamp_seconds
+from buggy.msg import LocalizationHealthMsg
 
 
 class LocalizationMonitor(Node):
@@ -106,13 +106,13 @@ class LocalizationMonitor(Node):
         v = getattr(msg, "fix_type", None)
         if v is not None:
             self.fix_type = int(v)
-            self.fix_stamp = stamp_seconds(msg.header.stamp) if hasattr(msg, "header") else None
+            self.fix_stamp = header_stamp_seconds(msg)
 
     def on_filter(self, msg):
         v = getattr(msg, "filter_state", None)
         if v is not None:
             self.filter_state = int(v)
-            self.filter_stamp = stamp_seconds(msg.header.stamp) if hasattr(msg, "header") else None
+            self.filter_stamp = header_stamp_seconds(msg)
 
     def evaluate(self):
         now = self.get_clock().now()

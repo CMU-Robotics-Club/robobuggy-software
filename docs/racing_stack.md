@@ -201,3 +201,9 @@ buggy, run the perception chain standing still (`bench-system.xml` plus
 - 2026-09-08 reviewed stack: five committed scenarios, table in section 4; 84 tests;
   lint 10.00/10 under CI conditions. Details and the list of problems found and fixed
   during verification: `.ai-collab/TEST_RESULTS.md`.
+- 2026-09-09 first run on the SC NUC, stationary, serial node stopped, lidar unplugged
+  (`docs/workshop_test.md`, bench log). Branch built clean on the buggy; tracker, lidar
+  adapter, both legacy controllers and the shadow controller ran. Two crashes found and
+  fixed: the localization monitor on the Microstrain 4.x nested header, and the planner
+  on NaN indoor positions (now INELIGIBLE `state_not_finite`). ZED not detected (USB 2
+  port). Nothing moved; hardware questions in section 6 are unchanged.
