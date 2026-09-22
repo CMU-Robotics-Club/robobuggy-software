@@ -1,6 +1,6 @@
 import struct
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, astuple
 
 from serial import Serial
 
@@ -67,13 +67,42 @@ MSG_TYPE_RADIO = b'SR'
 MSG_TYPE_SC_DEBUG = b'SD'
 MSG_TYPE_SC_SENSORS = b'SS'
 MSG_TYPE_ROUNDTRIP_TIMESTAMP = b'RT'
+MSG_TYPE_SC_UKF = b'SU'
 
 # software --> firmware
 MSG_TYPE_STEERING = b'ST'
 MSG_TYPE_ALARM    = b'AL'
 MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
+MSG_TYPE_SC_GPS  = b'SG'
 
 
+@dataclass
+class SCRawGPS:
+    eastern: float # double position eastern
+    northern: float # double position northern
+    accuracy: float # double current accuracy of the GPS fix, 2D accuracy
+
+    gps_seq_num: int #gps seqence number
+    timestamp: int #teensy timestamp
+
+    gps_SIV: int # Number of satellites used in fix
+    gps_fix: int # 0=no fix, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS, 5=Time fix
+    rtk_fix: int # 0, 1 or 2 for no RTK, float RTK, or fixed RTK solution, 
+
+@dataclass
+class SCUKF:
+    # 64 bits
+    eastern: float # position eastern
+    northern: float # position northern
+    heading: float # current heading, radians, value of 0 pointing east, increasing counterclockwise
+    eastern_cov: float # covariance of eastern value
+    northern_cov: float # covariance of northern value
+    heading_cov: float # covariance of the heading value
+    speed_cov: float # covariance of the speed value
+    heading_rate: float # positive when accelerating in CCW direction
+    front_speed: float # speed of the front wheel, in m/s
+    # 32 bits
+    timestamp: int # teensy timestamp, in MICROseconds!
 
 @dataclass
 class NANDDebugInfo:
@@ -206,6 +235,9 @@ class Comms:
     def send_timestamp(self, timestamp: int):
         self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<Q', timestamp))
 
+    def send_gps(self, scGPS: SCRawGPS):
+        self.send_packet_raw(MSG_TYPE_SC_GPS, struct.pack('<dddIIBBBxxxxx', *astuple(scGPS)))
+
     def read_packet_raw(self):
         self.rx_buffer += self.port.read_all() #type:ignore
         try:
@@ -293,11 +325,15 @@ class Comms:
         elif msg_type == MSG_TYPE_SC_DEBUG:
             data = struct.unpack('<dfffII??B??Bxxxxxx', payload)
             return SCDebugInfo(*data)
-
+        
         elif msg_type == MSG_TYPE_SC_SENSORS:
             data = struct.unpack('<dfI', payload)
             return SCSensors(*data)
 
+        elif msg_type == MSG_TYPE_SC_UKF:
+            data = struct.unpack('<)dddddddddI', payload)
+            return SCUKF(*data)
+    
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
             timestamp = struct.unpack('<QQIxxxx', payload)
             return RoundtripTimestamp(*timestamp)
