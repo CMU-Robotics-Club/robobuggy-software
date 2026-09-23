@@ -331,7 +331,7 @@ class Comms:
             return SCSensors(*data)
 
         elif msg_type == MSG_TYPE_SC_UKF:
-            data = struct.unpack('<)dddddddddI', payload)
+            data = struct.unpack('<dddddddddIxxxx', payload)
             return SCUKF(*data)
     
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
