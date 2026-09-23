@@ -83,7 +83,7 @@ class SCRawGPS:
     accuracy: float # double current accuracy of the GPS fix, 2D accuracy
 
     gps_seq_num: int #gps seqence number
-    timestamp: int #teensy timestamp
+    timestamp: int  # software timestamp, in millis
 
     gps_SIV: int # Number of satellites used in fix
     gps_fix: int # 0=no fix, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS, 5=Time fix
