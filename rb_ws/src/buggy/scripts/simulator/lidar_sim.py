@@ -231,7 +231,6 @@ class LidarSim(Node):
             return
         c, s = math.cos(yaw), math.sin(yaw)
         o = np.array([ex + c * self.lidar_off[0] - s * self.lidar_off[1], ey + s * self.lidar_off[0] + c * self.lidar_off[1]])
-        o32 = o.astype(np.float32)
         R = np.array([[c, -s], [s, c]])
         d2 = (self.dirs_body[:, :2] @ R.T).astype(np.float32)   # world-frame horizontal directions
         dz = self.dirs_body[:, 2].astype(np.float32)
