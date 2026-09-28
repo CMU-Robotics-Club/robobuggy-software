@@ -1,0 +1,342 @@
+{
+ "configById": {
+  "3D!course": {
+   "cameraState": {
+    "perspective": true,
+    "distance": 55,
+    "phi": 42,
+    "thetaOffset": 0,
+    "target": [
+     0,
+     0,
+     0
+    ],
+    "targetOffset": [
+     0,
+     0,
+     0
+    ],
+    "targetOrientation": [
+     0,
+     0,
+     0,
+     1
+    ],
+    "fovy": 45,
+    "near": 0.5,
+    "far": 5000
+   },
+   "followMode": "follow-pose",
+   "followTf": "ego",
+   "scene": {
+    "enableStats": false,
+    "labelScaleFactor": 1,
+    "transforms": {
+     "showLabel": false,
+     "axisScale": 0.5
+    }
+   },
+   "transforms": {
+    "frame:course": {
+     "visible": false
+    },
+    "frame:ego": {
+     "visible": true
+    },
+    "frame:velodyne": {
+     "visible": false
+    }
+   },
+   "topics": {
+    "/SC/viz/course": {
+     "visible": true
+    },
+    "/SC/viz/live": {
+     "visible": true
+    },
+    "/SC/viz/reference_path": {
+     "visible": true,
+     "lineWidth": 0.15,
+     "gradient": [
+      "#ffffff",
+      "#ffffff"
+     ],
+     "type": "line"
+    },
+    "/SC/viz/plan_path": {
+     "visible": false
+    },
+    "/velodyne_points": {
+     "visible": true,
+     "pointSize": 2.5,
+     "pointShape": "circle",
+     "colorMode": "colormap",
+     "colorField": "intensity",
+     "colorMap": "turbo",
+     "minValue": 0,
+     "maxValue": 230,
+     "decayTime": 0
+    }
+   },
+   "layers": {
+    "grid": {
+     "visible": true,
+     "frameLocked": true,
+     "label": "Grid",
+     "instanceId": "grid",
+     "layerId": "foxglove.Grid",
+     "size": 400,
+     "divisions": 40,
+     "lineWidth": 0.5,
+     "color": "#444444",
+     "position": [
+      0,
+      0,
+      0
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "order": 1
+    }
+   },
+   "publish": {
+    "type": "point",
+    "poseTopic": "/move_base_simple/goal",
+    "pointTopic": "/clicked_point",
+    "poseEstimateTopic": "/initialpose",
+    "poseEstimateXDeviation": 0.5,
+    "poseEstimateYDeviation": 0.5,
+    "poseEstimateThetaDeviation": 0.26179939
+   },
+   "imageMode": {},
+   "foxglovePanelTitle": "Course (white = reference, orange = edges, blue = hard corridor, green/amber/red = plan status)"
+  },
+  "Indicator!plan": {
+   "path": "/SC/planning/result.status",
+   "style": "background",
+   "fontSize": 22,
+   "fallbackColor": "#666666",
+   "fallbackLabel": "no plan yet",
+   "rules": [
+    {
+     "operator": "=",
+     "rawValue": "1",
+     "color": "#1fb84a",
+     "label": "plan ELIGIBLE"
+    },
+    {
+     "operator": "=",
+     "rawValue": "2",
+     "color": "#e0a800",
+     "label": "plan DEGRADED (eligible, flagged)"
+    },
+    {
+     "operator": "=",
+     "rawValue": "3",
+     "color": "#d9363e",
+     "label": "plan INELIGIBLE -> fallback"
+    }
+   ],
+   "foxglovePanelTitle": "Planner envelope"
+  },
+  "Indicator!health": {
+   "path": "/SC/localization/health_stamped.level",
+   "style": "background",
+   "fontSize": 22,
+   "fallbackColor": "#666666",
+   "fallbackLabel": "no health msg",
+   "rules": [
+    {
+     "operator": "=",
+     "rawValue": "0",
+     "color": "#1fb84a",
+     "label": "localization OK"
+    },
+    {
+     "operator": "=",
+     "rawValue": "1",
+     "color": "#e0a800",
+     "label": "localization DEGRADED"
+    },
+    {
+     "operator": "=",
+     "rawValue": "2",
+     "color": "#d9363e",
+     "label": "localization BAD"
+    }
+   ],
+   "foxglovePanelTitle": "Localization health"
+  },
+  "Indicator!src": {
+   "path": "/SC/controller/plan_source.data",
+   "style": "background",
+   "fontSize": 16,
+   "fallbackColor": "#666666",
+   "fallbackLabel": "legacy controller (no plan_source)",
+   "rules": [
+    {
+     "operator": "=",
+     "rawValue": "",
+     "color": "#666666",
+     "label": ""
+    }
+   ],
+   "foxglovePanelTitle": "Controller plan source (JSON)"
+  },
+  "StateTransitions!state": {
+   "paths": [
+    {
+     "value": "/SC/debug/planner/state.data",
+     "timestampMethod": "receiveTime",
+     "label": "planner state 0 RACELINE 1 PASS 2 REJOIN"
+    },
+    {
+     "value": "/SC/planning/result.status",
+     "timestampMethod": "receiveTime",
+     "label": "plan status 1 ELIG 2 DEGR 3 INELIG"
+    }
+   ],
+   "isSynced": true,
+   "timeWindowMode": "automatic",
+   "playbackBarPosition": "right",
+   "foxglovePanelTitle": "State machine"
+  },
+  "Plot!steer": {
+   "paths": [
+    {
+     "timestampMethod": "receiveTime",
+     "value": "/SC/input/steering.data",
+     "enabled": true,
+     "color": "#4e98e2",
+     "label": "steering cmd (deg)"
+    },
+    {
+     "timestampMethod": "receiveTime",
+     "value": "/SC/debug/shadow/input_steering.data",
+     "enabled": true,
+     "color": "#e2a34e",
+     "label": "shadow steering (hardware only)"
+    },
+    {
+     "timestampMethod": "receiveTime",
+     "value": "/SC/controller/controller/debug/cross_track_error.data",
+     "enabled": true,
+     "color": "#f5f5f5",
+     "label": "cross-track error (m)"
+    }
+   ],
+   "minYValue": -22,
+   "maxYValue": 22,
+   "showXAxisLabels": true,
+   "showYAxisLabels": true,
+   "showLegend": true,
+   "legendDisplay": "floating",
+   "showPlotValuesInLegend": true,
+   "isSynced": true,
+   "xAxisVal": "timestamp",
+   "sidebarDimension": 240,
+   "followingViewWidth": 30,
+   "foxglovePanelTitle": "Steering and tracking"
+  },
+  "Plot!plan": {
+   "paths": [
+    {
+     "timestampMethod": "receiveTime",
+     "value": "/SC/debug/planner/target_offset.data",
+     "enabled": true,
+     "color": "#1fb84a",
+     "label": "target lateral offset (m, left +)"
+    },
+    {
+     "timestampMethod": "receiveTime",
+     "value": "/SC/debug/planner/opponent_gap_m.data",
+     "enabled": true,
+     "color": "#d9363e",
+     "label": "closest opponent footprint gap (m)"
+    },
+    {
+     "timestampMethod": "receiveTime",
+     "value": "/SC/debug/planner/num_opponents.data",
+     "enabled": true,
+     "color": "#999999",
+     "label": "opponents considered"
+    }
+   ],
+   "minYValue": -4,
+   "maxYValue": 8,
+   "showXAxisLabels": true,
+   "showYAxisLabels": true,
+   "showLegend": true,
+   "legendDisplay": "floating",
+   "showPlotValuesInLegend": true,
+   "isSynced": true,
+   "xAxisVal": "timestamp",
+   "sidebarDimension": 240,
+   "followingViewWidth": 30,
+   "foxglovePanelTitle": "Planner"
+  },
+  "RawMessages!status": {
+   "diffEnabled": false,
+   "diffMethod": "custom",
+   "diffTopicPath": "",
+   "showFullMessageForDiff": false,
+   "topicPath": "/SC/planning/status",
+   "fontSize": 11,
+   "foxglovePanelTitle": "planning/status"
+  },
+  "RosOut!log": {
+   "searchTerms": [],
+   "minLogLevel": 2,
+   "nameFilter": {},
+   "foxglovePanelTitle": "Log",
+   "topicToRender": "/rosout"
+  }
+ },
+ "globalVariables": {},
+ "userNodes": {},
+ "playbackConfig": {
+  "speed": 1
+ },
+ "layout": {
+  "direction": "row",
+  "splitPercentage": 62,
+  "first": "3D!course",
+  "second": {
+   "direction": "column",
+   "splitPercentage": 12,
+   "first": {
+    "direction": "row",
+    "first": "Indicator!plan",
+    "second": "Indicator!health"
+   },
+   "second": {
+    "direction": "column",
+    "splitPercentage": 10,
+    "first": "Indicator!src",
+    "second": {
+     "direction": "column",
+     "splitPercentage": 18,
+     "first": "StateTransitions!state",
+     "second": {
+      "direction": "column",
+      "splitPercentage": 40,
+      "first": "Plot!steer",
+      "second": {
+       "direction": "column",
+       "splitPercentage": 50,
+       "first": "Plot!plan",
+       "second": {
+        "direction": "row",
+        "first": "RawMessages!status",
+        "second": "RosOut!log"
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

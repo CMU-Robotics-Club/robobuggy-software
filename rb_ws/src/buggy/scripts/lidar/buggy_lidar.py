@@ -85,10 +85,13 @@ class BuggyLidar(Node):
         # Velodyne driver publishes with BEST_EFFORT reliability.
         # Mismatching this (e.g. using the default RELIABLE) causes ROS2 to
         # silently drop every message — the node runs but receives nothing.
+        # depth=1: when a scan takes longer to process than the 100 ms between scans, a deeper
+        # queue makes every detection older than the last (2 s behind in the sim, 2026-09-15) and
+        # the UTM adapter drops them as uncoverable by its pose history. Keep only the newest scan.
         sensor_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
             history=HistoryPolicy.KEEP_LAST,
-            depth=10,
+            depth=1,
         )
 
         # ---------------- Publishers ----------------

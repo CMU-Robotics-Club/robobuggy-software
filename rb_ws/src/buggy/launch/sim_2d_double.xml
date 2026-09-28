@@ -10,6 +10,12 @@
                                  (config: SC_lidar_sim / SC_camera_sim), so the tracker sees
                                  several opponents.
   use_speed_model:=true          gravity speed model instead of a constant velocity.
+  use_lidar_sim:=true            a ray-cast VLP-16 (lidar_sim.py) publishes /velodyne_points from a 3D
+                                 world built from the course files; the REAL clustering node
+                                 (buggy_lidar.py) and adapter (lidar_opponent_node.py) turn it into
+                                 lidar/detection_array. Pair it with use_fake_lidar:=false so
+                                 perception_sim's shortcut lidar detections do not double up:
+                                     ros2 launch buggy sim_2d_double.xml use_perception_sim:=true use_lidar_sim:=true use_fake_lidar:=false
 
   The opponent tracker (the single fusion authority, D5) always runs. Its inputs are the
   structured detection arrays and, in the simulator, NAND's RAW relayed position on
@@ -19,11 +25,18 @@
   The localization monitor runs with the SIMULATION policy (no GNSS fix / INS status in sim).
 -->
 <launch>
+    <!-- one BLAS thread per node: the 100 Hz numpy loops otherwise leave OpenBLAS workers spin-waiting
+         (each controller showed ~200 % CPU on a 24-core laptop, 2026-09-15) -->
+    <set_env name="OPENBLAS_NUM_THREADS" value="1"/>
+    <set_env name="OMP_NUM_THREADS" value="1"/>
 
     <arg name="config_file" default="src/buggy/config/sim_double.yaml"/>
+    <arg name="use_viz" default="true"/>
     <arg name="use_frenet" default="true"/>
     <arg name="use_speed_model" default="false"/>
     <arg name="use_perception_sim" default="false"/>
+    <arg name="use_lidar_sim" default="false"/>
+    <arg name="use_fake_lidar" default="$(var use_perception_sim)"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
 
@@ -69,12 +82,32 @@
 
     <node name="estimator" pkg="buggy" exec="nand_estimator.py" output="screen" namespace="SC"/>
     <!-- use_perception_sim:=true adds fake lidar + camera detections of NAND and the ghosts -->
-    <node pkg="buggy" exec="perception_sim.py" name="SC_lidar_sim" namespace="SC" output="screen" if="$(var use_perception_sim)">
+    <node pkg="buggy" exec="perception_sim.py" name="SC_lidar_sim" namespace="SC" output="screen" if="$(var use_fake_lidar)">
         <param from="$(var config_file)"/>
     </node>
     <node pkg="buggy" exec="perception_sim.py" name="SC_camera_sim" namespace="SC" output="screen" if="$(var use_perception_sim)">
         <param from="$(var config_file)"/>
     </node>
+    <!-- use_lidar_sim:=true: simulated VLP-16 -> real clustering -> real UTM adapter -> tracker -->
+    <node pkg="buggy" exec="lidar_sim.py" name="SC_lidar_sim_cloud" namespace="SC" output="screen" if="$(var use_lidar_sim)">
+        <param from="$(var config_file)"/>
+    </node>
+    <node pkg="buggy" exec="buggy_lidar.py" name="buggy_lidar" namespace="SC" output="screen" if="$(var use_lidar_sim)">
+        <param name="input_topic" value="/velodyne_points"/>
+        <param name="input_file" value=""/>
+        <param name="frames_to_merge" value="1"/>
+        <param name="circle_radius" value="30.0"/>
+        <param name="ellipse_half_width" value="6.0"/>
+        <param name="ellipse_half_depth" value="30.0"/>
+        <param name="ellipse_forward_offset" value="10.0"/>
+        <param name="dbscan_eps" value="0.5"/>
+        <param name="dbscan_min_points" value="8"/>
+    </node>
+    <node pkg="buggy" exec="lidar_opponent_node.py" name="lidar_opponent" namespace="SC" output="screen" if="$(var use_lidar_sim)">
+        <param from="$(var config_file)"/>
+        <param name="extrinsics_status" value="simulated:lidar_sim.py"/>
+    </node>
+
     <!-- the single fusion authority; always on -->
     <node pkg="buggy" exec="opponent_tracker.py" name="SC_opponent_tracker" namespace="SC" output="screen">
         <param from="$(var config_file)"/>
@@ -86,6 +119,11 @@
     </node>
     <!-- use_speed_model:=true replaces the constant sim velocity with the gravity speed model (config/course_zones.yaml) -->
     <node pkg="buggy" exec="speed_model_node.py" name="SC_speed_model" namespace="SC" output="screen" if="$(var use_speed_model)">
+        <param from="$(var config_file)"/>
+    </node>
+
+    <!-- use_viz:=true (default) publishes Foxglove markers: course, plan, tracks, truth, HUD (foxglove/racing_sim_layout.json) -->
+    <node pkg="buggy" exec="course_viz.py" name="SC_course_viz" namespace="SC" output="screen" if="$(var use_viz)">
         <param from="$(var config_file)"/>
     </node>
 

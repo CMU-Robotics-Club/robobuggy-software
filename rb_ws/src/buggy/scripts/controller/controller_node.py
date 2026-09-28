@@ -1,31 +1,5 @@
 #!/usr/bin/env python3
-"""
-controller_node.py
-------------------
-Runs the Stanley controller on the current trajectory and publishes the
-steering command.
-
-Two ways to receive a trajectory:
-
-  * Legacy (planningResultTopic empty, the default): TrajectoryMsg on
-    trajectoryTopic, followed as-is. This path is unchanged from the team's
-    stack.
-
-  * Experimental (planningResultTopic set, DECISIONS.md D1/D9): the planner's
-    PlanningResultMsg envelope is the only authorization. A plan is used only
-    while control_eligible is true, its status is ELIGIBLE or DEGRADED, its
-    valid_until has not passed and it is younger than maxPathAgeS. The check
-    runs every control cycle, including when the planner goes silent. When no
-    plan qualifies the controller falls back to the static reference
-    trajectory it was started with (the legacy behaviour) and says so on
-    controller/plan_source. Diagnostic geometry never steers.
-
-    In this mode the steering-offset correction is taken from the stamped
-    OffsetEstimateMsg and applied only while it is valid, fresh, from the same
-    estimator generation and within the profile's plausibility bound; otherwise
-    the configured fallback correction is used. The composed command is clamped
-    to the vehicle profile's command limit and rate limited by elapsed time.
-"""
+ 
 
 import json
 import math
@@ -372,6 +346,12 @@ class Controller(Node):
         if self.experimental:
             self.select_trajectory(odom)
 
+        if self.controller.current_traj_index >= self.cur_traj.get_num_points() - 1:
+            # End of the path. The legacy controller raised here and took the node down (sim runs
+            # ended in a traceback; on hardware the serial bridge simply stopped receiving commands).
+            # Keep the node alive and stop commanding, which is the same external behaviour.
+            self.get_logger().warn("end of path reached; no further steering commands", throttle_duration_sec=5.0)
+            return
         steering_angle = self.controller.compute_control(odom, self.cur_traj)
 
         steering_angle_raw_deg = np.rad2deg(steering_angle)

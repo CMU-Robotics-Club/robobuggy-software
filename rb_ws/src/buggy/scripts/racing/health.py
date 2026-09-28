@@ -1,5 +1,3 @@
-"""Source-time readiness checks. Thresholds are policy assumptions, not accuracy claims."""
-
 import math
 from dataclasses import dataclass
 
@@ -11,14 +9,6 @@ def stamp_seconds(stamp):
 
 
 def header_stamp_seconds(msg):
-    """
-    Source time of a message, or None when it carries none.
-
-    std_msgs/Header has .stamp directly. The Microstrain 4.x driver wraps it: its messages
-    carry a MipHeader whose .header is the std_msgs/Header (seen on the GQ7 with driver
-    4.5.0, 2026-09-09). Reading .header.stamp blindly raised AttributeError and took the
-    localization monitor down on the buggy.
-    """
     hdr = getattr(msg, "header", None)
     if hdr is not None and not hasattr(hdr, "stamp"):
         hdr = getattr(hdr, "header", None)

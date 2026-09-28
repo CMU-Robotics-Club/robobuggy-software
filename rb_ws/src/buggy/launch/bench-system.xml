@@ -10,6 +10,10 @@
       ros2 launch buggy bench-system.xml use_lidar:=true
 -->
 <launch>
+    <!-- one BLAS thread per node: the 100 Hz numpy loops otherwise leave OpenBLAS workers spin-waiting
+         (each controller showed ~200 % CPU on a 24-core laptop, 2026-09-15) -->
+    <set_env name="OPENBLAS_NUM_THREADS" value="1"/>
+    <set_env name="OMP_NUM_THREADS" value="1"/>
     <include file="$(find-pkg-share microstrain_inertial_driver)/launch/microstrain_launch.py">
         <arg name="params_file" value="$(env RBROOT)/src/buggy/INS_params.yml"/>
     </include>

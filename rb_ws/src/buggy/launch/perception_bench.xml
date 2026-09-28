@@ -26,6 +26,10 @@
   Treat them as starting points and tune with the real data you record.
 -->
 <launch>
+    <!-- one BLAS thread per node: the 100 Hz numpy loops otherwise leave OpenBLAS workers spin-waiting
+         (each controller showed ~200 % CPU on a 24-core laptop, 2026-09-15) -->
+    <set_env name="OPENBLAS_NUM_THREADS" value="1"/>
+    <set_env name="OMP_NUM_THREADS" value="1"/>
     <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
     <arg name="use_lidar_driver" default="true"/>
     <arg name="use_camera" default="true"/>

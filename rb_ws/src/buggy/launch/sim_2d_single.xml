@@ -14,9 +14,14 @@
   uses the hardware policy from config/sc-roll.yaml.
 -->
 <launch>
+    <!-- one BLAS thread per node: the 100 Hz numpy loops otherwise leave OpenBLAS workers spin-waiting
+         (each controller showed ~200 % CPU on a 24-core laptop, 2026-09-15) -->
+    <set_env name="OPENBLAS_NUM_THREADS" value="1"/>
+    <set_env name="OMP_NUM_THREADS" value="1"/>
 
     <arg name="config_file" default="src/buggy/config/sim_single_sc.yaml"/>
     <arg name="use_speed_model" default="false"/>
+    <arg name="use_viz" default="true"/>
     <arg name="use_frenet" default="false"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" namespace="SC"/>
@@ -57,4 +62,10 @@
     <node pkg="buggy" exec="speed_model_node.py" name="SC_speed_model" namespace="SC" output="screen" if="$(var use_speed_model)">
         <param from="$(var config_file)"/>
     </node>
+
+    <!-- use_viz:=true (default) publishes Foxglove markers: course, plan, tracks, truth, HUD (foxglove/racing_sim_layout.json) -->
+    <node pkg="buggy" exec="course_viz.py" name="SC_course_viz" namespace="SC" output="screen" if="$(var use_viz)">
+        <param from="$(var config_file)"/>
+    </node>
+
 </launch>

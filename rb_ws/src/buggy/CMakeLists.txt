@@ -46,6 +46,9 @@ install(PROGRAMS
   scripts/debug/pass_metrics.py
   scripts/debug/run_sim_scenario.sh
   scripts/debug/scenario_timeline.py
+  scripts/debug/course_viz.py
+  scripts/debug/sim_demo.sh
+  scripts/simulator/lidar_sim.py
   scripts/path_planner/raceline_optimizer.py
   scripts/path_planner/frenet_planner.py
   scripts/perception/lidar_opponent_node.py
