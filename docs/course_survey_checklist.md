@@ -133,3 +133,38 @@ It does not measure the steering motor's slew rate or latency (do that in the
 garage with `debug/roundtrip_time` and `debug/control_latency`), and it does not
 calibrate the tyre scrub loss unless a rolled pass includes a full-speed chute.
 Both are on the hardware list in `docs/racing_stack.md`.
+
+## E. What the public USGS data already gives you (2026-09-28)
+
+Before anyone walks the course, two public datasets were pulled through the USGS
+TNM Access API (`https://tnmaccess.nationalmap.gov/api/v1/products`, bbox
+`-79.9500,40.4370,-79.9395,40.4435`):
+
+| product | what we used | where it lives |
+| --- | --- | --- |
+| 1 m DEM, `USGS_1M_17_x58y448_PA_WesternPA_2019_D20` (2019 lidar, 375 MB) | read as a window over HTTP; the course clip is `rb_ws/src/buggy/survey/schenley_dem_1m_2019.tif` (1.4 MB) | elevation along the line every metre, `config/course_elevation.csv`, loaded by the speed model |
+| Lidar point cloud `PA_17County_D24` tiles `17TNE589476` and `17TNE589477` (2024 flight, 250 MB) | cross-sections of the road every 25 m, `survey/road_cross_sections_lidar.png` | reading the pavement edges by eye |
+
+**Elevation (settled).** The per-zone `dz_m` guesses in `course_zones.yaml` were wrong
+where it mattered: the main freeroll drops 2.8 m, not 7.8, the low point is at station
+850, and the climb starts there, 160 m before the yaml's `hill3`. With the measured
+profile the speed model peaks at 15.3 m/s (34 mph) at station 842 instead of 13 m/s at
+380. `paths/buggycourse_sc_raceline.json` was regenerated with that weighting. The
+profile is the 2019 ground surface, so it is fine for grade but says nothing about
+today's road edges; the DEM is NAD83(2011), the course is WGS84, and the ~1 m datum
+offset does not matter for slopes.
+
+**Road edges (not settled).** Automatic edge extraction from the aerial point cloud was
+tried and does not work well enough to trust: banked pavement on the curves rises to
+the left exactly like a curb does, leaf-on canopy and parked cars leave no ground
+returns on a quarter of the right side, and the result agreed with the RTK curb file
+within 0.5 m at only a quarter of stations. The cross-section atlas is the useful
+by-product: a person can see the gutter or curb in most panels and read the right
+edge in a few minutes. That is a preview, not a survey. The right boundary file the
+planner needs still comes from walking the edge with RTK fixed (section B) and
+`bag_to_course.py --kind right`.
+
+To re-download the point cloud tiles, query the API with `datasets=Lidar Point Cloud (LPC)`
+and the bbox above; the 2024 tiles are under
+`rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/PA_17County_D24/`.
+

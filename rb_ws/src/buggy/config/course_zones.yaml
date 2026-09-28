@@ -91,7 +91,9 @@ no_lateral_change_zones:
 # Measured elevation along the SC line, written by scripts/util/bag_to_course.py
 # (--kind centerline). Uncomment once a survey exists; it overrides the zone dz_m
 # values for the slope term.
-# elevation_profile: config/course_elevation.csv
+# Measured 2026-09-28 from the USGS 3DEP 1 m DEM (PA_WesternPA_2019 lidar) along buggycourse_sc.json;
+# see survey/course_elevation_profile.png. Replaces the per-zone dz_m guesses for the slope term.
+elevation_profile: config/course_elevation.csv
 
 # Freeroll physics (point mass). Fit these from a logged roll: coast-down on a
 # straight gives crr and cda_over_m; speed lost through a known-radius turn gives

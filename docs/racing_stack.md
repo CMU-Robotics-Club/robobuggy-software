@@ -169,8 +169,9 @@ buggy, run the perception chain standing still (`bench-system.xml` plus
    autonomous steering is off, whether it clamps angle or rate, what the alarm
    packet does, who controls the brake, whether the NAND radio is fitted, which
    Microstrain and Velodyne driver versions are installed.
-2. Survey the course (`docs/course_survey_checklist.md`): centre line and
-   elevation on a rolled pass, left and right edges walked with RTK fixed,
+2. Survey the course (`docs/course_survey_checklist.md`): the elevation profile is
+   now measured from the USGS 1 m DEM (checklist section E); still needed are the
+   centre line on a rolled pass and the left and right edges walked with RTK fixed,
    converted with `bag_to_course.py` (explicit edge offsets, manifest). Then
    rerun the smoother with `--right-boundary` and retire `right_width`.
 3. Enable RTK on the GQ7 in `INS_params.yml` (NTRIP, antenna lever arms) and
@@ -201,6 +202,10 @@ buggy, run the perception chain standing still (`bench-system.xml` plus
 - 2026-09-08 reviewed stack: five committed scenarios, table in section 4; 84 tests;
   lint 10.00/10 under CI conditions. Details and the list of problems found and fixed
   during verification: `.ai-collab/TEST_RESULTS.md`.
+- 2026-09-28 USGS 3DEP data pulled for the course (checklist section E). The measured
+  elevation replaced the zone guesses: freeroll drop 2.8 m not 7.8, low point at s=850,
+  speed-model peak 15.3 m/s at s=842 (was 13 at 380); raceline regenerated. Aerial-lidar
+  road-edge extraction judged unreliable; cross-section atlas kept for reading by eye.
 - 2026-09-09 first run on the SC NUC, stationary, serial node stopped, lidar unplugged
   (`docs/workshop_test.md`, bench log). Branch built clean on the buggy; tracker, lidar
   adapter, both legacy controllers and the shadow controller ran. Two crashes found and
