@@ -205,8 +205,14 @@ buggy, run the perception chain standing still (`bench-system.xml` plus
 - 2026-09-30 sim launches gained `line:=` to run SC on `buggycourse_sc_raceline.json`; the viz
   draws the other line dashed. Gates on both lines, run one at a time: single_reference xte max
   0.266 m team vs 0.092 m raceline, envelope 98.9 vs 100 %; double_pass 9.4 vs 10.1 s, both clear;
-  traffic passes alone on both. Running two scenarios concurrently starved the tracker and
-  planner and the unchecked fallback hit a ghost on both lines (scenarios/README.md).
+  traffic passes alone on the team line (1.84 m ghost clearance) and FAILS alone on the
+  raceline (0.46 to 0.65 m): the raceline runs closer to the left curb near s=110, the tracker
+  carried 5 to 6 confirmed tracks for 3 objects, and the sigma-inflated duplicate footprints
+  made the pass flip eligible/ineligible every cycle, so the controller bounced between plan
+  and unchecked fallback and never left the line (`scenario_timeline.py --around-min-ghost`).
+  The raceline is therefore NOT the default. Next engineering items: duplicate tracks in the
+  tracker, and the fallback's blindness to obstacles. Running two scenarios concurrently
+  starved the tracker and planner and failed traffic on both lines (scenarios/README.md).
 - 2026-09-28 USGS 3DEP data pulled for the course (checklist section E). The measured
   elevation replaced the zone guesses: freeroll drop 2.8 m not 7.8, low point at s=850,
   speed-model peak 15.3 m/s at s=842 (was 13 at 380); raceline regenerated. Aerial-lidar
