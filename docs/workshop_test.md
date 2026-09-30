@@ -246,6 +246,31 @@ the two launch panes, no `sudo` needed. Confirm with `git branch --show-current`
 `git checkout` refuses because scripts show as modified, that is `colcon` setting
 executable bits on files committed without them; `git stash` and carry on.
 
+## Rolls with only SC and NAND, no lidar or camera
+
+The shadow planner needs *some* opponent source or it refuses every plan (`perception_not_ready`).
+With just the two team buggies on the course, that source is NAND's radio: the serial bridge
+publishes each relayed fix as `NAND_raw_state`, the state converter turns it into
+`other/stateNoUKF`, and `sc-roll.yaml` now feeds that to the tracker as a `radio` source
+(`raw_radio_odometry_topic`). That is the exact setup the simulator's `double_pass` gate runs on.
+The legacy NAND UKF output (`other/state`) is deliberately not used; it diverges and resets.
+
+So at rolls the normal boot is enough: `sc-main.xml` starts the shadow planner, and as soon as
+NAND's radio fixes arrive the planner reports ELIGIBLE or DEGRADED plans on `planning/result`,
+with NAND as a tracked opponent. Watch `debug/tracker/status` for `fresh_sources: ['radio']`.
+
+If the radio is not fitted or not working, nothing is tracked and every plan stays INELIGIBLE,
+which is the truthful answer. To see the planner's line-following anyway, restart the main
+launch with the shadow told to plan on an empty road:
+
+```bash
+tmux respawn-pane -k -t buggy.1
+tmux send-keys -t buggy.1 "ros2 launch buggy sc-main.xml shadow_require_perception:=false" Enter
+```
+
+That flag reaches only the shadow planner, which publishes to `debug/shadow/*`; the serial node
+never reads it. Nothing about the legacy stack that drives the buggy changes.
+
 ## Bench log
 
 **2026-09-09, workshop, NUC on CMU wifi, lidar unplugged, buggy stationary.**

@@ -122,7 +122,11 @@ SC:
     ros__parameters:
       detection_topics: ["lidar/detection_array", "vision/detection_array"]
       radio_topic: ""              # radio_detection_adapter.py output; off until the radio is verified
-      raw_radio_odometry_topic: ""
+      # NAND's raw relayed GPS fix (serial bridge -> NAND_raw_state -> state converter -> other/stateNoUKF)
+      # as a tracker source, so the shadow planner has an opponent at rolls with no lidar or camera.
+      # Same setup the sim's double_pass gate runs on. The legacy UKF output (other/state) is NOT used.
+      raw_radio_odometry_topic: "other/stateNoUKF"
+      raw_radio_std_m: 1.5         # used when the relayed fix carries no covariance
       confirm_hits: 3
       max_age_s: 1.5
       reorder_buffer_s: 0.15
