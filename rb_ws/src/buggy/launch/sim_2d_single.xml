@@ -21,6 +21,9 @@
 
     <arg name="config_file" default="src/buggy/config/sim_single_sc.yaml"/>
     <arg name="use_speed_model" default="false"/>
+    <!-- line:=buggycourse_sc_raceline.json runs SC on the optimiser output instead of the team line;
+         NAND always keeps its own line. course_viz draws the team line alongside for comparison. -->
+    <arg name="line" default="buggycourse_sc.json"/>
     <arg name="use_viz" default="true"/>
     <arg name="use_frenet" default="false"/>
 
@@ -40,14 +43,17 @@
     <!-- legacy: static reference trajectory -->
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC" unless="$(var use_frenet)">
         <param from="$(var config_file)"/>
+        <param name="traj_name" value="$(var line)"/>
     </node>
     <!-- experimental: envelope mode -->
     <node pkg="buggy" exec="controller_node.py" name="SC_controller" namespace="SC" output="screen" if="$(var use_frenet)">
         <param from="$(var config_file)"/>
+        <param name="traj_name" value="$(var line)"/>
         <param name="planningResultTopic" value="planning/result"/>
     </node>
     <node pkg="buggy" exec="frenet_planner.py" name="SC_path_planner" namespace="SC" output="screen" if="$(var use_frenet)">
         <param from="$(var config_file)"/>
+        <param name="traj_name" value="$(var line)"/>
     </node>
 
     <node pkg="buggy" exec="steer_offset_estimator.py" name="SC_offset_estimator" namespace="SC">
@@ -61,11 +67,13 @@
     <!-- use_speed_model:=true replaces the constant sim velocity with the gravity speed model (config/course_zones.yaml) -->
     <node pkg="buggy" exec="speed_model_node.py" name="SC_speed_model" namespace="SC" output="screen" if="$(var use_speed_model)">
         <param from="$(var config_file)"/>
+        <param name="traj_name" value="$(var line)"/>
     </node>
 
     <!-- use_viz:=true (default) publishes Foxglove markers: course, plan, tracks, truth, HUD (foxglove/racing_sim_layout.json) -->
     <node pkg="buggy" exec="course_viz.py" name="SC_course_viz" namespace="SC" output="screen" if="$(var use_viz)">
         <param from="$(var config_file)"/>
+        <param name="traj_name" value="$(var line)"/>
     </node>
 
 </launch>

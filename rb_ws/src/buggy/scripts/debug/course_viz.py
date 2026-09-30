@@ -68,6 +68,7 @@ class CourseViz(Node):
         self.declare_parameter("hard_boundary_margin", 0.2)
         self.declare_parameter("vehicle_length", 2.5)
         self.declare_parameter("truth_topics", ["/NAND/self/state"])
+        self.declare_parameter("secondary_traj_name", "buggycourse_sc.json")   # drawn dashed magenta when it differs
         self.declare_parameter("rate_hz", 10.0)
         p = lambda n: self.get_parameter(n).value  # noqa: E731
 
@@ -91,6 +92,10 @@ class CourseViz(Node):
                                          default_left=lw if lw > 0 else None, default_right=rw if rw > 0 else None,
                                          margin=margin + self.half_width)
         self.origin = self.edges.xy[0].copy()
+        sec = str(p("secondary_traj_name"))
+        self.secondary = None
+        if sec and sec != str(p("traj_name")):
+            self.secondary = (sec, Track.load_waypoints_utm(trajpath + sec))
         self.get_logger().info(f"course frame origin UTM {self.origin[0]:.1f}, {self.origin[1]:.1f}; "
                                f"right edge {self.edges.right_source}, left edge {self.edges.left_source}")
 
@@ -247,6 +252,11 @@ class CourseViz(Node):
         e, c = self.edges, self.corridor
         arr = MarkerArray()
         arr.markers.append(self.line("reference", 0, e.xy, (1, 1, 1), 0.35))
+        if self.secondary is not None:
+            name, xy = self.secondary
+            arr.markers.append(self.dashed("secondary_line", 0, xy, (1.0, 0.2, 1.0), 0.3, dash=3, z=0.03))
+            px, py = xy[0]
+            arr.markers.append(self.text("station", 998, px, py, f"dashed magenta = {name}", (1.0, 0.4, 1.0), 2.0, 2.5))
         left = e.cartesian(e.s, np.nan_to_num(e.w_left, nan=0.0))
         right = e.cartesian(e.s, -np.nan_to_num(e.w_right, nan=0.0))
         arr.markers.append(self.line("edge_left", 0, left, (1.0, 0.55, 0.1), 0.3))

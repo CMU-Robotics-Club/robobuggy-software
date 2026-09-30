@@ -26,3 +26,12 @@ The metrics scripts exit non-zero on a collision, on missing input, or when an
 envelope-mode controller was found steering on a plan that was not control
 eligible. They are regression gates, not proof of race performance: the
 simulator is a kinematic bicycle with no tyre model.
+
+## Run the gates one at a time
+
+Do not run two scenarios concurrently on a laptop. On 2026-09-30 the traffic scenario failed
+with a ghost collision on both reference lines when two chains ran in parallel (84 INELIGIBLE
+cycles, 15.6 s on the unchecked reference fallback, 30 tracks created for 3 objects) and passed
+cleanly when run alone (40 INELIGIBLE cycles, 1.84 m minimum ghost clearance). The stack is
+timing-sensitive under CPU starvation and the fallback is not obstacle-checked by design, so a
+starved run collides. Sequential runs are the only valid comparison.

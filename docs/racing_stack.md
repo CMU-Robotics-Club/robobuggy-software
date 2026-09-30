@@ -202,6 +202,11 @@ buggy, run the perception chain standing still (`bench-system.xml` plus
 - 2026-09-08 reviewed stack: five committed scenarios, table in section 4; 84 tests;
   lint 10.00/10 under CI conditions. Details and the list of problems found and fixed
   during verification: `.ai-collab/TEST_RESULTS.md`.
+- 2026-09-30 sim launches gained `line:=` to run SC on `buggycourse_sc_raceline.json`; the viz
+  draws the other line dashed. Gates on both lines, run one at a time: single_reference xte max
+  0.266 m team vs 0.092 m raceline, envelope 98.9 vs 100 %; double_pass 9.4 vs 10.1 s, both clear;
+  traffic passes alone on both. Running two scenarios concurrently starved the tracker and
+  planner and the unchecked fallback hit a ghost on both lines (scenarios/README.md).
 - 2026-09-28 USGS 3DEP data pulled for the course (checklist section E). The measured
   elevation replaced the zone guesses: freeroll drop 2.8 m not 7.8, low point at s=850,
   speed-model peak 15.3 m/s at s=842 (was 13 at 380); raceline regenerated. Aerial-lidar

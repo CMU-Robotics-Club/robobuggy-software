@@ -165,6 +165,14 @@ docker exec robobuggy-software-main-1 /rb_ws/src/buggy/scripts/debug/sim_demo.sh
 Then Foxglove → Open connection → `ws://localhost:8765`, and import
 `foxglove/racing_sim_layout.json`. The log is `/tmp/sim.log` inside the container.
 
+**Which line the simulator follows.** Both sim launch files take `line:=<waypoint file>`,
+default `buggycourse_sc.json` (the team's hand-drawn line). `line:=buggycourse_sc_raceline.json`
+runs SC's planner, controller, viz, lidar sim, ghosts and speed model on the optimiser's output
+instead; NAND always keeps its own line. The viz draws the other line dashed magenta so you can
+see the difference. The scenario runner passes it through after `--`, and `pass_metrics.py` needs
+it too (`METRICS_ARGS="-p traj_name:=buggycourse_sc_raceline.json"`). The hardware config
+`sc-roll.yaml` is untouched by this switch.
+
 ### Scenario gates (what to run before claiming a planner change works)
 
 ```bash
