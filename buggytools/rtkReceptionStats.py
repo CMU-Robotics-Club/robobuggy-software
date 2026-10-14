@@ -216,7 +216,7 @@ def extract_sc(reader: AnyReader, result: BagResult, rtk_mode: str):
     conns = [c for c in reader.connections if c.topic in wanted]
     fixes: dict[str, list[tuple[int, int]]] = {r: [] for r in SC_RECEIVERS}
     positions: dict[str, list[tuple[int, float, float]]] = {r: [] for r in SC_RECEIVERS}
-    for conn, t_bag, raw in reader.messages(connections=conns):
+    for conn, _, raw in reader.messages(connections=conns):
         msg = reader.deserialize(raw, conn.msgtype)
         for r in SC_RECEIVERS:
             if conn.topic == SC_FIX_TOPIC[r]:
