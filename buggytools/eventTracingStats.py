@@ -1,12 +1,13 @@
 #! /usr/bin/env python3
 import argparse
 from dataclasses import dataclass
+from enum import IntEnum
+from pathlib import Path
+
 from rosbags.highlevel import AnyReader
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from enum import IntEnum
-from pathlib import Path
 
 
 class TracingEvent(IntEnum):
@@ -70,7 +71,7 @@ def main():
         conns = [c for c in reader.connections if c.topic == "/NAND/debug/trace_events"]
         for conn, _timestamp, raw in reader.messages(connections=conns):
             msg = reader.deserialize(raw, conn.msgtype)
-            
+
             t = msg.header.stamp.sec * int(1e9) + msg.header.stamp.nanosec
             frame = int(msg.header.frame_id)
 
@@ -198,7 +199,6 @@ def main():
             t_ctrlrx = (m.ctrl_rx - base_time) * 1e-9
             t_ctrltx_min = (m.ctrl_tx_min - base_time) * 1e-9
             t_ctrltx_max = (m.ctrl_tx_max - base_time) * 1e-9
-            t_setsteer_min = (m.setsteer_min - base_time) * 1e-9
             t_setsteer_max = (m.setsteer_max - base_time) * 1e-9
 
             # Map Y position to the relative firmware timestamp (converted to seconds)
