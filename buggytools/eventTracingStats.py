@@ -1,0 +1,293 @@
+#! /usr/bin/env python3
+import argparse
+from dataclasses import dataclass
+from rosbags.highlevel import AnyReader
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from enum import IntEnum
+from pathlib import Path
+
+
+class TracingEvent(IntEnum):
+    SERIAL_RXTX = 1
+    STATECONV_RXTX = 2
+    CTRL_RX = 3
+    CTRL_TX = 4
+    SETSTEER_RXTX = 5
+
+
+TIMELINE_NMSGS = 100
+
+
+@dataclass
+class MsgTimes:
+    serial: int
+    stateconv: int
+    ctrl_rx: int
+    ctrl_tx_min: int
+    ctrl_tx_max: int
+    setsteer_min: int
+    setsteer_max: int
+
+    def set_ctrl_tx(self, t):
+        if self.ctrl_tx_min is None:
+            self.ctrl_tx_min = t
+            self.ctrl_tx_max = t
+        else:
+            self.ctrl_tx_min = min(self.ctrl_tx_min, t)
+            self.ctrl_tx_max = max(self.ctrl_tx_max, t)
+
+    def set_setsteer(self, t):
+        if self.setsteer_min is None:
+            self.setsteer_min = t
+            self.setsteer_max = t
+        else:
+            self.setsteer_min = min(self.setsteer_min, t)
+            self.setsteer_max = max(self.setsteer_max, t)
+
+    def is_complete(self):
+        return (
+            self.serial is not None
+            and self.stateconv is not None
+            and self.ctrl_rx is not None
+            and self.ctrl_tx_min is not None
+            and self.ctrl_tx_max is not None
+            and self.setsteer_min is not None
+            and self.setsteer_max is not None
+        )
+
+
+def main():
+    # Read in bag path from command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument("bag_file", help="Path to bag file")
+    args = parser.parse_args()
+
+    msgs = {}
+
+    with AnyReader([Path(args.bag_file)]) as reader:
+        conns = [c for c in reader.connections if c.topic == "/NAND/debug/trace_events"]
+        for conn, _timestamp, raw in reader.messages(connections=conns):
+            msg = reader.deserialize(raw, conn.msgtype)
+            
+            t = msg.header.stamp.sec * int(1e9) + msg.header.stamp.nanosec
+            frame = int(msg.header.frame_id)
+
+            if frame not in msgs:
+                msgs[frame] = MsgTimes(
+                    serial=None,
+                    stateconv=None,
+                    ctrl_rx=None,
+                    ctrl_tx_min=None,
+                    setsteer_min=None,
+                    ctrl_tx_max=None,
+                    setsteer_max=None,
+                )
+
+            if msg.evt_type == TracingEvent.SERIAL_RXTX:
+                msgs[frame].serial = t
+            elif msg.evt_type == TracingEvent.STATECONV_RXTX:
+                msgs[frame].stateconv = t
+            elif msg.evt_type == TracingEvent.CTRL_RX:
+                msgs[frame].ctrl_rx = t
+            elif msg.evt_type == TracingEvent.CTRL_TX:
+                msgs[frame].set_ctrl_tx(t)
+            elif msg.evt_type == TracingEvent.SETSTEER_RXTX:
+                msgs[frame].set_setsteer(t)
+
+    for frame, msg in list(msgs.items()):
+        if not msg.is_complete():
+            del msgs[frame]
+
+    frames = sorted(msgs.keys())
+
+    # Construct series for each tracingevent
+    serial_to_stateconv = []
+    stateconv_to_ctrlrx = []
+    ctrlrx_to_ctrltx_min = []
+    ctrlrx_to_ctrltx_max = []
+    ctrltx_to_setsteer = []
+
+    for frame in frames:
+        msg = msgs[frame]
+        serial_to_stateconv.append((msg.stateconv - msg.serial) * 1e-9)
+        stateconv_to_ctrlrx.append((msg.ctrl_rx - msg.stateconv) * 1e-9)
+        ctrlrx_to_ctrltx_min.append((msg.ctrl_tx_min - msg.ctrl_rx) * 1e-9)
+        ctrlrx_to_ctrltx_max.append((msg.ctrl_tx_max - msg.ctrl_rx) * 1e-9)
+
+        # avg min-min and max-max time for single set_steer series
+        ctrltx_to_setsteer.append(
+            (msg.setsteer_min + msg.setsteer_max - (msg.ctrl_tx_min + msg.ctrl_tx_max))
+            * 1e-9
+            / 2
+        )
+
+    serial_to_stateconv = np.array(serial_to_stateconv)
+    stateconv_to_ctrlrx = np.array(stateconv_to_ctrlrx)
+    ctrlrx_to_ctrltx_min = np.array(ctrlrx_to_ctrltx_min)
+    ctrlrx_to_ctrltx_max = np.array(ctrlrx_to_ctrltx_max)
+    ctrltx_to_setsteer = np.array(ctrltx_to_setsteer)
+
+    t = np.array(frames, dtype=np.float64)
+    t -= t[0]
+    t /= 1e6
+
+    # Plotting
+    plt.figure(figsize=(12, 8))
+    plt.plot(t, serial_to_stateconv, label="Serial -> StateConv")
+    plt.plot(t, stateconv_to_ctrlrx, label="StateConv -> Ctrl RX")
+    plt.plot(t, ctrlrx_to_ctrltx_max, label="Ctrl RX -> Ctrl TX (Max)")
+    plt.plot(t, ctrlrx_to_ctrltx_min, label="Ctrl RX -> Ctrl TX (Min)")
+    plt.plot(t, ctrltx_to_setsteer, label="Ctrl TX -> SetSteer")
+
+    plt.xlabel("Firmware send time (s)")
+    plt.ylabel("Latency (s)")
+    plt.title("Control Stack Latency Breakdown")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig("latency_stats.png")
+
+    # Print avg for each series
+    print(f"Average Serial -> StateConv: {np.mean(serial_to_stateconv):.6f}s")
+    print(f"Average StateConv -> Ctrl RX: {np.mean(stateconv_to_ctrlrx):.6f}s")
+    print(f"Average Ctrl RX -> Ctrl TX (Max): {np.mean(ctrlrx_to_ctrltx_max):.6f}s")
+    print(f"Average Ctrl RX -> Ctrl TX (Min): {np.mean(ctrlrx_to_ctrltx_min):.6f}s")
+    print(f"Average Ctrl TX -> SetSteer: {np.mean(ctrltx_to_setsteer):.6f}s")
+
+    # Tail CDF for each series, log x axis
+    plt.figure(figsize=(12, 8))
+    for label, series in [
+        ("Serial -> StateConv", serial_to_stateconv),
+        ("StateConv -> Ctrl RX", stateconv_to_ctrlrx),
+        ("Ctrl RX -> Ctrl TX (Max)", ctrlrx_to_ctrltx_max),
+        ("Ctrl RX -> Ctrl TX (Min)", ctrlrx_to_ctrltx_min),
+        ("Ctrl TX -> SetSteer", ctrltx_to_setsteer),
+    ]:
+        sorted_series = np.sort(series)
+        y = 1.0 - np.arange(len(sorted_series)) / float(len(sorted_series))
+        plt.plot(sorted_series, y, label=label)
+
+    plt.xscale("log")
+    plt.xlabel("Latency (s)")
+    plt.ylabel("1 - CDF")
+    plt.title("Latency Tail CDF")
+    plt.legend()
+    plt.grid(True, which="both", ls="-")
+    plt.savefig("latency_tail_cdf.png")
+
+    # Timeline (Gantt) Plot
+    plt.figure(figsize=(14, 10))
+
+    valid_frames_sorted = sorted(msgs.keys(), key=lambda f: msgs[f].serial)
+
+    # Adjust this window to zoom in on a specific chunk of the bag.
+    num_msgs_to_plot = min(TIMELINE_NMSGS, len(valid_frames_sorted))
+    frames_to_plot = valid_frames_sorted[:num_msgs_to_plot]
+
+    if frames_to_plot:
+        base_time = msgs[frames_to_plot[0]].serial
+        base_frame = frames_to_plot[0]
+
+        for frame in frames_to_plot:
+            m = msgs[frame]
+
+            # Convert absolute software nanoseconds to relative seconds from the start of the timeline
+            t_serial = (m.serial - base_time) * 1e-9
+            t_stateconv = (m.stateconv - base_time) * 1e-9
+            t_ctrlrx = (m.ctrl_rx - base_time) * 1e-9
+            t_ctrltx_min = (m.ctrl_tx_min - base_time) * 1e-9
+            t_ctrltx_max = (m.ctrl_tx_max - base_time) * 1e-9
+            t_setsteer_min = (m.setsteer_min - base_time) * 1e-9
+            t_setsteer_max = (m.setsteer_max - base_time) * 1e-9
+
+            # Map Y position to the relative firmware timestamp (converted to seconds)
+            y = (frame - base_frame) * 1e-6
+
+            # Plot each segment as a horizontal line
+            plt.plot(
+                [t_serial, t_stateconv],
+                [y, y],
+                color="blue",
+                lw=3,
+                solid_capstyle="butt",
+            )
+            plt.plot(
+                [t_stateconv, t_ctrlrx],
+                [y, y],
+                color="orange",
+                lw=3,
+                solid_capstyle="butt",
+            )
+            plt.plot(
+                [t_ctrlrx, t_ctrltx_min],
+                [y, y],
+                color="green",
+                lw=3,
+                solid_capstyle="butt",
+            )
+            plt.plot(
+                [t_ctrltx_min, t_ctrltx_max],
+                [y, y],
+                color="red",
+                lw=3,
+                solid_capstyle="butt",
+            )
+            plt.plot(
+                [t_ctrltx_max, t_setsteer_max],
+                [y, y],
+                color="purple",
+                lw=3,
+                solid_capstyle="butt",
+            )
+
+            # # Plot tiny event markers to see the exact bounds
+            # plt.scatter(
+            #     [
+            #         t_serial,
+            #         t_stateconv,
+            #         t_ctrlrx,
+            #         t_ctrltx_min,
+            #         t_ctrltx_max,
+            #         t_setsteer_min,
+            #         t_setsteer_max,
+            #     ],
+            #     [y] * 7,
+            #     color="black",
+            #     s=0.2,
+            #     zorder=3,
+            # )
+
+        plt.ylabel("Relative Firmware Time (s)")
+        plt.xlabel("Software Time (s)")
+        plt.title(
+            f"Message Execution Timeline (First {num_msgs_to_plot} complete messages)"
+        )
+
+        # Custom legend to match the line colors
+        custom_lines = [
+            Line2D([0], [0], color="blue", lw=3),
+            Line2D([0], [0], color="orange", lw=3),
+            Line2D([0], [0], color="green", lw=3),
+            Line2D([0], [0], color="red", lw=3),
+            Line2D([0], [0], color="purple", lw=3),
+        ]
+        plt.legend(
+            custom_lines,
+            [
+                "Serial -> StateConv",
+                "StateConv -> Ctrl RX",
+                "Ctrl RX -> Ctrl TX (Min)",
+                "Ctrl TX (Min) -> Ctrl TX (Max)",
+                "Ctrl TX (Max) -> SetSteer (Max)",
+            ],
+        )
+
+        plt.grid(True, axis="both", linestyle="--", alpha=0.7)
+        plt.gca().invert_yaxis()  # Invert so time flows down the chart
+        plt.tight_layout()
+        plt.savefig("latency_timeline.png", dpi=600, bbox_inches='tight')
+
+
+if __name__ == "__main__":
+    main()
