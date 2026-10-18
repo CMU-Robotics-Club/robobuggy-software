@@ -25,6 +25,10 @@ class Controller(Node):
         super().__init__('controller')
         self.get_logger().info('INITIALIZED.')
 
+        # TODO - use fflag module once implemented instead of direct config param
+        self.declare_parameter("ff_use_steer_offset_estimate", "false")
+        steer_offset_flag = self.get_parameter("ff_use_steer_offset_estimate").value
+
         # Parameters
         self.declare_parameter("dist", 0.0) # Starting Distance along path
         start_dist = self.get_parameter("dist").value
@@ -34,7 +38,7 @@ class Controller(Node):
         self.declare_parameter("trajectoryTopic", "self/cur_traj")
         self.declare_parameter("steerOffsetTopic", "self/steering_offset/filtered")
         self.declare_parameter("useSteerOffset", False)
-        self.use_steer_offset = self.get_parameter("useSteerOffset").value
+        self.use_steer_offset = self.get_parameter("useSteerOffset").value and steer_offset_flag
 
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
