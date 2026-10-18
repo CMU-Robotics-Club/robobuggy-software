@@ -7,6 +7,8 @@
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>
 
+    <node pkg="buggy" exec="flags_logger.py" name="flags_logger" output="screen" />
+
     <node name="bnyahaj" pkg="buggy" exec="ros_to_bnyahaj.py" respawn="true" output="screen" namespace="SC">
         <param from="$(var config_file)"/>
     </node>

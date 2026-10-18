@@ -38,6 +38,7 @@ install(PROGRAMS
   scripts/debug/debug_steer.py
   scripts/vision/detector_node.py
   scripts/debug/set_steer.py
+  scripts/flags_logger.py
   scripts/estimation/nand_estimator.py
   scripts/estimation/steer_offset_estimator.py
   scripts/vision/detector_node.py

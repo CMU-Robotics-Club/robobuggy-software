@@ -1,0 +1,17 @@
+# Feature flag ledger
+# valid states := experimental|candidate|stable|persistent
+
+use_steer_offset_estimate:
+  state: candidate
+  value: false
+  description: Uses steer offset estimator output to compute steering in controller nodes
+
+vision_detector:
+  state: persistent
+  value: false
+  description: Launches the camera based detector node
+
+vision_lidar:
+  state: persistent
+  value: false
+  description: Launches velodyne nodes

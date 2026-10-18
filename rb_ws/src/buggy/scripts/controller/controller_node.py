@@ -9,6 +9,7 @@ from std_msgs.msg import Float32, Bool, Float64
 from nav_msgs.msg import Odometry
 from buggy.msg import TrajectoryMsg, StampedFloat64Msg
 
+from util.flags import Flags
 from util.trajectory import Trajectory
 from controller.stanley_controller import StanleyController
 
@@ -25,9 +26,7 @@ class Controller(Node):
         super().__init__('controller')
         self.get_logger().info('INITIALIZED.')
 
-        # TODO - use fflag module once implemented instead of direct config param
-        self.declare_parameter("ff_use_steer_offset_estimate", "false")
-        steer_offset_flag = self.get_parameter("ff_use_steer_offset_estimate").value
+        self.flags = Flags(self)
 
         # Parameters
         self.declare_parameter("dist", 0.0) # Starting Distance along path
@@ -38,7 +37,7 @@ class Controller(Node):
         self.declare_parameter("trajectoryTopic", "self/cur_traj")
         self.declare_parameter("steerOffsetTopic", "self/steering_offset/filtered")
         self.declare_parameter("useSteerOffset", False)
-        self.use_steer_offset = self.get_parameter("useSteerOffset").value and steer_offset_flag
+        self.use_steer_offset = self.get_parameter("useSteerOffset").value and self.flags["use_steer_offset_estimate"]
 
         self.declare_parameter("traj_name", "buggycourse_safe.json")
         traj_name = self.get_parameter("traj_name").value
