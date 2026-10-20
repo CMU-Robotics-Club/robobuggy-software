@@ -101,7 +101,7 @@ class StanleyController(Controller):
 
 
         cross_track_component = np.arctan2(
-            (StanleyController.CROSS_TRACK_GAIN + StanleyController.CROSS_TRACK_GAIN_SPEED * current_speed) * error_dist, 
+            (StanleyController.CROSS_TRACK_GAIN + StanleyController.CROSS_TRACK_GAIN_SPEED * current_speed) * error_dist,
             current_speed + StanleyController.K_SOFT
         )
 
