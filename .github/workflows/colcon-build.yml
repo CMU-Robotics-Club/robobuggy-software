@@ -1,0 +1,27 @@
+name: Colcon Build
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ros:humble
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        apt-get update
+        rosdep update --rosdistro "${ROS_DISTRO}"
+        rosdep install --from-paths rb_ws/src --ignore-src -y --rosdistro "${ROS_DISTRO}"
+    - name: Build workspace
+      working-directory: rb_ws
+      run: |
+        # shellcheck disable=SC1090
+        source "/opt/ros/${ROS_DISTRO}/setup.bash"
+        colcon build --event-handlers console_cohesion+
