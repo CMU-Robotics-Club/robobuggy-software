@@ -26,7 +26,7 @@ class Controller(Node):
         self.get_logger().info('INITIALIZED.')
 
         # TODO - use fflag module once implemented instead of direct config param
-        self.declare_parameter("ff_use_steer_offset_estimate", "false")
+        self.declare_parameter("ff_use_steer_offset_estimate", False)
         steer_offset_flag = self.get_parameter("ff_use_steer_offset_estimate").value
 
         # Parameters
