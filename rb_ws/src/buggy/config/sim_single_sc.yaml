@@ -1,13 +1,31 @@
 SC:
   SC_sim_single:
     ros__parameters:
-      velocity: 12
-      steering_delay: 0 # 1 step = 0.01s (at 100 hz steering)
-      navsat_noise_std: 1e-6 # standard deviation of simulated GPS noise (in degrees lat/long)
       pose: 'Hill1_SC'
+      velocity: 12.0
+      steering_offset: 4.0 # between 20.0 and -20.0, in degrees
+      steering_offset_func: 'constant' # 'constant' or 'sin'
+      steering_offset_period: 10.0 # seconds, only used when steering_offset_func is 'sin'
+      steering_delay: 0 # 1 step = 0.01s (at 100 hz steering)
+
+      # noise compounds at each timestep, note: square root of time rule applies
+      process_noise_std: 0.001 # standard deviation of process GPS noise (in meters)
+      measurement_noise_std: 0.02 # standard deviation of measured GPS noise (in meters)
 
   SC_controller:
     ros__parameters:
       dist: 0.0
-      traj_name: 'buggycourse_safe.json'
+      traj_name: 'buggycourse_sc.json'
       controller: 'stanley'
+      debugHeadingTopic: "debug/heading"
+      useSteerOffset: true
+
+  SC_offset_estimator:
+    ros__parameters:
+      steerOffsetRawTopic: "self/steering_offset/raw"
+      steerOffsetFilteredTopic: "self/steering_offset/filtered"
+      steerOffsetFilterTimeConstant: 50
+
+  SC_ros_to_bnyahaj:
+    ros__parameters:
+      teensy_name: "ttyVirtual0"

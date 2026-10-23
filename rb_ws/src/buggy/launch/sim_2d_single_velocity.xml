@@ -1,5 +1,5 @@
 <launch>
-
+    <include file="$(find-pkg-share buggy)/launch/flags.xml" />
     <arg name="config_file" default="src/buggy/config/sim_single_velocity.yaml"/>
 
     <node pkg="foxglove_bridge" exec="foxglove_bridge" name="foxglove" output = "screen" namespace="SC"/>

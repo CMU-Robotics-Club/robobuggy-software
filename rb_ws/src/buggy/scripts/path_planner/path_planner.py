@@ -27,7 +27,7 @@ class PathPlanner(Node):
     CURB_MARGIN = 1 #m
 
     # the offset is calculated as a mirrored sigmoid function of distance
-    OFFSET_SCALE_CROSS_TRACK = 2.5 #m
+    OFFSET_SCALE_CROSS_TRACK = 3.0 #m
     OFFSET_SCALE_ALONG_TRACK = 0.2
     ACTIVATE_OTHER_SCALE_ALONG_TRACK = 0.1
     OFFSET_SHIFT_ALONG_TRACK = 4 #m
@@ -63,8 +63,8 @@ class PathPlanner(Node):
             self.left_curb = Trajectory(json_filepath=os.environ["TRAJPATH"] + curb_name)
 
         #Publishers
-        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 10)
-        self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 10)
+        self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 1)
+        self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 1)
 
         #Subscribers
         self.self_pose_subscriber = self.create_subscription(Odometry, 'self/state', self.self_pose_callback, 1)

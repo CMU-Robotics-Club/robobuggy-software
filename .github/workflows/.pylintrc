@@ -3,8 +3,50 @@
 disable=all
 
 enable=
+    # whitespace / style
     bad-indentation,
     trailing-whitespace,
     wrong-import-order,
+
+    # unused / redefined / scope issues
     unused-variable,
-    unused-import
+    unused-import,
+    unused-argument,
+    unused-private-member,
+    redefined-outer-name,
+    redefined-builtin,
+    reimported,
+    global-variable-not-assigned,
+    global-variable-undefined,
+    used-before-assignment,
+    # undefined-variable,
+
+    # correctness / safety
+    dangerous-default-value,
+    pointless-statement,
+    expression-not-assigned,
+    eval-used,
+    exec-used,
+    broad-exception-caught,
+    bare-except,
+    raising-bad-type,
+    bad-except-order,
+    return-outside-function,
+    return-in-init,
+    too-many-function-args,
+    not-callable,
+    comparison-with-callable,
+    not-an-iterable,
+    not-context-manager,
+
+    # suspicious / clarity
+    # simplifiable-if-statement,
+    # chained-comparison,
+    # unnecessary-lambda,
+    # consider-using-in,
+    # consider-using-enumerate,
+    # consider-using-with,
+    # consider-using-join,
+    # consider-using-dict-comprehension,
+    # consider-using-set-comprehension,
+    literal-comparison

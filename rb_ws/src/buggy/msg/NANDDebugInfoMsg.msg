@@ -1,12 +1,14 @@
 float64 heading_rate
-float64 encoder_angle
+float64 encoder_speed
 float64 rc_steering_angle
 float64 software_steering_angle
 float64 true_steering_angle
 int32 rfm69_timeout_num
+int32 encoder_last_packet
 bool operator_ready
 bool brake_status
 bool auton_steer
 bool tx12_state
+uint8 encoder_error
 uint8 stepper_alarm
 uint8 rc_uplink_quality

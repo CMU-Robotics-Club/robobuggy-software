@@ -1,35 +1,63 @@
 name: Pylint
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+    env:
+      PYTHON_VERSION: "3.10"
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v3
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ env.PYTHON_VERSION }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pylint
     - name: Getting changed Python files and Analysing the code with pylint
       run: |
-        git fetch origin ${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}
-        echo CI_COMMIT_SHA=${GITHUB_SHA}
-        tmp_files=$(git diff --name-only origin/main ${CI_COMMIT_SHA})
-        echo "Changed files are $tmp_files"
-        if [ -z "$(echo "$tmp_files" | grep "\.py")" ]; then exit 0; else echo "Python files are found"; fi
-        tmp_pfiles=$(echo "$tmp_files" | grep "\.py")
-        echo "Python files are $tmp_pfiles"
-        if [[ -z "$tmp_pfiles" ]]; then
+        git fetch origin main
+        if [ -n "${{ github.base_ref }}" ]; then
+          echo "Pull request detected, base_ref=${{ github.base_ref }}"
+          git fetch origin ${{ github.base_ref }}
+
+          # Files changed vs main
+          files_main=$(git diff --name-only origin/main ${GITHUB_SHA})
+          # Files changed vs PR base
+          files_base=$(git diff --name-only origin/${{ github.base_ref }} ${GITHUB_SHA})
+
+          # Union of both sets
+          tmp_files=$(printf "%s\n%s\n" "$files_main" "$files_base" | sort -u)
+        else
+          echo "Push detected, using main as base"
+          tmp_files=$(git diff --name-only origin/main ${GITHUB_SHA})
+        fi
+
+        echo -e "Changed files are: \n$tmp_files\n"
+
+        tmp_pfiles=$(echo "$tmp_files" | grep '\.py$' || true)
+        if [ -z "$tmp_pfiles" ]; then
+          echo "No Python files changed"
+          exit 0
+        fi
+
+        existing_pfiles=""
+        for f in $tmp_pfiles; do
+          if [ -f "$f" ]; then
+            existing_pfiles="$existing_pfiles $f"
+          else
+            echo "Skipping deleted file $f"
+          fi
+        done
+        existing_pfiles=$(echo "$existing_pfiles" | xargs || true)
+        echo -e "Existing Python files are: \n$existing_pfiles\n"
+
+        if [[ -z "$existing_pfiles" ]]; then
           echo "No files to lint"
         else
           echo "Running Linter!"
-          pylint --rc-file=/home/runner/work/robobuggy-software/robobuggy-software/.github/workflows/.pylintrc $tmp_pfiles
+          pylint --rc-file=/home/runner/work/robobuggy-software/robobuggy-software/.github/workflows/.pylintrc $existing_pfiles
         fi
