@@ -39,6 +39,11 @@ class Translator(Node):
         super().__init__('ROS_serial_translator')
         self.get_logger().info('INITIALIZED.')
 
+        # TODO - use fflag module once implemented instead of direct config param
+        self.declare_parameter("ff_enable_v1_control_stack", False)
+        # Enables INS packet forwarding + firmware debug state estimate topic publishing
+        self.enable_v1_cstk = self.get_parameter("ff_enable_v1_control_stack").value
+
         # Threading lock to protect the serial transmission lines
         self.tx_lock = Lock()
 
@@ -92,22 +97,24 @@ class Translator(Node):
                 "epsg:4978", "epsg:32617", always_xy=True
             )
             self.gps_seq_num = 0
-            self.create_subscription(
-                Odometry, "/ekf/odometry_earth", self.send_raw_gps, 1,
-                callback_group=self.sub_cb_group
-            )
-            
-            self.gps_SIV = 0
-            self.gps_fix = 0
-            self.rtk_fix = 0
-            self.create_subscription(
-                MipGnssFixInfo,
-                "/gnss1/fix_info",
-                self.update_gnss_fix_info,
-                1,
-                callback_group=self.sub_cb_group,
-            )
-            
+
+            if self.enable_v1_cstk:
+                self.create_subscription(
+                    Odometry, "/ekf/odometry_earth", self.send_raw_gps, 1,
+                    callback_group=self.sub_cb_group
+                )
+                
+                self.gps_SIV = 0
+                self.gps_fix = 0
+                self.rtk_fix = 0
+                self.create_subscription(
+                    MipGnssFixInfo,
+                    "/gnss1/fix_info",
+                    self.update_gnss_fix_info,
+                    1,
+                    callback_group=self.sub_cb_group,
+                )
+                
             
             
 
@@ -302,7 +309,7 @@ class Translator(Node):
                 self.roundtrip_time_publisher.publish(Float64(data=rtt))
                 self.teensycycle_time_publisher.publish(Float64(data=packet.teensy_cycle_time * 1e-6))
 
-            elif isinstance(packet, SCUKF):
+            elif isinstance(packet, SCUKF) and self.enable_v1_cstk:
                 odom = Odometry()
                 odom.pose.pose.position.x = packet.eastern
                 odom.pose.pose.position.y = packet.northern
