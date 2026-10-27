@@ -103,7 +103,7 @@ class Translator(Node):
                     Odometry, "/ekf/odometry_earth", self.send_raw_gps, 1,
                     callback_group=self.sub_cb_group
                 )
-                
+
                 self.gps_SIV = 0
                 self.gps_fix = 0
                 self.rtk_fix = 0
@@ -114,18 +114,18 @@ class Translator(Node):
                     1,
                     callback_group=self.sub_cb_group,
                 )
-                
-            
-            
+
+
+
 
         # High-frequency read loop, assigned to its own group so it never blocks writers
         self.timer = self.create_timer(0.001, self.loop, callback_group=self.read_cb_group)
 
         # Slower loop to send timestamp to teensy, at 10ms. Assigned to misc group.
         self.timestamp_timer = self.create_timer(0.01, self.send_timestamp, callback_group=self.misc_cb_group)
-        
-        
-        
+
+
+
 
         # DEBUG MESSAGE PUBLISHERS:
         if self.self_name == "SC":
@@ -194,7 +194,7 @@ class Translator(Node):
 
     def loop(self):
         """
-        Continuously drain the OS serial buffer until empty. 
+        Continuously drain the OS serial buffer until empty.
         Runs on its own thread and does not require the tx_lock.
         """
         while True:
@@ -374,25 +374,25 @@ class Translator(Node):
 
     def update_gnss_fix_info(self, msg: MipGnssFixInfo):
         # This function is called by the subscription, constantly
-        # updating the local values gps_SIV, gps_fix, and rtk_fix. 
-        
+        # updating the local values gps_SIV, gps_fix, and rtk_fix.
+
         self.gps_SIV = msg.num_sv
-        
-        
+
+
         # 0=no fix, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS, 5=Time fix
-        
+
         microstrain_to_gps = {
-            0 : 3, 
-            1 : 2, 
-            2 : 5, 
-            3 : 0, 
+            0 : 3,
+            1 : 2,
+            2 : 5,
+            3 : 0,
             4 : 0,
             5 : 4,
             6 : 4,
         }
-        
+
         self.gps_fix = microstrain_to_gps.get(msg.fix_type)
-        
+
         # Firmware RTK codes: 0 = none, 1 = float, 2 = fixed.
         if msg.fix_type == MipGnssFixInfo.FIX_TYPE_FIX_RTK_FLOAT: # fix_type 5
             self.rtk_fix = 1

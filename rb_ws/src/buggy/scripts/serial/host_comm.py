@@ -87,7 +87,7 @@ class SCRawGPS:
 
     gps_SIV: int # Number of satellites used in fix
     gps_fix: int # 0=no fix, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS, 5=Time fix
-    rtk_fix: int # 0, 1 or 2 for no RTK, float RTK, or fixed RTK solution, 
+    rtk_fix: int # 0, 1 or 2 for no RTK, float RTK, or fixed RTK solution,
 
 @dataclass
 class SCUKF:
@@ -325,7 +325,7 @@ class Comms:
         elif msg_type == MSG_TYPE_SC_DEBUG:
             data = struct.unpack('<dfffII??B??Bxxxxxx', payload)
             return SCDebugInfo(*data)
-        
+
         elif msg_type == MSG_TYPE_SC_SENSORS:
             data = struct.unpack('<dfI', payload)
             return SCSensors(*data)
@@ -333,7 +333,7 @@ class Comms:
         elif msg_type == MSG_TYPE_SC_UKF:
             data = struct.unpack('<dddddddddIxxxx', payload)
             return SCUKF(*data)
-    
+
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
             timestamp = struct.unpack('<QQIxxxx', payload)
             return RoundtripTimestamp(*timestamp)
