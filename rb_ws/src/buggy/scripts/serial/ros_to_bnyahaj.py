@@ -21,8 +21,11 @@ from std_msgs.msg import Float64, Int8
 from nav_msgs.msg import Odometry
 from buggy.msg import *
 import numpy as np
+import pyproj
 
 from buggy.msg import StampedFloat64Msg
+
+from microstrain_inertial_msgs.msg import MipGnssFixInfo
 
 class Translator(Node):
 
@@ -35,6 +38,11 @@ class Translator(Node):
 
         super().__init__('ROS_serial_translator')
         self.get_logger().info('INITIALIZED.')
+
+        # TODO - use fflag module once implemented instead of direct config param
+        self.declare_parameter("ff_enable_v1_control_stack", False)
+        # Enables INS packet forwarding + firmware debug state estimate topic publishing
+        self.enable_v1_cstk = self.get_parameter("ff_enable_v1_control_stack").value
 
         # Threading lock to protect the serial transmission lines
         self.tx_lock = Lock()
@@ -80,11 +88,44 @@ class Translator(Node):
             callback_group=self.sub_cb_group
         )
 
+        # GPS relay to firmware. SC only: /ekf/odometry_earth is published by the
+        # MicroStrain INS driver and only exists on Short Circuit.
+        if self.self_name == "SC":
+            # The INS reports position in ECEF; firmware wants UTM. Same transform
+            # and zone as buggy_state_converter (EPSG:32617 is UTM Zone 17N).
+            self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(
+                "epsg:4978", "epsg:32617", always_xy=True
+            )
+            self.gps_seq_num = 0
+
+            if self.enable_v1_cstk:
+                self.create_subscription(
+                    Odometry, "/ekf/odometry_earth", self.send_raw_gps, 1,
+                    callback_group=self.sub_cb_group
+                )
+
+                self.gps_SIV = 0
+                self.gps_fix = 0
+                self.rtk_fix = 0
+                self.create_subscription(
+                    MipGnssFixInfo,
+                    "/gnss1/fix_info",
+                    self.update_gnss_fix_info,
+                    1,
+                    callback_group=self.sub_cb_group,
+                )
+
+
+
+
         # High-frequency read loop, assigned to its own group so it never blocks writers
         self.timer = self.create_timer(0.001, self.loop, callback_group=self.read_cb_group)
 
         # Slower loop to send timestamp to teensy, at 10ms. Assigned to misc group.
         self.timestamp_timer = self.create_timer(0.01, self.send_timestamp, callback_group=self.misc_cb_group)
+
+
+
 
         # DEBUG MESSAGE PUBLISHERS:
         if self.self_name == "SC":
@@ -94,6 +135,8 @@ class Translator(Node):
             # RADIO DATA PUBLISHER
             self.nand_radio_publisher = self.create_publisher(SCRadioNANDMsg, "debug/NAND_radio", 1)
             self.observed_nand_odom_publisher = self.create_publisher(Odometry, "NAND_raw_state", 1)
+
+            self.sc_fw_ukf_publisher = self.create_publisher(Odometry, "debug/firmware_state", 1)
         else:
             self.nand_debug_info_publisher = self.create_publisher(NANDDebugInfoMsg, "debug/firmware", 1)
             self.nand_raw_gps_publisher = self.create_publisher(NANDRawGPSMsg, "debug/raw_gps", 1)
@@ -151,7 +194,7 @@ class Translator(Node):
 
     def loop(self):
         """
-        Continuously drain the OS serial buffer until empty. 
+        Continuously drain the OS serial buffer until empty.
         Runs on its own thread and does not require the tx_lock.
         """
         while True:
@@ -266,9 +309,97 @@ class Translator(Node):
                 self.roundtrip_time_publisher.publish(Float64(data=rtt))
                 self.teensycycle_time_publisher.publish(Float64(data=packet.teensy_cycle_time * 1e-6))
 
+            elif isinstance(packet, SCUKF) and self.enable_v1_cstk:
+                odom = Odometry()
+                odom.pose.pose.position.x = packet.eastern
+                odom.pose.pose.position.y = packet.northern
+                odom.pose.pose.orientation.z = packet.heading
+
+                # Updated the eastern, northing, and heading (yaw) index of variance
+                # Important note: covariance operates on (x, y, z, pitch, roll, yaw)
+                odom.pose.covariance = np.diag([packet.eastern_cov, packet.northern_cov, 0, 0, 0, packet.heading_cov]).reshape(-1).tolist()
+
+                odom.twist.twist.linear.x = packet.front_speed
+                odom.twist.twist.angular.z = packet.heading_rate
+
+                odom.header.frame_id = str(packet.timestamp)
+
+                self.sc_fw_ukf_publisher.publish(odom)
+                self.get_logger().debug(f'SC UKF Timestamp: {packet.timestamp}')
+
+    def send_raw_gps(self, msg: Odometry):
+        """
+        Relays the INS EKF solution to the firmware as an SCRawGPS packet.
+
+        /ekf/odometry_earth carries ECEF position, so it is converted to UTM
+        easting/northing before being sent.
+        """
+        easting, northing, _ = self.ecef_to_utm_transformer.transform(
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.y,
+            msg.pose.pose.position.z,
+        )
+
+        # 2D accuracy from the position covariance, which is ordered (x, y, z, r, p, y),
+        # so index 0 is the x variance and index 7 the y variance.
+        accuracy = float(np.sqrt(msg.pose.covariance[0] + msg.pose.covariance[7]))
+
+        # Firmware keeps a millis() clock, so a wrapping 32-bit millisecond stamp matches it
+        stamp_ms = (msg.header.stamp.sec * 1000) + (msg.header.stamp.nanosec // 1_000_000)
+
+        packet = SCRawGPS(
+            eastern=float(easting),
+            northern=float(northing),
+            accuracy=accuracy,
+            gps_seq_num=self.gps_seq_num,
+            timestamp=stamp_ms & 0xFFFFFFFF,
+            gps_SIV=self.gps_SIV,
+            gps_fix=self.gps_fix,  # claim a 3D fix so firmware does not discard the packet
+            rtk_fix=self.rtk_fix,
+        )
+
+        self.gps_seq_num = (self.gps_seq_num + 1) & 0xFFFFFFFF
+
+        with self.tx_lock:
+            self.comms.send_gps(packet)
+
+        self.get_logger().debug(
+            f"Sent SCRawGPS seq={packet.gps_seq_num} "
+            f"easting={easting:.2f} northing={northing:.2f} accuracy={accuracy:.2f}"
+        )
+
     def send_timestamp(self):
         with self.tx_lock:
             self.comms.send_timestamp(time.time_ns())
+
+    def update_gnss_fix_info(self, msg: MipGnssFixInfo):
+        # This function is called by the subscription, constantly
+        # updating the local values gps_SIV, gps_fix, and rtk_fix.
+
+        self.gps_SIV = msg.num_sv
+
+
+        # 0=no fix, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS, 5=Time fix
+
+        microstrain_to_gps = {
+            0 : 3,
+            1 : 2,
+            2 : 5,
+            3 : 0,
+            4 : 0,
+            5 : 4,
+            6 : 4,
+        }
+
+        self.gps_fix = microstrain_to_gps.get(msg.fix_type)
+
+        # Firmware RTK codes: 0 = none, 1 = float, 2 = fixed.
+        if msg.fix_type == MipGnssFixInfo.FIX_TYPE_FIX_RTK_FLOAT: # fix_type 5
+            self.rtk_fix = 1
+        elif msg.fix_type == MipGnssFixInfo.FIX_TYPE_FIX_RTK_FIXED: # fix_type 6
+            self.rtk_fix = 2
+        else:
+            self.rtk_fix = 0
 
 
 def main(args=None):

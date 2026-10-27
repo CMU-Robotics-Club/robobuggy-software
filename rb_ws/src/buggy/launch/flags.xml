@@ -8,6 +8,9 @@ if we need to
     <arg name="ff_use_steer_offset_estimate" default="false"/>
     <set_parameter name="ff_use_steer_offset_estimate" value="$(var ff_use_steer_offset_estimate)"/>
 
+    <arg name="ff_enable_v1_control_stack" default="false"/>
+    <set_parameter name="ff_enable_v1_control_stack" value="$(var ff_enable_v1_control_stack)"/>
+
     <arg name="ff_vision_detector" default="false"/>
     <set_parameter name="ff_vision_detector" value="$(var ff_vision_detector)"/>
 
