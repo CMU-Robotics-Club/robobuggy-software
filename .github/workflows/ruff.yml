@@ -1,0 +1,50 @@
+name: Ruff
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        # Check out the PR branch itself (not the merge commit) so fixes can be pushed back
+        ref: ${{ github.head_ref || github.ref_name }}
+        fetch-depth: 0
+    - uses: astral-sh/ruff-action@v3
+      with:
+        args: --version
+    - name: Find changed Python files
+      id: changed
+      run: |
+        base="origin/${{ github.base_ref || 'main' }}"
+        files=$(git diff --name-only --diff-filter=ACMR "$base"...HEAD -- '*.py' | tr '\n' ' ')
+        echo "Changed Python files: ${files:-none}"
+        echo "files=$files" >> "$GITHUB_OUTPUT"
+    - name: Autofix with ruff
+      if: steps.changed.outputs.files != ''
+      run: ruff check --fix --exit-zero ${{ steps.changed.outputs.files }}
+    - name: Commit fixes
+      # Never push to the default branch; can't push to forks with GITHUB_TOKEN
+      if: >-
+        steps.changed.outputs.files != '' &&
+        (github.head_ref || github.ref_name) != github.event.repository.default_branch &&
+        (github.event_name != 'pull_request' ||
+         github.event.pull_request.head.repo.full_name == github.repository)
+      run: |
+        if git diff --quiet; then
+          echo "Nothing to fix"
+          exit 0
+        fi
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git commit -am "ruff autofix"
+        git push
+    - name: Lint with ruff
+      if: steps.changed.outputs.files != ''
+      run: ruff check --output-format=github ${{ steps.changed.outputs.files }}
