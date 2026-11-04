@@ -56,7 +56,7 @@ class Crc16:
 
 SYNC_WORD = b'\xAA\xFF\x00\x55'
 
-MAX_PAYLOAD_LEN = 100
+MAX_PAYLOAD_LEN = 100 #prob need to bump up above 100
 
 
 # firmware --> software
@@ -74,6 +74,49 @@ MSG_TYPE_STEERING = b'ST'
 MSG_TYPE_ALARM    = b'AL'
 MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
 MSG_TYPE_SC_GPS  = b'SG'
+MSG_TYPE_PATH = b'PS'
+
+
+@dataclass
+class PathPoint:
+    x: float
+    y: float
+    heading_tangent: float
+    curvature: float
+
+@dataclass
+class PathMsg:
+    num_pts: int  # uint64
+    start_idx: int # uint64
+    dist: float #arc length distance between points
+    pts: list[PathPoint]  # PathPoint[]
+
+
+def serialize_path(path: PathMsg): #serialization 
+    #we call struct.pack(fmt str, num_pts, start_idx, dist, *pts)
+    assert path.num_pts == len(path.pts)
+     # Serialize header
+    payload = bytearray(
+        struct.pack(
+            '<QQd',
+            path.num_pts,
+            path.start_idx,
+            path.dist
+        )
+    )
+    # Serialize each point
+    for point in path.pts:
+        payload.extend(
+            struct.pack(
+                '<dddd',
+                point.x,
+                point.y,
+                point.heading_tangent,
+                point.curvature
+            )
+        )
+
+    return bytes(payload)
 
 
 @dataclass
@@ -237,7 +280,11 @@ class Comms:
 
     def send_gps(self, scGPS: SCRawGPS):
         self.send_packet_raw(MSG_TYPE_SC_GPS, struct.pack('<dddIIBBBxxxxx', *astuple(scGPS)))
-
+    
+    def send_path(self, path: PathMsg):
+        payload = serialize_path(path)
+        self.send_packet_raw(MSG_TYPE_PATH, payload)
+        
     def read_packet_raw(self):
         self.rx_buffer += self.port.read_all() #type:ignore
         try:

@@ -44,6 +44,9 @@ class Translator(Node):
         # Enables INS packet forwarding + firmware debug state estimate topic publishing
         self.enable_v1_cstk = self.get_parameter("ff_enable_v1_control_stack").value
 
+        # Enables forwarding path segments to firmnware
+        self.enable_path_segment_send = self.get_parameter("ff_enable_send_path_segments").value
+
         # Threading lock to protect the serial transmission lines
         self.tx_lock = Lock()
 
@@ -114,6 +117,9 @@ class Translator(Node):
                     1,
                     callback_group=self.sub_cb_group,
                 )
+
+        if self.enable_path_segment_send:
+            # TODO - set up subscriber, globals for tracking firmware's path
 
 
 
@@ -327,6 +333,10 @@ class Translator(Node):
                 self.sc_fw_ukf_publisher.publish(odom)
                 self.get_logger().debug(f'SC UKF Timestamp: {packet.timestamp}')
 
+    def send_path(self, msg: TrajectoryMsg):
+        # TODO - convert msg to util.Trajectory, send new pts to firmware
+        pass
+    
     def send_raw_gps(self, msg: Odometry):
         """
         Relays the INS EKF solution to the firmware as an SCRawGPS packet.
