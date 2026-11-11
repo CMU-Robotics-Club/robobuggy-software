@@ -92,9 +92,14 @@ class PathPlanner(Node):
             self.get_logger().debug("Received position of other buggy.")
 
     def timer_callback(self):
-        with self.self_pose_lock and self.other_pose_lock:
-            if (self.self_pose is not None) and (self.other_pose is not None):
-                self.compute_traj(self.self_pose, self.other_pose)
+        with self.self_pose_lock:
+            self_pose = self.self_pose
+        with self.other_pose_lock:
+            other_pose = self.other_pose
+
+        # NAND's position is optional: without it we still publish the nominal slice
+        if self_pose is not None:
+            self.compute_traj(self_pose, other_pose)
 
     def offset_func(self, dist):
         """
@@ -151,10 +156,12 @@ class PathPlanner(Node):
             clamp(passing offsets, 0, distance from nominal trajectory to left curb)
 
         Args:
-            other_pose (Pose): Pose containing NAND's easting (x),
+            self_pose (Pose): Pose containing SC's easting (x),
                 northing(y), and heading (theta), in UTM
 
-            other_speed (float): speed in m/s of NAND
+            other_pose (Pose | None): Pose containing NAND's easting (x),
+                northing(y), and heading (theta), in UTM. If None, NAND's
+                position is unavailable and the nominal trajectory is published.
         Publishes:
             Trajectory: list of x,y coords for ego-buggy to follow.
         """
@@ -177,31 +184,35 @@ class PathPlanner(Node):
                nominal_slice_dists[i]
             ))
 
-        # get index of the other buggy along the trajetory and convert to distance
-        other_idx = self.nominal_traj.get_closest_index_on_path(other_pose.position.x, other_pose.position.y)
-        other_dist = self.nominal_traj.get_distance_from_index(other_idx)
-        nominal_slice_to_other_dist = np.abs(nominal_slice_dists - other_dist)
+        if other_pose is None:
+            # NAND's position is unknown, so there is nothing to pass: follow nominal
+            passing_offsets = np.zeros(self.RESOLUTION)
+        else:
+            # get index of the other buggy along the trajetory and convert to distance
+            other_idx = self.nominal_traj.get_closest_index_on_path(other_pose.position.x, other_pose.position.y)
+            other_dist = self.nominal_traj.get_distance_from_index(other_idx)
+            nominal_slice_to_other_dist = np.abs(nominal_slice_dists - other_dist)
 
-        passing_offsets = self.offset_func(nominal_slice_to_other_dist)
+            passing_offsets = self.offset_func(nominal_slice_to_other_dist)
 
-        # compute signed cross-track distance between NAND and nominal
-        nominal_to_other = np.array((other_pose.position.x, other_pose.position.y)) - \
-            np.array(self.nominal_traj.get_position_by_index(other_idx))
+            # compute signed cross-track distance between NAND and nominal
+            nominal_to_other = np.array((other_pose.position.x, other_pose.position.y)) - \
+                np.array(self.nominal_traj.get_position_by_index(other_idx))
 
-        # dot product with the unit normal to produce left-positive signed distance
-        other_normal = self.nominal_traj.get_unit_normal_by_index(np.array(other_idx.ravel()))
-        other_cross_track_dist = np.sum(
-            nominal_to_other * other_normal, axis=1)
+            # dot product with the unit normal to produce left-positive signed distance
+            other_normal = self.nominal_traj.get_unit_normal_by_index(np.array(other_idx.ravel()))
+            other_cross_track_dist = np.sum(
+                nominal_to_other * other_normal, axis=1)
 
-        self.other_buggy_xtrack_publisher.publish(Float64(data=float(other_cross_track_dist.item())))
+            self.other_buggy_xtrack_publisher.publish(Float64(data=float(other_cross_track_dist.item())))
 
-        # here, use passing offsets to weight NAND's cross track signed distance:
-        # if the sample point is far from SC, the cross track distance doesn't matter
-        # if the sample point is near, we add cross track distance to the offset,
-        # such that the resulting offset is adjusted by position of NAND
+            # here, use passing offsets to weight NAND's cross track signed distance:
+            # if the sample point is far from SC, the cross track distance doesn't matter
+            # if the sample point is near, we add cross track distance to the offset,
+            # such that the resulting offset is adjusted by position of NAND
 
-        passing_offsets = passing_offsets + \
-            self.activate_other_crosstrack_func(nominal_slice_to_other_dist) * other_cross_track_dist
+            passing_offsets = passing_offsets + \
+                self.activate_other_crosstrack_func(nominal_slice_to_other_dist) * other_cross_track_dist
 
         # clamp passing offset distances to distance to the curb
         if self.left_curb is not None:
