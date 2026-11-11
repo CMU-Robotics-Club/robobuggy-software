@@ -72,14 +72,14 @@ MSG_TYPE_SC_DEBUG = b'SD'
 MSG_TYPE_SC_SENSORS = b'SS'
 MSG_TYPE_ROUNDTRIP_TIMESTAMP = b'RT'
 MSG_TYPE_SC_UKF = b'SU'
-MSG_TYPE_STANLEY_DEBUG = b'SY'
+MSG_TYPE_STANLEY_DEBUG = b'SB'
 
 # software --> firmware
 MSG_TYPE_STEERING = b'ST'
 MSG_TYPE_ALARM    = b'AL'
 MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
 MSG_TYPE_SC_GPS  = b'SG'
-MSG_TYPE_PATH = b'PS'
+MSG_TYPE_PATH = b'PM'
 
 
 # 8 doubles, naturally aligned, so the firmware struct needs no trailing padding
