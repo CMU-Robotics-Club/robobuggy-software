@@ -1,0 +1,8 @@
+float64 steering_command
+float64 error_pose_x
+float64 error_pose_y
+float64 reference_navsat_easting
+float64 reference_navsat_northing
+float64 error_dist
+float64 error_heading
+float64 yaw_rate_error

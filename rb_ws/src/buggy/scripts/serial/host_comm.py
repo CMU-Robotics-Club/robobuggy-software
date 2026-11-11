@@ -56,7 +56,11 @@ class Crc16:
 
 SYNC_WORD = b'\xAA\xFF\x00\x55'
 
-MAX_PAYLOAD_LEN = 100 #prob need to bump up above 100
+# Shared with firmware: raising this requires the firmware's receive buffer to match.
+# A path packet is a 24 byte header plus 32 bytes per point, and one segment is one
+# packet, so this sets the path horizon: 1024 fits 31 points, i.e. 31 m of path ahead
+# of the buggy at the default 1 m spacing. (The original 100 fit only 2 points.)
+MAX_PAYLOAD_LEN = 1024
 
 
 # firmware --> software
@@ -68,6 +72,7 @@ MSG_TYPE_SC_DEBUG = b'SD'
 MSG_TYPE_SC_SENSORS = b'SS'
 MSG_TYPE_ROUNDTRIP_TIMESTAMP = b'RT'
 MSG_TYPE_SC_UKF = b'SU'
+MSG_TYPE_STANLEY_DEBUG = b'SY'
 
 # software --> firmware
 MSG_TYPE_STEERING = b'ST'
@@ -75,6 +80,19 @@ MSG_TYPE_ALARM    = b'AL'
 MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
 MSG_TYPE_SC_GPS  = b'SG'
 MSG_TYPE_PATH = b'PS'
+
+
+# 8 doubles, naturally aligned, so the firmware struct needs no trailing padding
+STANLEY_DEBUG_FMT = '<dddddddd'
+
+PATH_HEADER_FMT = '<QQd'
+PATH_POINT_FMT = '<dddd'
+
+# send_packet_raw asserts len(payload) < MAX_PAYLOAD_LEN (strictly), so the largest
+# legal payload is MAX_PAYLOAD_LEN - 1.
+MAX_PATH_PTS_PER_MSG = (
+    (MAX_PAYLOAD_LEN - 1) - struct.calcsize(PATH_HEADER_FMT)
+) // struct.calcsize(PATH_POINT_FMT)
 
 
 @dataclass
@@ -92,13 +110,17 @@ class PathMsg:
     pts: list[PathPoint]  # PathPoint[]
 
 
-def serialize_path(path: PathMsg): #serialization 
-    #we call struct.pack(fmt str, num_pts, start_idx, dist, *pts)
+def serialize_path(path: PathMsg):
     assert path.num_pts == len(path.pts)
-     # Serialize header
+    assert path.num_pts <= MAX_PATH_PTS_PER_MSG, (
+        f"{path.num_pts} path points exceeds the {MAX_PATH_PTS_PER_MSG} that fit in a "
+        f"{MAX_PAYLOAD_LEN} byte payload; chunk the path before serializing"
+    )
+
+    # Serialize header
     payload = bytearray(
         struct.pack(
-            '<QQd',
+            PATH_HEADER_FMT,
             path.num_pts,
             path.start_idx,
             path.dist
@@ -108,7 +130,7 @@ def serialize_path(path: PathMsg): #serialization
     for point in path.pts:
         payload.extend(
             struct.pack(
-                '<dddd',
+                PATH_POINT_FMT,
                 point.x,
                 point.y,
                 point.heading_tangent,
@@ -146,6 +168,19 @@ class SCUKF:
     front_speed: float # speed of the front wheel, in m/s
     # 32 bits
     timestamp: int # teensy timestamp, in MICROseconds!
+
+@dataclass
+class StanleyDebug:
+    """Per-iteration state of the firmware's Stanley controller."""
+    # 64 bits
+    steering_command: float # commanded steering angle, radians
+    error_pose_x: float # along-track error from the reference point, meters
+    error_pose_y: float # cross-track error from the reference point, meters
+    reference_navsat_easting: float # reference point on the path, UTM easting
+    reference_navsat_northing: float # reference point on the path, UTM northing
+    error_dist: float # distance to the reference point, meters
+    error_heading: float # heading error against the path tangent, radians
+    yaw_rate_error: float # measured yaw rate minus the path's expected yaw rate, rad/s
 
 @dataclass
 class NANDDebugInfo:
@@ -280,11 +315,11 @@ class Comms:
 
     def send_gps(self, scGPS: SCRawGPS):
         self.send_packet_raw(MSG_TYPE_SC_GPS, struct.pack('<dddIIBBBxxxxx', *astuple(scGPS)))
-    
+
     def send_path(self, path: PathMsg):
         payload = serialize_path(path)
         self.send_packet_raw(MSG_TYPE_PATH, payload)
-        
+
     def read_packet_raw(self):
         self.rx_buffer += self.port.read_all() #type:ignore
         try:
@@ -340,7 +375,11 @@ class Comms:
 
             rx_crc = int.from_bytes(read(2), 'little')
 
-            self.rx_buffer = self.rx_buffer[4 + 3 + 2 + msg_len + 2:]
+            # sync + msg_type + length + payload + crc. This consumed one byte too
+            # many until 2026-11-11, which ate the first sync byte of whatever packet
+            # followed in the same buffer, so a back to back stream lost every other
+            # packet to the resync scan.
+            self.rx_buffer = self.rx_buffer[len(SYNC_WORD) + 2 + 2 + msg_len + 2:]
 
             if rx_crc != checksum.accum:
                 raise ChecksumMismatch()
@@ -380,6 +419,10 @@ class Comms:
         elif msg_type == MSG_TYPE_SC_UKF:
             data = struct.unpack('<dddddddddIxxxx', payload)
             return SCUKF(*data)
+
+        elif msg_type == MSG_TYPE_STANLEY_DEBUG:
+            data = struct.unpack(STANLEY_DEBUG_FMT, payload)
+            return StanleyDebug(*data)
 
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
             timestamp = struct.unpack('<QQIxxxx', payload)

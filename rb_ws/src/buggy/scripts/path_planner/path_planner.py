@@ -62,6 +62,9 @@ class PathPlanner(Node):
         else:
             self.left_curb = Trajectory(json_filepath=os.environ["TRAJPATH"] + curb_name)
 
+        self.declare_parameter("ff_enable_send_path_segments", False)
+        self.disable_lookahead = self.get_parameter("ff_enable_send_path_segments").value
+
         #Publishers
         self.other_buggy_xtrack_publisher = self.create_publisher(Float64, "debug/other_buggy_xtrack", 1)
         self.traj_publisher = self.create_publisher(TrajectoryMsg, "self/cur_traj", 1)
@@ -155,6 +158,8 @@ class PathPlanner(Node):
         Publishes:
             Trajectory: list of x,y coords for ego-buggy to follow.
         """
+        lookahead = 0 if self.disable_lookahead else self.LOOKAHEAD
+
         # grab slice of nominal trajectory
         nominal_idx = self.nominal_traj.get_closest_index_on_path(self_pose.position.x, self_pose.position.y)
         nominal_dist_along = self.nominal_traj.get_distance_from_index(nominal_idx)
@@ -163,8 +168,8 @@ class PathPlanner(Node):
 
         # compute the distance along nominal trajectory between samples and the obstacle
         nominal_slice_dists = np.linspace(
-            nominal_dist_along + self.LOOKAHEAD,
-            nominal_dist_along + self.LOOKAHEAD + self.LOCAL_TRAJ_LEN,
+            nominal_dist_along + lookahead,
+            nominal_dist_along + lookahead + self.LOCAL_TRAJ_LEN,
             self.RESOLUTION)
 
         for i in range(self.RESOLUTION):
@@ -228,7 +233,12 @@ class PathPlanner(Node):
         positions = nominal_slice + (passing_offsets[:, None] * nominal_normals)
 
         local_traj = Trajectory(json_filepath=None, positions=positions)
-        self.traj_publisher.publish(local_traj.pack(self_pose.position.x, self_pose.position.y ))
+        traj_msg = local_traj.pack(self_pose.position.x, self_pose.position.y)
+        # The local trajectory's own arc length restarts at zero every tick, so publish
+        # where this window begins along the nominal course. Consumers that need a
+        # stable index across ticks (e.g. the firmware path forwarder) key off this.
+        traj_msg.start_dist = float(nominal_dist_along + lookahead)
+        self.traj_publisher.publish(traj_msg)
 
 
 def main(args=None):

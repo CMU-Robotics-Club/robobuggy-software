@@ -55,6 +55,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/NANDRawGPSMsg.msg"
   "msg/NANDDebugInfoMsg.msg"
   "msg/SCRadioNANDMsg.msg"
+  "msg/StanleyDebugMsg.msg"
   DEPENDENCIES std_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)
