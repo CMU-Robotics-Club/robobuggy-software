@@ -31,20 +31,6 @@ from util.trajectory import Trajectory
 
 class Translator(Node):
 
-    # A path point the firmware already holds is resent once any of these is
-    # exceeded. They are separate rather than one lateral tolerance because the
-    # firmware uses a point's heading and curvature pointwise for feedforward, so a
-    # shape change that barely moves the point can still matter: 0.002 1/m of
-    # curvature is still under 0.15 deg of steering feedforward on SC's wheelbase.
-    PATH_POS_TOL = 0.05  # m
-    PATH_HEADING_TOL = 0.01  # rad, ~0.6 deg
-    PATH_CURVATURE_TOL = 0.002  # 1/m
-
-    # Indices this far behind the window start are kept in the mirror of the
-    # firmware's path, so that small backwards jitter in the state estimate doesn't
-    # drop entries the next window still needs and force a full resend.
-    PATH_STORE_MARGIN_PTS = 8
-
     # Keeps the grid index arithmetic from landing on the wrong side of a ceil when
     # start_dist is an exact multiple of the point spacing
     PATH_GRID_EPS = 1e-9
@@ -147,11 +133,6 @@ class Translator(Node):
             self.declare_parameter("pathPointSpacing", 1.0)
 
             self.path_point_spacing = float(self.get_parameter("pathPointSpacing").value)
-
-            # Mirror of the path the firmware holds, keyed by the same absolute point
-            # index the firmware files it under. Used to skip resending points that
-            # haven't changed; see send_path.
-            self.fw_path_pts = {}
 
             if self.path_point_spacing <= 0.0:
                 raise ValueError(
@@ -397,28 +378,10 @@ class Translator(Node):
                 self.sc_fw_ukf_publisher.publish(odom)
                 self.get_logger().debug(f'SC UKF Timestamp: {packet.timestamp}')
 
-    def _path_point_matches(self, new_pt, fw_pt):
-        """
-        Whether the firmware's copy of a path point is close enough to a freshly
-        sampled one that it doesn't need to be resent.
-        """
-        if fw_pt is None:
-            return False
-
-        heading_err = (
-            new_pt.heading_tangent - fw_pt.heading_tangent + np.pi
-        ) % (2 * np.pi) - np.pi
-
-        return (
-            np.hypot(new_pt.x - fw_pt.x, new_pt.y - fw_pt.y) <= self.PATH_POS_TOL
-            and abs(heading_err) <= self.PATH_HEADING_TOL
-            and abs(new_pt.curvature - fw_pt.curvature) <= self.PATH_CURVATURE_TOL
-        )
-
     def send_path(self, msg: TrajectoryMsg):
         """
         Resamples the planner's local trajectory at a fixed arc length spacing and
-        forwards the points the firmware doesn't already have as a single PathMsg.
+        forwards the whole resampled window to the firmware as a single PathMsg.
 
         Runs on every trajectory message, so the path is refreshed at the planner's
         10 Hz. One segment is one packet: at most MAX_PATH_PTS_PER_MSG points are
@@ -434,14 +397,13 @@ class Translator(Node):
         mid-interval, so the first sample is taken at the first grid point at or after
         msg.start_dist rather than at the window start itself.
 
-        self.fw_path_pts mirrors what the firmware holds. A tick usually just slides
-        the window forward by a point or so and nudges the passing offset, so the
-        leading run of points that still match the mirror is dropped and the segment
-        sent starts at the first index that actually changed. Everything from there to
-        the end of the horizon goes out, since the firmware overwrites in place and
-        must never be left holding the tail of a superseded plan. In the steady state
-        that is the one newly revealed point per tick; nothing is sent at all while
-        the buggy sits still.
+        The full window is sent on every tick, including points the firmware was
+        already given on an earlier tick and that haven't changed. Path packets are
+        not acknowledged, so nothing here knows what the firmware actually holds:
+        resending everything means a dropped or corrupted packet is repaired by the
+        next tick, 100 ms later, instead of leaving a hole or a stale point in the
+        firmware's path until the buggy has driven past it. The firmware overwrites
+        in place by index, so a repeated point is harmless.
 
         Note that index i sits i * dist along the *driven* path, not along the nominal
         course. The planner offsets the path sideways to pass, which lengthens it on a
@@ -462,7 +424,8 @@ class Translator(Node):
         # First grid index at or after the window start, and how far into the window
         # that index falls. Sampling from the window start instead would place every
         # index a different fraction of an interval off the grid on each tick, which
-        # breaks both idx * dist == arc length and the match against the mirror.
+        # breaks idx * dist == arc length and has the same index name a different
+        # point from one tick to the next.
         start_idx = int(np.ceil(msg.start_dist / spacing - self.PATH_GRID_EPS))
         first_offset = max(start_idx * spacing - msg.start_dist, 0.0)
 
@@ -498,33 +461,8 @@ class Translator(Node):
             for i in range(num_pts)
         ]
 
-        # Forget indices far enough behind the window that no future window can match
-        # against them, so the mirror stays bounded to roughly one horizon.
-        self.fw_path_pts = {
-            idx: pt
-            for idx, pt in self.fw_path_pts.items()
-            if idx >= start_idx - self.PATH_STORE_MARGIN_PTS
-        }
-
-        # Truncate the leading points the firmware already has, stopping at the first
-        # one that differs
-        unchanged = 0
-        while unchanged < num_pts and self._path_point_matches(
-            pts[unchanged], self.fw_path_pts.get(start_idx + unchanged)
-        ):
-            unchanged += 1
-
-        if unchanged == num_pts:
-            self.get_logger().debug(
-                f"Firmware already has all {num_pts} path pts from idx {start_idx}"
-            )
-            return
-
-        pts = pts[unchanged:]
-        start_idx += unchanged
-
         packet = PathMsg(
-            num_pts=len(pts),
+            num_pts=num_pts,
             start_idx=start_idx,
             dist=spacing,
             pts=pts,
@@ -532,15 +470,9 @@ class Translator(Node):
         with self.tx_lock:
             self.comms.send_path(packet)
 
-        # Only the points actually sent are updated, so one left in place keeps the
-        # value the firmware really has rather than the fresh sample that happened to
-        # land within tolerance of it. Otherwise a run of within-tolerance nudges
-        # would walk the two copies arbitrarily far apart without ever resending.
-        self.fw_path_pts.update({start_idx + i: pt for i, pt in enumerate(pts)})
-
         self.get_logger().debug(
-            f"Sent {len(pts)} path pts from idx {start_idx} at {spacing} m spacing "
-            f"({unchanged} unchanged, {window_len:.1f} m window)"
+            f"Sent {num_pts} path pts from idx {start_idx} at {spacing} m spacing "
+            f"({window_len:.1f} m window)"
         )
 
     def send_raw_gps(self, msg: Odometry):
