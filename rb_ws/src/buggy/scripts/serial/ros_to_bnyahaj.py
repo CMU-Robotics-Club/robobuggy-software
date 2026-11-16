@@ -482,11 +482,27 @@ class Translator(Node):
         /ekf/odometry_earth carries ECEF position, so it is converted to UTM
         easting/northing before being sent.
         """
-        easting, northing, _ = self.ecef_to_utm_transformer.transform(
-            msg.pose.pose.position.x,
-            msg.pose.pose.position.y,
-            msg.pose.pose.position.z,
+        pos = msg.pose.pose.position
+        q = msg.pose.pose.orientation
+
+        # The orientation is body -> ECEF, so its yaw is not a heading. Take the body
+        # x axis (forward) in ECEF, which is the first column of the rotation matrix,
+        # and project a point 1 m ahead into UTM alongside the position: the bearing
+        # between the two is the heading in the same grid frame as the path.
+        fwd_x = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+        fwd_y = 2.0 * (q.x * q.y + q.z * q.w)
+        fwd_z = 2.0 * (q.x * q.z - q.y * q.w)
+
+        (easting, ahead_easting), (northing, ahead_northing), _ = (
+            self.ecef_to_utm_transformer.transform(
+                [pos.x, pos.x + fwd_x],
+                [pos.y, pos.y + fwd_y],
+                [pos.z, pos.z + fwd_z],
+            )
         )
+
+        # 0 is east, increasing counterclockwise
+        heading = float(np.arctan2(ahead_northing - northing, ahead_easting - easting))
 
         # 2D accuracy from the position covariance, which is ordered (x, y, z, r, p, y),
         # so index 0 is the x variance and index 7 the y variance.
@@ -499,6 +515,11 @@ class Translator(Node):
             eastern=float(easting),
             northern=float(northing),
             accuracy=accuracy,
+            # Twist is in the body frame (x forward, z up), so these are the forward
+            # speed and the yaw rate
+            velocity=float(msg.twist.twist.linear.x),
+            heading=heading,
+            heading_rate=float(msg.twist.twist.angular.z),
             gps_seq_num=self.gps_seq_num,
             timestamp=stamp_ms & 0xFFFFFFFF,
             gps_SIV=self.gps_SIV,
@@ -513,7 +534,9 @@ class Translator(Node):
 
         self.get_logger().debug(
             f"Sent SCRawGPS seq={packet.gps_seq_num} "
-            f"easting={easting:.2f} northing={northing:.2f} accuracy={accuracy:.2f}"
+            f"easting={easting:.2f} northing={northing:.2f} accuracy={accuracy:.2f} "
+            f"velocity={packet.velocity:.2f} heading={heading:.3f} "
+            f"heading_rate={packet.heading_rate:.3f}"
         )
 
     def send_timestamp(self):

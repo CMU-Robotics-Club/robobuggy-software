@@ -146,6 +146,9 @@ class SCRawGPS:
     eastern: float # double position eastern
     northern: float # double position northern
     accuracy: float # double current accuracy of the GPS fix, 2D accuracy
+    velocity: float # double vx, m/s
+    heading: float # double radians, 0 is east, increasing counterclockwise
+    heading_rate: float # double rad/s, positive counterclockwise
 
     gps_seq_num: int #gps seqence number
     timestamp: int  # software timestamp, in millis
@@ -314,7 +317,7 @@ class Comms:
         self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<Q', timestamp))
 
     def send_gps(self, scGPS: SCRawGPS):
-        self.send_packet_raw(MSG_TYPE_SC_GPS, struct.pack('<dddIIBBBxxxxx', *astuple(scGPS)))
+        self.send_packet_raw(MSG_TYPE_SC_GPS, struct.pack('<ddddddIIBBBxxxxx', *astuple(scGPS)))
 
     def send_path(self, path: PathMsg):
         payload = serialize_path(path)
