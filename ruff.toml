@@ -1,0 +1,16 @@
+# Ruff config, mirroring the checks previously enabled in .pylintrc
+target-version = "py310"  # ROS 2 Humble
+
+[lint]
+# Needed for the E11x indentation rules; explicit-preview-rules keeps every
+# other preview rule off unless it's listed in `select`.
+preview = true
+explicit-preview-rules = true
+
+select = [
+    "E111", "E114", "E117",  # bad-indentation
+    "W291", "W293",          # trailing-whitespace
+    "I",                     # wrong-import-order (isort)
+    "F841",                  # unused-variable
+    "F401",                  # unused-import
+]
