@@ -1,0 +1,9 @@
+<launch>
+    <!-- Low-res MJPEG web stream of the annotated camera feed: http://<robot-ip>:8080/ -->
+    <node pkg="buggy" exec="video_stream_node.py" name="video_stream" output="screen" namespace="SC">
+        <param name="port" value="8080"/>
+        <param name="width" value="480"/>
+        <param name="jpeg_quality" value="40"/>
+        <param name="max_fps" value="8.0"/>
+    </node>
+</launch>

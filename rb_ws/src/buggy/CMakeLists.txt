@@ -42,7 +42,7 @@ install(PROGRAMS
   scripts/debug/set_steer.py
   scripts/estimation/nand_estimator.py
   scripts/estimation/steer_offset_estimator.py
-  scripts/vision/detector_node.py
+  scripts/vision/video_stream_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

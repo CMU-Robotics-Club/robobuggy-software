@@ -19,6 +19,7 @@ services:
     ports:
       - "0.0.0.0:8765:8765" # foxglove bridge
       - "0.0.0.0:8760:8760" # Asset server for loading stuff into foxglove
+      - "0.0.0.0:8080:8080" # MJPEG video stream (video_stream_node)
     platform: "linux/amd64"
     device_cgroup_rules:
       - "c *:* rmw"

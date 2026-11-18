@@ -11,6 +11,7 @@
     </node>
     <node name="stateconverter" pkg = "buggy" exec = "buggy_state_converter.py" output="screen" namespace="SC"/>
     <node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC"/>
+    <node pkg="buggy" exec="video_stream_node.py" name="video_stream" output="screen" namespace="SC"/>
 
      
     <include file="$(find-pkg-share velodyne)/launch/velodyne-all-nodes-VLP16-launch.py">
