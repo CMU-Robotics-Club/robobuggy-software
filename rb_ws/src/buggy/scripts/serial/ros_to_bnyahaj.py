@@ -450,6 +450,8 @@ class Translator(Node):
         positions = traj.get_position_by_distance(dists)
         headings = traj.get_heading_by_distance(dists)
         curvatures = traj.get_curvature_by_distance(dists)
+        velocityx = traj.get_velocityx_by_distance(dists)
+        velocityy = traj.get_velocityy_by_distance(dists)
 
         pts = [
             PathPoint(
@@ -457,6 +459,8 @@ class Translator(Node):
                 y=float(positions[i, 1]),
                 heading_tangent=float(headings[i]),
                 curvature=float(curvatures[i]),
+                vx=float(velocityx[i]),
+                vy=float(velocityy[i])
             )
             for i in range(num_pts)
         ]

@@ -118,6 +118,28 @@ class Trajectory:
         theta = np.arctan2(dydt, dxdt)
 
         return theta
+    
+    def get_velocityx_by_index(self, index):
+        """Finds dxdt of the buggy"""
+
+        dxdt = self.interpolation(index, nu=1)[0][0]    # (1,2)
+        return dxdt
+    
+    def get_velocityy_by_index(self, index):
+        """Finds dydt of the buggy"""
+
+        dydt = self.interpolation(index, nu=1)[0][1]    #(1,2)
+        return dydt
+    
+    def get_velocityx_by_distance(self, distance):
+        index = self.get_index_from_distance(distance)
+
+        return self.get_velocityx_by_index(index)
+    
+    def get_velocityy_by_distance(self, distance):
+        index = self.get_index_from_distance(distance)
+
+        return self.get_velocityy_by_index(index)
 
     def get_heading_by_distance(self, distance):
         """Gets the heading at given distance along trajectory,

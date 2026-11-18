@@ -99,8 +99,9 @@ MAX_PATH_PTS_PER_MSG = (
 class PathPoint:
     x: float
     y: float
-    heading_tangent: float
-    curvature: float
+    vx: float
+    vy: float
+
 
 @dataclass
 class PathMsg:
@@ -133,8 +134,8 @@ def serialize_path(path: PathMsg):
                 PATH_POINT_FMT,
                 point.x,
                 point.y,
-                point.heading_tangent,
-                point.curvature
+                point.vx,
+                point.vy
             )
         )
 
