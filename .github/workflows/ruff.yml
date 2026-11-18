@@ -1,41 +1,78 @@
 name: Ruff
 
+# Lints the Python files a pull request changes, and commits ruff's autofixes
+# back to the PR branch.
+#
+# This deliberately has no `push` trigger. A push has no base branch, so the
+# only thing to diff against would be main, and most branches here are cut from
+# `rolls`: the autofix would rewrite every file `rolls` has changed, not just
+# the ones the branch touched. To lint a branch that has no PR yet, run this
+# workflow by hand (Actions -> Ruff -> Run workflow) and choose the base.
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      base:
+        description: Branch to diff against when finding changed Python files
+        default: main
+      autofix:
+        description: Commit ruff's fixes back to the branch
+        type: boolean
+        default: true
 
 permissions:
-  contents: write
+  contents: write  # push the autofix commit
+  actions: write   # start the follow-up run on the autofix commit
+
+# One run at a time per PR, so two quick pushes can't both try to push a fix
+concurrency:
+  group: ruff-${{ github.event.pull_request.number || github.ref_name }}
 
 jobs:
   ruff:
     runs-on: ubuntu-latest
+    env:
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+      BASE: ${{ github.base_ref || inputs.base || github.event.repository.default_branch }}
+      # A fork's branch doesn't exist in this repo, and GITHUB_TOKEN can't push to it
+      FORK_PR: >-
+        ${{ github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.full_name != github.repository }}
+      # Fixes are only applied where they can be committed back: never on the
+      # default branch and never on fork PRs. Everywhere else is lint-only, so
+      # the lint step reports what is really on the branch.
+      AUTOFIX: >-
+        ${{ (github.event_name != 'workflow_dispatch' || inputs.autofix) &&
+            (github.head_ref || github.ref_name) != github.event.repository.default_branch &&
+            (github.event_name != 'pull_request' ||
+             github.event.pull_request.head.repo.full_name == github.repository) }}
     steps:
     - uses: actions/checkout@v4
       with:
-        # Check out the PR branch itself (not the merge commit) so fixes can be pushed back
-        ref: ${{ github.head_ref || github.ref_name }}
+        # Check out the branch itself (not the merge commit) so fixes can be
+        # pushed back. Fork PRs are checked out by head commit instead.
+        ref: ${{ env.FORK_PR == 'true' && github.event.pull_request.head.sha || env.BRANCH }}
         fetch-depth: 0
     - uses: astral-sh/ruff-action@v3
       with:
         args: --version
     - name: Find changed Python files
       id: changed
+      # The list is kept NUL-delimited in a file and fed to ruff through xargs,
+      # so a file name is never spliced into a shell script.
       run: |
-        base="origin/${{ github.base_ref || 'main' }}"
-        files=$(git diff --name-only --diff-filter=ACMR "$base"...HEAD -- '*.py' | tr '\n' ' ')
-        echo "Changed Python files: ${files:-none}"
-        echo "files=$files" >> "$GITHUB_OUTPUT"
+        git diff -z --name-only --diff-filter=ACMR "origin/$BASE...HEAD" -- '*.py' > "$RUNNER_TEMP/changed_py"
+        count=$(tr -cd '\0' < "$RUNNER_TEMP/changed_py" | wc -c | tr -d ' ')
+        echo "$count changed Python file(s) relative to $BASE:"
+        tr '\0' '\n' < "$RUNNER_TEMP/changed_py" | sed 's/^/- /'
+        echo "count=$count" >> "$GITHUB_OUTPUT"
     - name: Autofix with ruff
-      if: steps.changed.outputs.files != ''
-      run: ruff check --fix --exit-zero ${{ steps.changed.outputs.files }}
+      if: steps.changed.outputs.count != '0' && env.AUTOFIX == 'true'
+      run: xargs -0 ruff check --fix --exit-zero -- < "$RUNNER_TEMP/changed_py"
     - name: Commit fixes
-      # Never push to the default branch; can't push to forks with GITHUB_TOKEN
-      if: >-
-        steps.changed.outputs.files != '' &&
-        (github.head_ref || github.ref_name) != github.event.repository.default_branch &&
-        (github.event_name != 'pull_request' ||
-         github.event.pull_request.head.repo.full_name == github.repository)
+      if: steps.changed.outputs.count != '0' && env.AUTOFIX == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         if git diff --quiet; then
           echo "Nothing to fix"
@@ -44,7 +81,12 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git commit -am "ruff autofix"
-        git push
+        git push origin "HEAD:refs/heads/$BRANCH"
+        # A push made with GITHUB_TOKEN doesn't trigger workflows, which would
+        # leave the autofix commit with no Ruff check. workflow_dispatch is
+        # exempt from that rule, so start a lint-only run on the new commit.
+        gh workflow run ruff.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" -f base="$BASE" -f autofix=false ||
+          echo "::warning::Could not start a Ruff run on the autofix commit; run the workflow manually to check it."
     - name: Lint with ruff
-      if: steps.changed.outputs.files != ''
-      run: ruff check --output-format=github ${{ steps.changed.outputs.files }}
+      if: steps.changed.outputs.count != '0'
+      run: xargs -0 ruff check --output-format=github -- < "$RUNNER_TEMP/changed_py"
