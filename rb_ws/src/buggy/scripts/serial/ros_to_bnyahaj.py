@@ -457,8 +457,6 @@ class Translator(Node):
             PathPoint(
                 x=float(positions[i, 0]),
                 y=float(positions[i, 1]),
-                heading_tangent=float(headings[i]),
-                curvature=float(curvatures[i]),
                 vx=float(velocityx[i]),
                 vy=float(velocityy[i])
             )
