@@ -85,7 +85,7 @@ MSG_TYPE_PATH = b'PM'
 # 8 doubles, naturally aligned, so the firmware struct needs no trailing padding
 STANLEY_DEBUG_FMT = '<dddddddd'
 
-PATH_HEADER_FMT = '<QQd'
+PATH_HEADER_FMT = '<QQQd'
 PATH_POINT_FMT = '<dddd'
 
 # send_packet_raw asserts len(payload) < MAX_PAYLOAD_LEN (strictly), so the largest
@@ -105,6 +105,7 @@ class PathPoint:
 
 @dataclass
 class PathMsg:
+    path_id: int  # uint64
     num_pts: int  # uint64
     start_idx: int # uint64
     dist: float #arc length distance between points
@@ -122,6 +123,7 @@ def serialize_path(path: PathMsg):
     payload = bytearray(
         struct.pack(
             PATH_HEADER_FMT,
+            path.path_id,
             path.num_pts,
             path.start_idx,
             path.dist

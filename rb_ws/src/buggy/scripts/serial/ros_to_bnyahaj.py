@@ -147,6 +147,10 @@ class Translator(Node):
                 callback_group=self.sub_cb_group,
             )
 
+            # Generate unique id everytime we restart software to signify a new path
+            # Using current nanos
+            self.path_id = time.time_ns()
+
         # High-frequency read loop, assigned to its own group so it never blocks writers
         self.timer = self.create_timer(0.001, self.loop, callback_group=self.read_cb_group)
 
@@ -464,6 +468,7 @@ class Translator(Node):
         ]
 
         packet = PathMsg(
+            path_id=self.path_id,
             num_pts=num_pts,
             start_idx=start_idx,
             dist=spacing,
