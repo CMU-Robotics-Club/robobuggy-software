@@ -454,8 +454,15 @@ class Translator(Node):
         positions = traj.get_position_by_distance(dists)
         headings = traj.get_heading_by_distance(dists)
         curvatures = traj.get_curvature_by_distance(dists)
-        velocityx = traj.get_velocityx_by_distance(dists)
-        velocityy = traj.get_velocityy_by_distance(dists)
+        # Velocity with respect to the packet's point index, which is the parameter the
+        # firmware interpolates over (0 to 1 between consecutive points). The spline's
+        # own derivative is per planner waypoint, so rescale it: the points are `spacing`
+        # meters of arc apart, which makes the speed per point index exactly `spacing`.
+        dxdi = traj.get_velocityx_by_distance(dists)
+        dydi = traj.get_velocityy_by_distance(dists)
+        waypoints_per_point = spacing / np.hypot(dxdi, dydi)
+        velocityx = dxdi * waypoints_per_point
+        velocityy = dydi * waypoints_per_point
 
         pts = [
             PathPoint(

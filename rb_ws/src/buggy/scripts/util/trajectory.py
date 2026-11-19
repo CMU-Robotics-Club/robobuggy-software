@@ -122,14 +122,12 @@ class Trajectory:
     def get_velocityx_by_index(self, index):
         """Finds dxdt of the buggy"""
 
-        dxdt = self.interpolation(index, nu=1)[0][0]    # (1,2)
-        return dxdt
+        return self.interpolation(index, nu=1)[..., 0]
     
     def get_velocityy_by_index(self, index):
         """Finds dydt of the buggy"""
 
-        dydt = self.interpolation(index, nu=1)[0][1]    #(1,2)
-        return dydt
+        return self.interpolation(index, nu=1)[..., 1]
     
     def get_velocityx_by_distance(self, distance):
         index = self.get_index_from_distance(distance)
