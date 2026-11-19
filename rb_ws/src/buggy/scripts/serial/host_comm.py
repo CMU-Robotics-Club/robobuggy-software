@@ -79,18 +79,20 @@ MSG_TYPE_SOFTWARE_TIMESTAMP = b'TM'
 class NANDDebugInfo:
     # 64 bits
     heading_rate: float # double
-    encoder_angle: float # double
+    encoder_speed: float # double
     # 32 bits
     timestamp: int
     rc_steering_angle: float
     software_steering_angle: float
     true_steering_angle: float
     rfm69_timeout_num: int
+    encoder_last_packet: int # ms since packet
     # 8 bits
     operator_ready: bool
     brake_status: bool
     auton_steer: bool
     tx12_state: bool
+    encoder_error: int
     stepper_alarm: int # unsigned char
     rc_uplink_quality: int # uint8
 
@@ -100,6 +102,10 @@ class NANDUKF:
     easting: float # double
     northing: float # double
     theta: float # double
+    eastern_cov : float
+    northern_cov : float
+    heading_cov : float
+    speed_cov : float
     heading_rate: float # double
     velocity: float # double
     # 32 bits
@@ -112,24 +118,28 @@ class NANDRawGPS:
     northing: float # double
     # this is a 2D accuracy value
     accuracy: float # double
-    gps_time: int # uint64
     # 32 bits
     gps_seqnum: int
     timestamp: int
     # 8 bits
+    gps_SIV: int #uint8
     gps_fix: int # uint8
+    rtk_fix: int
+
 
 @dataclass
 class Radio:
-    nand_east_gps: float
-    nand_north_gps: float
-    gps_seqnum: int
+    nand_east_gps: float # double
+    nand_north_gps: float # double
+    gps_seqnum: int # uint32
+    rx_rssi: int # uint16
     nand_gps_fix: int # uint8
+    nand_auton: bool # uint8
 
 @dataclass
 class SCDebugInfo:
      # 64 bits
-    encoder_angle: float # double
+    encoder_speed: float # double
     # 32 bits
     rc_steering_angle: float
     software_steering_angle: float
@@ -187,14 +197,14 @@ class Comms:
         write_and_checksum(payload)
         self.port.write(checksum.accum.to_bytes(2, 'little'))
 
-    def send_steering(self, angle: float):
-        self.send_packet_raw(MSG_TYPE_STEERING, struct.pack('<d', angle))
+    def send_steering(self, angle: float, fw_timestamp: int):
+        self.send_packet_raw(MSG_TYPE_STEERING, struct.pack('<dIxxxx', angle, fw_timestamp))
 
     def send_alarm(self, status: int):
         self.send_packet_raw(MSG_TYPE_ALARM, struct.pack('<B', status))
 
-    def send_timestamp(self, time: int):
-        self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<Q', time))
+    def send_timestamp(self, timestamp: int):
+        self.send_packet_raw(MSG_TYPE_SOFTWARE_TIMESTAMP, struct.pack('<Q', timestamp))
 
     def read_packet_raw(self):
         self.rx_buffer += self.port.read_all() #type:ignore
@@ -265,19 +275,19 @@ class Comms:
 
         msg_type, payload = packet
         if msg_type == MSG_TYPE_NAND_DEBUG:
-            data = struct.unpack('<ddIfffI????BBxxxxxx', payload)
+            data = struct.unpack('<ddIfffII????BBBx', payload)
             return NANDDebugInfo(*data)
 
         elif msg_type == MSG_TYPE_NAND_UKF:
-            data = struct.unpack('<dddddIxxxx', payload)
+            data = struct.unpack('<dddddddddIxxxx', payload)
             return NANDUKF(*data)
 
         elif msg_type == MSG_TYPE_NAND_GPS:
-            data = struct.unpack('<dddQIIBxxxxxxx', payload)
+            data = struct.unpack('<dddIIBBBxxxxx', payload)
             return NANDRawGPS(*data)
 
         elif msg_type == MSG_TYPE_RADIO:
-            data = struct.unpack('<ddIBxxx', payload)
+            data = struct.unpack('<ddIHB?', payload)
             return Radio(*data)
 
         elif msg_type == MSG_TYPE_SC_DEBUG:
@@ -289,8 +299,8 @@ class Comms:
             return SCSensors(*data)
 
         elif msg_type == MSG_TYPE_ROUNDTRIP_TIMESTAMP:
-            time = struct.unpack('<QQIxxxx', payload)
-            return RoundtripTimestamp(*time)
+            timestamp = struct.unpack('<QQIxxxx', payload)
+            return RoundtripTimestamp(*timestamp)
         else:
             print(f'Unknown packet type {msg_type}')
             return None

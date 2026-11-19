@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
+import time
 
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
 import numpy as np
+import utm
 import pyproj
 from scipy.spatial.transform import Rotation
+from util.constants import Constants
 
 class BuggyStateConverter(Node):
     def __init__(self):
@@ -15,45 +19,80 @@ class BuggyStateConverter(Node):
         namespace = self.get_namespace()
         if namespace == "/SC":
             self.SC_raw_state_subscriber = self.create_subscription(
-                Odometry, "/ekf/odometry_earth", self.convert_SC_state_callback, 10
+                Odometry, "/ekf/odometry_earth", self.convert_SC_state_callback, 1
             )
 
             self.NAND_other_raw_state_subscriber = self.create_subscription(
-                Odometry, "NAND_raw_state", self.convert_NAND_other_state_callback, 10
+                Odometry, "NAND_raw_state", self.convert_NAND_other_state_callback, 1
             )
 
-            self.other_state_publisher = self.create_publisher(Odometry, "other/stateNoUKF", 10)
+            self.other_state_publisher = self.create_publisher(Odometry, "other/stateNoUKF", 1)
+            self.other_telem_publisher = self.create_publisher(NavSatFix, "other/stateNoUKF_navsatfix", 1)
+            self.other_ukf_telem_publisher = self.create_publisher(NavSatFix, "other/state_navsatfix", 1)
+
+            self.other_filtered_state_subscriber = self.create_subscription(
+                Odometry, "other/state", lambda msg: self.publish_telematics(msg, self.other_ukf_telem_publisher), 1
+            )
 
         elif namespace == "/NAND":
             self.NAND_raw_state_subscriber = self.create_subscription(
-                Odometry, "raw_state", self.convert_NAND_state_callback, 10
+                Odometry, "raw_state", self.convert_NAND_state_callback, 1
             )
 
         else:
             self.get_logger().warn(f"Namespace not recognized for buggy state conversion: {namespace}")
 
-        self.self_state_publisher = self.create_publisher(Odometry, "self/state", 10)
+        self.self_state_publisher = self.create_publisher(Odometry, "self/state", 1)
+        self.self_telem_publisher = self.create_publisher(NavSatFix, "self/state_navsatfix", 1)
+
+
 
         # Initialize pyproj Transformer for ECEF -> UTM conversion for /SC
         self.ecef_to_utm_transformer = pyproj.Transformer.from_crs(
             "epsg:4978", "epsg:32617", always_xy=True
         )  # TODO: Confirm UTM EPSG code, using EPSG:32617 for UTM Zone 17N
 
-    def convert_SC_state_callback(self, msg):
+    def publish_telematics(self, msg : Odometry, publisher):
+        """Converts BuggyState/Odometry message to NavSatFix and publishes to specified publisher
+        
+        Args:
+            msg (Odometry): Buggy state to convert
+            publisher (Publisher): Publisher to send NavSatFix message to
+        """
+        try:
+            y = msg.pose.pose.position.y
+            x = msg.pose.pose.position.x
+            lat, long = utm.to_latlon(x, y, Constants.UTM_ZONE_NUM, Constants.UTM_ZONE_LETTER)
+            down = msg.pose.pose.position.z
+            new_msg = NavSatFix()
+            new_msg.header = msg.header
+            new_msg.latitude = lat
+            new_msg.longitude = long
+            new_msg.altitude = down
+            publisher.publish(new_msg)
+
+        except (ValueError, utm.error.OutOfRangeError) as e:
+            self.get_logger().error(
+                "Unable to convert buggy position to lat lon; Error: " + str(e)
+            )
+
+    def convert_SC_state_callback(self, msg) -> None:
         """ Callback for processing SC/raw_state messages and publishing to self/state """
         converted_msg = self.convert_SC_state(msg)
         self.self_state_publisher.publish(converted_msg)
+        self.publish_telematics(converted_msg, self.self_telem_publisher)
 
-    def convert_NAND_state_callback(self, msg):
+    def convert_NAND_state_callback(self, msg) -> None:
         """ Callback for processing NAND/raw_state messages and publishing to self/state """
         converted_msg = self.convert_NAND_state(msg)
         self.self_state_publisher.publish(converted_msg)
+        self.publish_telematics(converted_msg, self.self_telem_publisher)
 
-    def convert_NAND_other_state_callback(self, msg):
+    def convert_NAND_other_state_callback(self, msg) -> None:
         """ Callback for processing SC/NAND_raw_state messages and publishing to other/state """
         converted_msg = self.convert_NAND_other_state(msg)
         self.other_state_publisher.publish(converted_msg)
-
+        self.publish_telematics(converted_msg, self.other_telem_publisher)
 
     def convert_SC_state(self, msg):
         """
@@ -65,6 +104,15 @@ class BuggyStateConverter(Node):
 
         converted_msg = Odometry()
         converted_msg.header = msg.header
+
+        # Header timestamps/frame_id are overwritten to track control stack latency
+        ns = time.time_ns()
+
+        # Arbitrary frame_id firmware timestamp for INS sourced data
+        converted_msg.header.frame_id = "0"
+
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Convert ECEF Position to UTM Coordinates ----
         ecef_x = msg.pose.pose.position.x
@@ -94,7 +142,6 @@ class BuggyStateConverter(Node):
         converted_msg.pose.covariance = msg.pose.covariance
         converted_msg.twist.covariance = msg.twist.covariance
 
-
         # ---- 4. Copy Linear/Angular Velocities (Unchanged) ----
         converted_msg.twist.twist = msg.twist.twist
 
@@ -108,6 +155,16 @@ class BuggyStateConverter(Node):
 
         converted_msg = Odometry()
         converted_msg.header = msg.header
+
+        # Add software timestamp to header to track control stack latency
+        ns = time.time_ns()
+
+        # frame_id is already set in ros2bnyahaj to firmware timestamp
+
+        # Avoid y2k38 (robobuggy WILL exist in 2038)
+        # this actually throws an error if we try to assign something outside a 32 bit range
+        converted_msg.header.stamp.sec = ((ns // int(1e9)) + 2**31) % 2**32 - 2**31
+        converted_msg.header.stamp.nanosec = ns % int(1e9)
 
         # ---- 1. Directly use UTM Coordinates ----
         converted_msg.pose.pose.position.x = msg.pose.pose.position.x   # UTM Easting
@@ -145,7 +202,7 @@ class BuggyStateConverter(Node):
         """ Converts other/raw_state in SC namespace (NAND data) to clean state units and structure """
         converted_msg = Odometry()
 
-        #No actual changes as the other state is just easting northing, everything else is zeroed
+        # No actual changes as the other state is just easting northing, everything else is zeroed
         converted_msg = msg
 
         return converted_msg

@@ -1,0 +1,9 @@
+<!-- TODO - retire this?, less overhead to just use main+system with vision toggle? -->
+
+<launch>
+    <include file="$(find-pkg-share buggy)/launch/flags.xml" />
+    <arg name="config_file" default="src/buggy/config/sc-roll.yaml"/>
+    <node pkg="buggy" exec="detector_node.py" name="detector" output="screen" namespace="SC">
+        <param from="$(var config_file)"/>
+    </node>
+</launch>

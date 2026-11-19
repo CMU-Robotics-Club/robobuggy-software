@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 
 from nav_msgs.msg import Odometry
 
-
 from util.trajectory import Trajectory
+from util.constants import Constants
 
 class Controller(ABC):
     """
@@ -16,16 +16,15 @@ class Controller(ABC):
     Example schemes include Pure Pursuit, Stanley, and LQR.
     """
 
-    # TODO: move this to a constants class
-    NAND_WHEELBASE = 1.3
-    SC_WHEELBASE = 1.104
-
     def __init__(self, start_index: int, namespace : str, node) -> None:
         self.namespace = namespace
-        if namespace.upper() == '/NAND':
-            Controller.WHEELBASE = self.NAND_WHEELBASE
+        if namespace.upper() == '/SC':
+            Controller.WHEELBASE = Constants.WHEELBASE_SC
+        elif namespace.upper() == '/NAND':
+            Controller.WHEELBASE = Constants.WHEELBASE_NAND
         else:
-            Controller.WHEELBASE = self.SC_WHEELBASE
+            Controller.WHEELBASE = Constants.WHEELBASE_SC
+            node.get_logger().error("WARNING: NAMESPACE NOT RECOGNIZED: " + namespace + ". DEFAULTING TO SC WHEELBASE")
 
         self.current_traj_index = start_index
         self.node = node

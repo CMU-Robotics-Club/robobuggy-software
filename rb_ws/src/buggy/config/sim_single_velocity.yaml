@@ -16,6 +16,7 @@ SC:
       dist: 0.0
       # traj_name: "buggycourse_safe.json"
       controller: "stanley"
+      debugHeadingTopic: "debug/heading"
 
 SC:
   SC_path_planner:
